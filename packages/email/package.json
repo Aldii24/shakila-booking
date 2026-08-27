@@ -1,0 +1,17 @@
+{
+  "name": "@booking/email",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "lint": "eslint src --max-warnings 0", "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" },
+  "dependencies": {
+    "@booking/database": "*",
+    "@booking/validation": "*",
+    "@react-email/render": "^2.0.0",
+    "drizzle-orm": "^0.45.1",
+    "react": "19.2.8",
+    "resend": "^6.0.0"
+  },
+  "devDependencies": { "@repo/eslint-config": "*", "@repo/typescript-config": "*", "@types/react": "19.2.18", "eslint": "10.9.1", "typescript": "6.0.2", "vitest": "^4.1.11" }
+}

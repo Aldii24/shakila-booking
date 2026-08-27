@@ -1,0 +1,10 @@
+{
+  "name": "@booking/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "lint": "eslint src --max-warnings 0", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": { "@booking/validation": "*" },
+  "devDependencies": { "@repo/eslint-config": "*", "@repo/typescript-config": "*", "@types/node": "26.3.0", "eslint": "10.9.1", "typescript": "6.0.2", "vitest": "^4.1.11" }
+}

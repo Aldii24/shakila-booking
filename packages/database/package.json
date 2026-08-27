@@ -1,0 +1,32 @@
+{
+  "name": "@booking/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate.ts",
+    "db:seed": "tsx src/seed.ts",
+    "db:verify": "tsx src/verify.ts",
+    "lint": "eslint src drizzle.config.ts --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "drizzle-kit": "^0.31.8",
+    "eslint": "10.9.1",
+    "tsx": "^4.21.0",
+    "typescript": "6.0.2",
+    "vitest": "^4.1.11"
+  }
+}

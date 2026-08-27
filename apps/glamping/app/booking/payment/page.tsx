@@ -1,0 +1,2 @@
+import {PaymentPage} from "@/components/booking-flow";import {Footer,Header} from "@/components/site-chrome";
+export default async function Page({searchParams}:{searchParams:Promise<{bookingCode?:string}>}){const {bookingCode=""}=await searchParams;return <><Header/><main className="page-shell"><div className="page-intro"><p className="eyebrow">Amankan perjalanan</p><h1>Pembayaran DP.</h1></div><PaymentPage bookingCode={bookingCode}/></main><Footer/></>}

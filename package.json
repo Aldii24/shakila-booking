@@ -2,20 +2,29 @@
   "name": "booking-demo",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "build": "node --env-file-if-exists=.env.local node_modules/turbo/bin/turbo run build",
+    "dev": "node --env-file-if-exists=.env.local node_modules/turbo/bin/turbo run dev",
+    "lint": "node --env-file-if-exists=.env.local node_modules/turbo/bin/turbo run lint",
+    "typecheck": "node --env-file-if-exists=.env.local node_modules/turbo/bin/turbo run typecheck",
+    "test": "node --env-file-if-exists=.env.local node_modules/turbo/bin/turbo run test",
+    "db:generate": "npm run db:generate --workspace @booking/database",
+    "db:migrate": "node --env-file-if-exists=.env.local node_modules/tsx/dist/cli.mjs packages/database/src/migrate.ts",
+    "db:seed": "node --env-file-if-exists=.env.local node_modules/tsx/dist/cli.mjs packages/database/src/seed.ts",
+    "db:verify": "node --env-file-if-exists=.env.local node_modules/tsx/dist/cli.mjs packages/database/src/verify.ts",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "check-types": "node --env-file-if-exists=.env.local node_modules/turbo/bin/turbo run typecheck"
   },
   "devDependencies": {
+    "@types/node": "^22.20.1",
     "prettier": "3.9.6",
     "turbo": "^2.10.11",
-    "typescript": "7.0.2"
+    "typescript": "6.0.2",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=24"
   },
+  "packageManager": "npm@11.12.1",
   "devEngines": {
     "packageManager": {
       "name": "npm",

@@ -11,13 +11,18 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@next/eslint-plugin-next": "16.3.2",
+    "@typescript-eslint/scope-manager": "8.68.0",
+    "@typescript-eslint/types": "8.68.0",
+    "@typescript-eslint/visitor-keys": "8.68.0",
     "eslint": "10.9.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-only-warn": "1.2.1",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-turbo": "2.10.11",
     "globals": "17.11.0",
-    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "tinyglobby": "^0.2.15",
+    "ts-api-utils": "^2.5.0",
+    "typescript": "6.0.2",
     "typescript-eslint": "8.68.0"
   }
 }

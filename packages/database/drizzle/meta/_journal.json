@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1787659261600,
+      "tag": "0000_sharp_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787745600000,
+      "tag": "0001_shakila_branding",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787812100220,
+      "tag": "0002_jeep_package_naming",
+      "breakpoints": true
+    }
+  ]
+}

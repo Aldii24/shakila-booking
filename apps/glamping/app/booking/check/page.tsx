@@ -1,0 +1,2 @@
+import {BookingLookup} from "@/components/booking-flow";import {Footer,Header} from "@/components/site-chrome";
+export default function Page(){return <><Header/><main className="page-shell"><div className="page-intro"><p className="eyebrow">Reservasi Anda</p><h1>Cek booking.</h1><p>Untuk menjaga privasi, masukkan kode booking dan email atau WhatsApp yang sama dengan saat reservasi.</p></div><div style={{maxWidth:700}}><BookingLookup/></div></main><Footer/></>}
