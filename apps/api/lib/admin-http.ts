@@ -79,7 +79,10 @@ const createUnitSchema = unitSchema.extend({
 });
 const slotSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
-  departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+  departureTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
   isActive: z.boolean().optional(),
 });
 const createSlotSchema = slotSchema.extend({
@@ -154,7 +157,7 @@ export async function handleAdmin(
         createDemoAdminSession(input.email),
         {
           httpOnly: true,
-          sameSite: "lax",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
           secure: process.env.NODE_ENV === "production",
           path: "/",
           maxAge: 8 * 60 * 60,
@@ -214,8 +217,14 @@ export async function handleAdmin(
           requiresReview: params.has("requiresReview")
             ? params.get("requiresReview") === "true"
             : null,
-          sort: ["createdAt", "paidAt", "requestedAmount", "verifiedAmount"].includes(params.get("sort") ?? "")
-            ? (params.get("sort") as "createdAt" | "paidAt" | "requestedAmount" | "verifiedAmount")
+          sort: [
+            "createdAt",
+            "paidAt",
+            "requestedAmount",
+            "verifiedAmount",
+          ].includes(params.get("sort") ?? "")
+            ? (params.get("sort") as
+                "createdAt" | "paidAt" | "requestedAmount" | "verifiedAmount")
             : "createdAt",
           order: params.get("order") === "asc" ? "asc" : "desc",
           page: Number(params.get("page") ?? 1),
@@ -285,7 +294,9 @@ export async function handleAdmin(
       const catalog = await getAdminCatalog();
       return ok(path.startsWith("glamping") ? catalog.glamping : catalog.jeep);
     }
-    const accommodationUnitsMatch = path.match(/^glamping\/types\/([0-9a-f-]+)\/units$/);
+    const accommodationUnitsMatch = path.match(
+      /^glamping\/types\/([0-9a-f-]+)\/units$/,
+    );
     if (accommodationUnitsMatch && request.method === "GET")
       return ok(await listAdminAccommodationUnits(accommodationUnitsMatch[1]!));
     if (accommodationUnitsMatch && request.method === "POST")
@@ -296,7 +307,9 @@ export async function handleAdmin(
         ),
         201,
       );
-    const accommodationUnitMatch = path.match(/^glamping\/units\/([0-9a-f-]+)$/);
+    const accommodationUnitMatch = path.match(
+      /^glamping\/units\/([0-9a-f-]+)$/,
+    );
     if (accommodationUnitMatch && request.method === "PATCH")
       return ok(
         await updateAdminAccommodationUnit(
@@ -307,10 +320,18 @@ export async function handleAdmin(
     if (path === "jeep/units" && request.method === "GET")
       return ok(await listAdminJeepUnits());
     if (path === "jeep/units" && request.method === "POST")
-      return ok(await createAdminJeepUnit(createUnitSchema.parse(await body(request))), 201);
+      return ok(
+        await createAdminJeepUnit(createUnitSchema.parse(await body(request))),
+        201,
+      );
     const jeepUnitMatch = path.match(/^jeep\/units\/([0-9a-f-]+)$/);
     if (jeepUnitMatch && request.method === "PATCH")
-      return ok(await updateAdminJeepUnit(jeepUnitMatch[1]!, unitSchema.parse(await body(request))));
+      return ok(
+        await updateAdminJeepUnit(
+          jeepUnitMatch[1]!,
+          unitSchema.parse(await body(request)),
+        ),
+      );
     const slotListMatch = path.match(/^jeep\/packages\/([0-9a-f-]+)\/slots$/);
     if (slotListMatch && request.method === "GET")
       return ok(await listAdminDepartureSlots(slotListMatch[1]!));
@@ -324,7 +345,12 @@ export async function handleAdmin(
       );
     const slotMatch = path.match(/^jeep\/slots\/([0-9a-f-]+)$/);
     if (slotMatch && request.method === "PATCH")
-      return ok(await updateAdminDepartureSlot(slotMatch[1]!, slotSchema.parse(await body(request))));
+      return ok(
+        await updateAdminDepartureSlot(
+          slotMatch[1]!,
+          slotSchema.parse(await body(request)),
+        ),
+      );
     const settingMatch = path.match(/^settings\/([0-9a-f-]+)$/);
     if (settingMatch && request.method === "PATCH")
       return ok(
@@ -346,11 +372,12 @@ export async function handleAdmin(
         ["check-in", "check-out", "cancel"].includes(action ?? "") &&
         request.method === "POST"
       ) {
-        const details = action === "cancel"
-          ? cancellationSchema.parse(await body(request))
-          : action === "check-out"
-            ? checkoutSchema.parse(await body(request))
-            : {};
+        const details =
+          action === "cancel"
+            ? cancellationSchema.parse(await body(request))
+            : action === "check-out"
+              ? checkoutSchema.parse(await body(request))
+              : {};
         return ok(
           await adminBookingCommand(
             bookingCode,
