@@ -37,11 +37,18 @@ export const inventoryResourceTypeEnum = pgEnum("inventory_resource_type", ["ACC
 export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", [
   "CREATED", "PENDING", "SUCCESS", "FAILED", "EXPIRED", "CANCELLED", "EXCEPTION",
 ]);
+export const paymentProofStatusEnum = pgEnum("payment_proof_status", [
+  "PENDING", "APPROVED", "REJECTED",
+]);
+export const bookingSourceEnum = pgEnum("booking_source", [
+  "ONLINE", "ADMIN_MANUAL", "WALK_IN",
+]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["PENDING", "GENERATED", "FAILED"]);
 export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "BOOKING_CREATED", "PAYMENT_CREATED", "PAYMENT_FAILED", "PAYMENT_VERIFIED", "PAYMENT_EXCEPTION",
   "BOOKING_CONFIRMED", "BOOKING_EXPIRED", "BOOKING_CANCELLED", "INVOICE_GENERATED", "INVOICE_FAILED",
   "EMAIL_SENT", "EMAIL_FAILED", "CHECKED_IN", "CHECKED_OUT", "INVENTORY_BLOCKED", "INVENTORY_UNBLOCKED",
+  "PAYMENT_PROOF_SUBMITTED", "PAYMENT_PROOF_APPROVED", "PAYMENT_PROOF_REJECTED", "MANUAL_BOOKING_CREATED",
 ]);
 export const eventActorTypeEnum = pgEnum("event_actor_type", [
   "SYSTEM", "CUSTOMER", "ADMIN", "PAYMENT_PROVIDER", "BACKGROUND_JOB",
@@ -65,8 +72,8 @@ export const businesses = pgTable("businesses", {
 export const businessSettings = pgTable("business_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   businessId: uuid("business_id").notNull().references(() => businesses.id),
-  dpPercentage: integer("dp_percentage").notNull().default(30),
-  bookingHoldMinutes: integer("booking_hold_minutes").notNull().default(30),
+  dpPercentage: integer("dp_percentage").notNull().default(50),
+  bookingHoldMinutes: integer("booking_hold_minutes").notNull().default(720),
   defaultCheckInTime: time("default_check_in_time"),
   defaultCheckOutTime: time("default_check_out_time"),
   contactEmail: varchar("contact_email", { length: 254 }).notNull(),
@@ -74,7 +81,7 @@ export const businessSettings = pgTable("business_settings", {
   ...timestamps,
 }, (table) => [
   unique("business_settings_business_id_unique").on(table.businessId),
-  check("business_settings_dp_check", sql`${table.dpPercentage} between 0 and 100`),
+  check("business_settings_dp_check", sql`${table.dpPercentage} between 50 and 100`),
   check("business_settings_hold_check", sql`${table.bookingHoldMinutes} > 0`),
 ]);
 
@@ -158,6 +165,7 @@ export const bookings = pgTable("bookings", {
   businessId: uuid("business_id").notNull().references(() => businesses.id),
   customerId: uuid("customer_id").references(() => customers.id),
   bookingType: bookingTypeEnum("booking_type").notNull(),
+  bookingSource: bookingSourceEnum("booking_source").notNull().default("ONLINE"),
   status: bookingStatusEnum("status").notNull(),
   paymentStatus: paymentStatusEnum("payment_status").notNull(),
   customerName: varchar("customer_name", { length: 120 }).notNull(),
@@ -176,6 +184,8 @@ export const bookings = pgTable("bookings", {
   verifiedPaidAmount: money("verified_paid_amount").notNull().default(0),
   remainingAmount: money("remaining_amount").notNull(),
   specialRequest: text("special_request"),
+  adminNotes: text("admin_notes"),
+  createdByAdminEmail: varchar("created_by_admin_email", { length: 254 }),
   clientIdempotencyKey: uuid("client_idempotency_key"),
   idempotencyFingerprint: varchar("idempotency_fingerprint", { length: 64 }),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
@@ -306,6 +316,29 @@ export const paymentAttempts = pgTable("payment_attempts", {
   unique("payment_attempts_provider_order_unique").on(table.provider, table.providerOrderId),
   uniqueIndex("payment_attempts_provider_transaction_unique").on(table.provider, table.providerTransactionId).where(sql`${table.providerTransactionId} is not null`),
   check("payment_attempts_amount_check", sql`${table.requestedAmount} >= 0 and ${table.verifiedAmount} >= 0`),
+]);
+
+export const paymentProofs = pgTable("payment_proofs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  paymentId: uuid("payment_id").notNull().references(() => payments.id),
+  bookingId: uuid("booking_id").notNull().references(() => bookings.id),
+  paymentAttemptId: uuid("payment_attempt_id").references(() => paymentAttempts.id),
+  status: paymentProofStatusEnum("status").notNull().default("PENDING"),
+  claimedAmount: money("claimed_amount").notNull(),
+  verifiedAmount: money("verified_amount").notNull().default(0),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  fileSize: bigint("file_size", { mode: "number" }).notNull(),
+  fileDataBase64: text("file_data_base64").notNull(),
+  rejectionReason: text("rejection_reason"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  verifiedByAdminEmail: varchar("verified_by_admin_email", { length: 254 }),
+  ...timestamps,
+}, (table) => [
+  index("payment_proofs_booking_idx").on(table.bookingId),
+  index("payment_proofs_status_created_idx").on(table.status, table.createdAt),
+  check("payment_proofs_amount_check", sql`${table.claimedAmount} > 0 and ${table.verifiedAmount} >= 0`),
+  check("payment_proofs_file_size_check", sql`${table.fileSize} > 0 and ${table.fileSize} <= 5242880`),
 ]);
 
 export const invoices = pgTable("invoices", {

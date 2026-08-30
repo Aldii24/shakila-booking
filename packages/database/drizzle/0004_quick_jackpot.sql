@@ -1,0 +1,2 @@
+ALTER TABLE "business_settings" DROP CONSTRAINT "business_settings_dp_check";--> statement-breakpoint
+ALTER TABLE "business_settings" ADD CONSTRAINT "business_settings_dp_check" CHECK ("business_settings"."dp_percentage" between 50 and 100);

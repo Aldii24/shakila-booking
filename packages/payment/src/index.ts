@@ -7,6 +7,7 @@ import { getIntegrationMode } from "@booking/validation";
 import { initiateDemoPayment } from "./demo";
 
 export { completeDemoPayment, failDemoPayment, initiateDemoPayment } from "./demo";
+export * from "./manual";
 
 const rows = <T>(value: unknown) => value as T[];
 

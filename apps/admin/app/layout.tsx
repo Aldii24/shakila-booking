@@ -9,8 +9,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Booking Admin",
+  title: "Shakila Group Admin",
   description: "Central booking administration",
+  icons: { icon: "/shakila-logo-transparent.png", apple: "/shakila-logo-transparent.png" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

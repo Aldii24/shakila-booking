@@ -2,6 +2,13 @@ import type { BookingStatus } from "@booking/contracts";
 import { DomainError } from "./errors";
 
 const DAY_MS = 86_400_000;
+export const PAYMENT_DEADLINE_MINUTES = 12 * 60;
+
+export function bookingExpiration(now = new Date(), minutes = PAYMENT_DEADLINE_MINUTES): Date {
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > PAYMENT_DEADLINE_MINUTES)
+    throw new DomainError("VALIDATION_ERROR", "Payment deadline must be between 1 minute and 12 hours.");
+  return new Date(now.getTime() + minutes * 60_000);
+}
 
 export function calculateDp(totalAmount: number, dpPercentage: number): number {
   if (!Number.isSafeInteger(totalAmount) || totalAmount < 0 || !Number.isInteger(dpPercentage) || dpPercentage < 0 || dpPercentage > 100) {

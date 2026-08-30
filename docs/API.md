@@ -1,5 +1,7 @@
 # API Specification
 
+> **Client revision — 30 August 2026:** Customer `POST /public/bookings/:bookingCode/payments` submits a JPG/JPEG/PNG proof and claimed amount; it does not initiate a gateway. Admin endpoints list proofs, securely stream proof images, approve with a verified amount, or reject with a required reason. `POST /admin/bookings/manual` creates `ADMIN_MANUAL`/`WALK_IN` bookings via the shared allocator. Pakasir endpoints/code may remain dormant for reuse but are not part of the active demo flow.
+
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 
 > **Revision note:** public month availability and authenticated catalog/fleet

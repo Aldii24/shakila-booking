@@ -6,4 +6,5 @@ export * from "./core";
 export * from "./creation";
 export * from "./errors";
 export * from "./lifecycle";
+export * from "./manual";
 export * from "./public-queries";

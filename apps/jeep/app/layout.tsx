@@ -10,6 +10,7 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 export const metadata: Metadata = {
   title: {default:"Shakila Jeep Tour",template:"%s · Shakila Jeep Tour"},
   description: "Tur Jeep premium dengan perjalanan fajar dan petualangan privat.",
+  icons: { icon: "/shakila-logo-transparent.png", apple: "/shakila-logo-transparent.png" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

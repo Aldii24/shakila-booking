@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { api, message, rupiah } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PositiveNumberInput } from "@/components/ui/positive-number-input";
 
 type Inventory = {
   productSlug: string;
@@ -144,7 +144,7 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
         <aside className="day-panel">
           <div><p className="eyebrow">Pilihan Anda</p><h3>{checkIn ? new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${checkIn}T00:00:00Z`)) : "Pilih tanggal check-in"}</h3><p>{checkOut ? `Sampai ${new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${checkOut}T00:00:00Z`))}` : checkIn ? "Pilih tanggal check-out, atau lanjut untuk 1 malam." : "Jumlah unit tersedia terlihat langsung pada setiap tanggal."}</p></div>
           <div className="availability-options">{(detail?.inventory ?? []).map((item) => <Button variant="outline" key={item.productSlug} disabled={!item.availableUnits} className={selectedType === item.productSlug ? "selected" : ""} onClick={() => { setSelectedType(item.productSlug); setQuantity(1); }}><span><b>{item.productName}</b><small>{rupiah(item.unitPrice)} / malam · {item.capacityPerUnit} tamu</small></span><strong>{item.availableUnits ? `${item.availableUnits} unit tersedia` : "Penuh"}</strong></Button>)}</div>
-          <div className="selection-controls"><label>Jumlah unit<Input type="number" min="1" value={quantity} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))} /></label><label>Jumlah tamu<Input type="number" min="1" value={guests} onChange={(event) => setGuests(Math.max(1, Number(event.target.value)))} /></label></div>
+          <div className="selection-controls"><label>Jumlah unit<PositiveNumberInput value={quantity} onValueChange={setQuantity} /></label><label>Jumlah tamu<PositiveNumberInput value={guests} onValueChange={setGuests} /></label></div>
           <Button className="button continue-button" disabled={!checkIn || !selectedType || continuing} onClick={() => void continueBooking()}>{continuing ? "Memvalidasi inventory…" : "Lanjut isi data tamu"}<ArrowRight /></Button>
         </aside>
       </div>

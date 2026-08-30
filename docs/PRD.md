@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD)
 
+> **Client revision — 30 August 2026:** Demo v1 now uses manual bank transfer, customer payment-proof upload, and Admin approval/rejection. The minimum DP is 50%, the authoritative payment deadline is 12 hours, and paid DP is forfeited when a customer cancels. Admin may create `ADMIN_MANUAL` and `WALK_IN` bookings through the same booking/inventory engine. The accommodation experience may present a clearly labelled mock Homestay catalog while final client data is pending. These revision requirements supersede older Pakasir, 30% DP, 30-minute hold, and separate-brand statements below.
+
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 
 > **Brand revision:** the parent identity is **Shakila Group**. Customer brands are

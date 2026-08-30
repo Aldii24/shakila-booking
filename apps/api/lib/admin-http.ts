@@ -12,6 +12,7 @@ import {
   createAdminJeepUnit,
   createAdminProduct,
   createInventoryBlock,
+  createAdminManualBooking,
   getAdminBooking,
   getAdminCalendar,
   getAdminCatalog,
@@ -32,11 +33,18 @@ import {
   updateAdminSettings,
   DomainError,
 } from "@booking/booking";
+import {
+  approveManualPaymentProof,
+  getPaymentProofFile,
+  listPaymentProofs,
+  rejectManualPaymentProof,
+} from "@booking/payment";
 import { renderBookingConfirmationPreview } from "@booking/email";
 import { getDirectInvoicePdf, getInvoiceDownload } from "@booking/invoice";
 import { getIntegrationMode } from "@booking/validation";
 import { z } from "zod";
 import { body, failure, ok } from "./http";
+import { completePostPayment } from "./post-payment";
 
 const loginSchema = z.object({
   email: z.email(),
@@ -90,8 +98,8 @@ const createSlotSchema = slotSchema.extend({
   departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
 });
 const settingsSchema = z.object({
-  dpPercentage: z.number().int().min(0).max(100).optional(),
-  bookingHoldMinutes: z.number().int().min(1).max(1440).optional(),
+  dpPercentage: z.number().int().min(50).max(100).optional(),
+  bookingHoldMinutes: z.number().int().min(1).max(720).optional(),
   contactEmail: z.email().optional(),
   contactPhone: z.string().min(8).max(32).optional(),
 });
@@ -99,6 +107,37 @@ const cancellationSchema = z.object({
   reason: z.string().trim().min(2).max(80),
   note: z.string().trim().max(2000).optional(),
 });
+const manualCustomerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  email: z.email().optional().or(z.literal("")),
+  whatsapp: z.string().trim().min(8).max(32),
+});
+const manualBaseSchema = z.object({
+  source: z.enum(["ADMIN_MANUAL", "WALK_IN"]),
+  customer: manualCustomerSchema,
+  specialRequest: z.string().trim().max(1000).optional().nullable(),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  paymentState: z.enum(["UNPAID", "PARTIALLY_PAID", "PAID"]),
+  amountReceived: z.number().int().nonnegative(),
+});
+const manualBookingSchema = z.discriminatedUnion("business", [
+  manualBaseSchema.extend({
+    business: z.literal("glamping"),
+    reservation: z.object({
+      productSlug: z.string().min(1), checkInDate: z.iso.date(), checkOutDate: z.iso.date(),
+      quantity: z.number().int().positive(), guestCount: z.number().int().positive(),
+    }),
+  }),
+  manualBaseSchema.extend({
+    business: z.literal("jeep"),
+    reservation: z.object({
+      packageSlug: z.string().min(1), tourDate: z.iso.date(), departureSlotId: z.uuid(),
+      quantity: z.number().int().positive(), guestCount: z.number().int().positive(),
+    }),
+  }),
+]);
+const approveProofSchema = z.object({ verifiedAmount: z.number().int().positive() });
+const rejectProofSchema = z.object({ reason: z.string().trim().min(3).max(500) });
 
 function cookie(request: Request, name: string) {
   return request.headers
@@ -204,6 +243,12 @@ export async function handleAdmin(
           pageSize: Number(params.get("pageSize") ?? 20),
         }),
       );
+    if (path === "bookings/manual" && request.method === "POST")
+      return ok(await createAdminManualBooking(manualBookingSchema.parse(await body(request)), session.email), 201);
+    if (path === "payment-proofs" && request.method === "GET") {
+      const status = params.get("status");
+      return ok(await listPaymentProofs(status === "PENDING" || status === "APPROVED" || status === "REJECTED" ? status : null));
+    }
     if (path === "payments" && request.method === "GET")
       return ok(
         await listAdminPayments({
@@ -359,6 +404,23 @@ export async function handleAdmin(
           settingsSchema.parse(await body(request)),
         ),
       );
+
+    const proofFileMatch = path.match(/^payment-proofs\/([0-9a-f-]+)\/file$/);
+    if (proofFileMatch && request.method === "GET") {
+      const proof = await getPaymentProofFile(proofFileMatch[1]!);
+      return new Response(Buffer.from(proof.fileDataBase64, "base64"), {
+        headers: { "content-type": proof.mimeType, "content-disposition": `inline; filename="${proof.fileName.replaceAll('"', '')}"`, "cache-control": "private, no-store" },
+      });
+    }
+    const proofActionMatch = path.match(/^payment-proofs\/([0-9a-f-]+)\/(approve|reject)$/);
+    if (proofActionMatch && request.method === "POST") {
+      if (proofActionMatch[2] === "approve") {
+        const result = await approveManualPaymentProof(proofActionMatch[1]!, approveProofSchema.parse(await body(request)).verifiedAmount, session.email);
+        const postPayment = result.status === "CONFIRMED" && !result.duplicate ? await completePostPayment(result.bookingId) : null;
+        return ok({ ...result, postPayment });
+      }
+      return ok(await rejectManualPaymentProof(proofActionMatch[1]!, rejectProofSchema.parse(await body(request)).reason, session.email));
+    }
 
     const bookingMatch = path.match(/^bookings\/([^/]+)(?:\/(.*))?$/);
     if (bookingMatch) {

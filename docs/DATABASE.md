@@ -1,5 +1,7 @@
 # Database Design
 
+> **Client revision — 30 August 2026:** Add append-only `payment_proofs` audit records with claimed/verified amount, persistent demo-safe file data, review status, rejection reason, timestamps, and reviewing Admin identity. Add booking source (`ONLINE`, `ADMIN_MANUAL`, `WALK_IN`) and internal manual-booking notes. Existing booking price/payment snapshots remain unchanged; migration updates only current business settings to minimum 50% DP, 720-minute deadline, and accommodation times 13:00/12:00. No destructive reset is permitted.
+
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 
 **Document:** `DATABASE.md`  

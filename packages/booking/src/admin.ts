@@ -71,7 +71,7 @@ export async function listAdminBookings(
   const where = sql`where (${filters.business ?? null}::text is null or bu.slug=${filters.business ?? null}) and (${filters.status ?? null}::text is null or b.status::text=${filters.status ?? null}) and (${filters.paymentStatus ?? null}::text is null or b.payment_status::text=${filters.paymentStatus ?? null}) and (${filters.dateFrom ?? null}::date is null or coalesce(g.check_in_date,j.tour_date)>=${filters.dateFrom ?? null}::date) and (${filters.dateTo ?? null}::date is null or coalesce(g.check_in_date,j.tour_date)<=${filters.dateTo ?? null}::date) and (${search}::text is null or b.booking_code ilike ${search ? `%${search}%` : null} or b.customer_name ilike ${search ? `%${search}%` : null} or b.customer_email ilike ${search ? `%${search}%` : null} or b.customer_whatsapp ilike ${search ? `%${search}%` : null})`;
   const items = rows<Record<string, unknown>>(
     await database.execute(sql`
-    select b.id,b.booking_code as "bookingCode",bu.slug as business,bu.name as "businessName",b.booking_type as "bookingType",b.status,b.payment_status as "paymentStatus",b.customer_name as "customerName",b.customer_email as "customerEmail",b.customer_whatsapp as "customerWhatsapp",coalesce(g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(g.check_in_date,j.tour_date)::text as "startDate",g.check_out_date::text as "endDate",j.departure_time_snapshot::text as "departureTime",b.quantity,b.guest_count as "guestCount",b.total_amount::int as "totalAmount",b.verified_paid_amount::int as "verifiedPaidAmount",b.remaining_amount::int as "remainingAmount",b.requires_review as "requiresReview",b.expires_at::text as "expiresAt",b.created_at::text as "createdAt"
+    select b.id,b.booking_code as "bookingCode",bu.slug as business,bu.name as "businessName",b.booking_type as "bookingType",b.booking_source as "bookingSource",b.admin_notes as "adminNotes",b.status,b.payment_status as "paymentStatus",b.customer_name as "customerName",b.customer_email as "customerEmail",b.customer_whatsapp as "customerWhatsapp",coalesce(g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(g.check_in_date,j.tour_date)::text as "startDate",g.check_out_date::text as "endDate",j.departure_time_snapshot::text as "departureTime",b.quantity,b.guest_count as "guestCount",b.total_amount::int as "totalAmount",b.dp_percentage as "dpPercentage",b.required_dp_amount::int as "requiredDpAmount",b.verified_paid_amount::int as "verifiedPaidAmount",b.remaining_amount::int as "remainingAmount",b.requires_review as "requiresReview",b.expires_at::text as "expiresAt",b.created_at::text as "createdAt"
     from bookings b join businesses bu on bu.id=b.business_id left join glamping_booking_details g on g.booking_id=b.id left join jeep_booking_details j on j.booking_id=b.id ${where} order by b.created_at desc limit ${pageSize} offset ${offset}
   `),
   );
@@ -388,7 +388,7 @@ export async function getAdminCatalog(database: BookingDatabase = getDb()) {
       sql`select s.id,bu.slug as business,bu.timezone,s.dp_percentage as "dpPercentage",s.booking_hold_minutes as "bookingHoldMinutes",s.contact_email as "contactEmail",s.contact_phone as "contactPhone",s.default_check_in_time::text as "checkInTime",s.default_check_out_time::text as "checkOutTime" from business_settings s join businesses bu on bu.id=s.business_id order by bu.slug`,
     ),
     database.execute(
-      sql`select id,name,departure_time::text as "departureTime",is_active as "isActive" from jeep_departure_slots order by departure_time`,
+      sql`select id,jeep_package_id as "jeepPackageId",name,departure_time::text as "departureTime",is_active as "isActive" from jeep_departure_slots order by departure_time`,
     ),
   ]);
   return {
@@ -607,6 +607,10 @@ export async function updateAdminSettings(
   },
   database: BookingDatabase = getDb(),
 ) {
+  if (input.dpPercentage !== undefined && (input.dpPercentage < 50 || input.dpPercentage > 100))
+    throw new DomainError("VALIDATION_ERROR", "DP percentage must be between 50 and 100.", 400);
+  if (input.bookingHoldMinutes !== undefined && (input.bookingHoldMinutes < 1 || input.bookingHoldMinutes > 720))
+    throw new DomainError("VALIDATION_ERROR", "Payment deadline cannot exceed 12 hours.", 400);
   const result = rows<Record<string, unknown>>(
     await database.execute(
       sql`update business_settings set dp_percentage=coalesce(${input.dpPercentage ?? null},dp_percentage),booking_hold_minutes=coalesce(${input.bookingHoldMinutes ?? null},booking_hold_minutes),contact_email=coalesce(${input.contactEmail ?? null},contact_email),contact_phone=coalesce(${input.contactPhone ?? null},contact_phone),updated_at=now() where id=${id}::uuid returning id,dp_percentage as "dpPercentage",booking_hold_minutes as "bookingHoldMinutes"`,

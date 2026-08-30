@@ -4,7 +4,7 @@ import type { CreateBookingRequest, QuoteRequest } from "@booking/contracts";
 import { getDb, type BookingDatabase } from "@booking/database";
 import { normalizeEmail, normalizeWhatsApp } from "@booking/validation";
 import { assertCapacity, assertReservationDate, getAccommodationProduct, getJeepProduct } from "./availability";
-import { assertJeepDepartureOpen, businessDate, calculateDp, calculateGlampingPrice, calculateJeepPrice } from "./core";
+import { assertJeepDepartureOpen, bookingExpiration, businessDate, calculateDp, calculateGlampingPrice, calculateJeepPrice } from "./core";
 import { DomainError, isIdempotencyConstraintError, isInventoryConstraintError } from "./errors";
 
 type Tx = Parameters<Parameters<BookingDatabase["transaction"]>[0]>[0];
@@ -14,7 +14,7 @@ const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringi
 
 async function settings(slug: string, database: BookingDatabase) {
   const rows = await database.execute(sql<{ id: string; code: string; timezone: string; dp_percentage: number; booking_hold_minutes: number }>`
-    select b.id, b.code, b.timezone, s.dp_percentage, s.booking_hold_minutes
+    select b.id, b.code, b.timezone, greatest(s.dp_percentage,50) as dp_percentage, least(s.booking_hold_minutes,720) as booking_hold_minutes
     from businesses b join business_settings s on s.business_id = b.id
     where b.slug = ${slug} and b.is_active = true limit 1
   `) as unknown as { id: string; code: string; timezone: string; dp_percentage: number; booking_hold_minutes: number }[];
@@ -88,7 +88,7 @@ export async function createGlampingBooking(input: Extract<CreateBookingRequest,
       `) as unknown as {id:string}[];
       if (units.length !== input.reservation.quantity) throw new DomainError("INVENTORY_NOT_AVAILABLE", "Requested accommodation inventory is not available.", 409);
       const owner = await customer(tx, input.customer); const code = await bookingCode(tx, config.code, config.timezone);
-      const dp = calculateDp(price.totalAmount, config.dp_percentage); const expiresAt = new Date(Date.now() + config.booking_hold_minutes * 60_000);
+      const dp = calculateDp(price.totalAmount, config.dp_percentage); const expiresAt = bookingExpiration(new Date(), config.booking_hold_minutes);
       const created = await tx.execute(sql<{ id: string }>`insert into bookings (booking_code,business_id,customer_id,booking_type,status,payment_status,customer_name,customer_email,customer_whatsapp,customer_email_normalized,customer_whatsapp_normalized,guest_count,quantity,subtotal_amount,total_amount,dp_percentage,required_dp_amount,remaining_amount,special_request,client_idempotency_key,idempotency_fingerprint,expires_at) values (${code},${config.id}::uuid,${owner.id}::uuid,'ACCOMMODATION','WAITING_PAYMENT','UNPAID',${input.customer.fullName},${input.customer.email},${input.customer.whatsapp},${owner.email},${owner.whatsapp},${input.reservation.guestCount},${input.reservation.quantity},${price.subtotalAmount},${price.totalAmount},${config.dp_percentage},${dp},${price.totalAmount},${input.specialRequest ?? null},${idempotencyKey}::uuid,${requestFingerprint},${expiresAt.toISOString()}::timestamptz) returning id`) as unknown as {id:string}[];
       const bookingId = created[0]!.id;
       await tx.execute(sql`insert into glamping_booking_details (booking_id,accommodation_type_id,check_in_date,check_out_date,night_count,product_name_snapshot,unit_price_snapshot,capacity_snapshot) values (${bookingId}::uuid,${product.id}::uuid,${input.reservation.checkInDate}::date,${input.reservation.checkOutDate}::date,${price.nightCount},${product.name},${product.basePrice},${product.capacityPerUnit})`);
@@ -117,7 +117,7 @@ export async function createJeepBooking(input: Extract<CreateBookingRequest, { b
       const price = calculateJeepPrice(row.package.pricePerUnit, input.reservation.quantity);
       const units = await tx.execute(sql<{ id: string }>`select ju.id from jeep_units ju where ju.business_id=${config.id}::uuid and ju.is_active and not exists (select 1 from jeep_unit_reservations r where r.jeep_unit_id=ju.id and r.tour_date=${input.reservation.tourDate}::date and r.departure_slot_id=${row.slot.id}::uuid and r.state in ('HELD','CONFIRMED','IN_USE')) and not exists (select 1 from inventory_blocks b where b.jeep_unit_id=ju.id and b.removed_at is null and b.start_date=${input.reservation.tourDate}::date and (b.departure_slot_id is null or b.departure_slot_id=${row.slot.id}::uuid)) order by ju.code for update of ju skip locked limit ${input.reservation.quantity}`) as unknown as {id:string}[];
       if (units.length !== input.reservation.quantity) throw new DomainError("INVENTORY_NOT_AVAILABLE", "Requested Jeep inventory is not available.", 409);
-      const owner = await customer(tx, input.customer); const code = await bookingCode(tx, config.code, config.timezone); const dp = calculateDp(price.totalAmount, config.dp_percentage); const expiresAt = new Date(Date.now() + config.booking_hold_minutes * 60_000);
+      const owner = await customer(tx, input.customer); const code = await bookingCode(tx, config.code, config.timezone); const dp = calculateDp(price.totalAmount, config.dp_percentage); const expiresAt = bookingExpiration(new Date(), config.booking_hold_minutes);
       const created = await tx.execute(sql<{ id: string }>`insert into bookings (booking_code,business_id,customer_id,booking_type,status,payment_status,customer_name,customer_email,customer_whatsapp,customer_email_normalized,customer_whatsapp_normalized,guest_count,quantity,subtotal_amount,total_amount,dp_percentage,required_dp_amount,remaining_amount,special_request,client_idempotency_key,idempotency_fingerprint,expires_at) values (${code},${config.id}::uuid,${owner.id}::uuid,'JEEP','WAITING_PAYMENT','UNPAID',${input.customer.fullName},${input.customer.email},${input.customer.whatsapp},${owner.email},${owner.whatsapp},${input.reservation.guestCount},${input.reservation.quantity},${price.subtotalAmount},${price.totalAmount},${config.dp_percentage},${dp},${price.totalAmount},${input.specialRequest ?? null},${idempotencyKey}::uuid,${requestFingerprint},${expiresAt.toISOString()}::timestamptz) returning id`) as unknown as {id:string}[];
       const bookingId=created[0]!.id;
       await tx.execute(sql`insert into jeep_booking_details (booking_id,jeep_package_id,departure_slot_id,tour_date,package_name_snapshot,unit_price_snapshot,capacity_snapshot,departure_time_snapshot) values (${bookingId}::uuid,${row.package.id}::uuid,${row.slot.id}::uuid,${input.reservation.tourDate}::date,${row.package.name},${row.package.pricePerUnit},${row.package.capacityPerUnit},${row.slot.departureTime})`);

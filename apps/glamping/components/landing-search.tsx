@@ -7,7 +7,7 @@ import { CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
+import { PositiveNumberInput } from "@/components/ui/positive-number-input";
 import {
   Popover,
   PopoverContent,
@@ -105,14 +105,10 @@ export function GlampingLandingSearch() {
       />
       <label>
         Tamu
-        <Input
+        <PositiveNumberInput
           className="landing-number"
-          type="number"
-          min="1"
           value={guests}
-          onChange={(event) =>
-            setGuests(Math.max(1, Number(event.target.value)))
-          }
+          onValueChange={setGuests}
           required
         />
       </label>

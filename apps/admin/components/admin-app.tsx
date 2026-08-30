@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   FormEvent,
@@ -8,10 +9,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import {
   BedDouble,
+  Bell,
   Building2,
   CalendarDays,
   CarFront,
@@ -249,7 +252,7 @@ function LoginContent({
     <main className="login-page">
       <section className="login-brand">
         <div>
-          <span className="login-monogram">SG</span>
+          <Image className="login-logo" src="/shakila-logo-transparent.png" alt="Shakila" width={180} height={120} priority />
           <p className="section-kicker">SHAKILA GROUP ADMIN</p>
           <h1>
             One group.
@@ -324,7 +327,7 @@ export function AdminApp(props: { view: View; id?: string }) {
 
 function AdminWorkspace({ view, id }: { view: View; id?: string }) {
   const router = useRouter();
-  const { t } = useAdminLanguage();
+  const { language, t } = useAdminLanguage();
   const { business } = useAdminBusiness();
   const [authenticated, setAuthenticated] = useState(false),
     [ready, setReady] = useState(false),
@@ -346,8 +349,7 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
     if (view === "bookings")
       return `/bookings?${queryString({ business, search, status, paymentStatus, dateFrom, dateTo, page, pageSize: 20 })}`;
     if (view === "booking") return `/bookings/${encodeURIComponent(id ?? "")}`;
-    if (view === "payments")
-      return `/payments?${queryString({ business, search, status, method, dateFrom, dateTo, requiresReview: reviewOnly ? true : null, sort, order: "desc", page, pageSize: 20 })}`;
+    if (view === "payments") return "/payment-proofs";
     if (view === "customers") return `/customers?${queryString({ search })}`;
     if (view === "customer") return `/customers/${id}`;
     if (view === "calendar") {
@@ -364,12 +366,9 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
     dateFrom,
     dateTo,
     id,
-    method,
     page,
     paymentStatus,
-    reviewOnly,
     search,
-    sort,
     status,
     view,
   ]);
@@ -428,12 +427,6 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
     <>
       <PageHeader view={view} />
       {view === "bookings" ? <BookingFilters filters={filters} /> : null}
-      {view === "payments" ? (
-        <PaymentFilters
-          filters={filters}
-          methods={(data as PageData | null)?.methods ?? []}
-        />
-      ) : null}
       {view === "customers" ? (
         <SimpleSearch value={search} onChange={setSearch} />
       ) : null}
@@ -447,6 +440,11 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
       ) : null}
       {loading ? (
         <PageSkeleton />
+      ) : data == null ? (
+        <EmptyState
+          title={language === "id" ? "Data belum dapat dimuat" : "Data could not be loaded"}
+          description={language === "id" ? "Periksa koneksi API lalu coba lagi." : "Check the API connection and try again."}
+        />
       ) : (
         <ViewContent
           view={view}
@@ -485,7 +483,7 @@ function AdminSidebar() {
   return (
     <Sidebar className="admin-sidebar" collapsible="offcanvas">
       <SidebarHeader className="sidebar-brand">
-          <span className="brand-mark">SG</span>
+          <Image className="admin-logo" src="/shakila-logo-transparent.png" alt="Shakila" width={86} height={58} />
           <div>
             <strong>{t("brand.parent")}</strong>
             <small>{t("brand.admin")}</small>
@@ -544,6 +542,10 @@ function AdminTopbar() {
   const { language, setLanguage, t } = useAdminLanguage();
   const { business, setBusiness } = useAdminBusiness();
   const { toggleSidebar } = useSidebar();
+  const [proofCount,setProofCount]=useState(0),[toast,setToast]=useState("");
+  const lastCount=useRef<number|null>(null),audioReady=useRef(false);
+  useEffect(()=>{const enable=()=>{audioReady.current=true};window.addEventListener("pointerdown",enable,{once:true});return()=>window.removeEventListener("pointerdown",enable)},[]);
+  useEffect(()=>{let active=true;const poll=async()=>{try{const proofs=await adminApi<Row[]>("/payment-proofs?status=PENDING");if(!active)return;const count=proofs.length;if(lastCount.current!==null&&count>lastCount.current){setToast(`${count-lastCount.current} bukti pembayaran baru menunggu verifikasi.`);window.setTimeout(()=>setToast(""),4500);if(audioReady.current){const context=new AudioContext(),oscillator=context.createOscillator(),gain=context.createGain();oscillator.frequency.setValueAtTime(740,context.currentTime);gain.gain.setValueAtTime(.0001,context.currentTime);gain.gain.exponentialRampToValueAtTime(.12,context.currentTime+.01);gain.gain.exponentialRampToValueAtTime(.0001,context.currentTime+.28);oscillator.connect(gain).connect(context.destination);oscillator.start();oscillator.stop(context.currentTime+.3);oscillator.onended=()=>void context.close()}}lastCount.current=count;setProofCount(count)}catch{if(active)setProofCount(lastCount.current??0)}};void poll();const timer=window.setInterval(()=>void poll(),15000);return()=>{active=false;window.clearInterval(timer)}},[]);
   return (
         <header className="topbar">
           <Button
@@ -598,14 +600,9 @@ function AdminTopbar() {
                 </ShadcnSelect>
               </div>
             </label>
-            <span className="admin-profile">
-              <span className="avatar">DA</span>
-              <span>
-                <strong>Demo Admin</strong>
-                <small>Shakila Group</small>
-              </span>
-            </span>
+            <Link className="notification-bell" href="/payments" aria-label={`${proofCount} bukti pembayaran menunggu verifikasi`}><Bell/>{proofCount>0?<span>{proofCount}</span>:null}</Link>
           </div>
+          {toast?<div className="admin-toast" role="status"><Bell/><div><strong>Pembayaran baru</strong><span>{toast}</span></div></div>:null}
         </header>
   );
 }
@@ -847,6 +844,7 @@ function PaymentFilters({
     </FilterShell>
   );
 }
+void PaymentFilters;
 function SimpleSearch({
   value,
   onChange,
@@ -913,11 +911,11 @@ function ViewContent({
 }) {
   if (view === "dashboard") return <Dashboard data={data as Row} />;
   if (view === "bookings")
-    return <Bookings data={data as PageData} onPage={onPage} />;
+    return <Bookings data={data as PageData} onPage={onPage} reload={reload} />;
   if (view === "booking")
     return <BookingDetail booking={data as Row} reload={reload} />;
   if (view === "payments")
-    return <Payments data={data as PageData} onPage={onPage} />;
+    return <PaymentProofVerification rows={data as Row[]} reload={reload} />;
   if (view === "customers") return <Customers rows={data as Row[]} />;
   if (view === "customer") return <Customer item={data as Row} />;
   if (view === "calendar")
@@ -1118,15 +1116,18 @@ function BookingRows({
 function Bookings({
   data,
   onPage,
+  reload,
 }: {
   data: PageData;
   onPage: (page: number) => void;
+  reload: () => Promise<void>;
 }) {
   const { language, t } = useAdminLanguage();
   const start = data.total ? (data.page - 1) * data.pageSize + 1 : 0,
     end = Math.min(data.page * data.pageSize, data.total);
+  const [manualOpen,setManualOpen]=useState(false);
   return (
-    <Card>
+    <><div className="catalog-actions"><div><strong>Booking online &amp; operasional</strong><span>Semua sumber memakai inventory yang sama.</span></div><Button onClick={()=>setManualOpen(true)}><Plus/> Tambah Booking Manual</Button></div><Card>
       <div className="card-title">
         <h2>
           {data.total} {language === "id" ? "booking" : "bookings"}
@@ -1146,8 +1147,16 @@ function Bookings({
         next={t("common.next")}
         onPage={onPage}
       />
-    </Card>
+    </Card><ManualBookingDialog open={manualOpen} onClose={()=>setManualOpen(false)} onCreated={reload}/></>
   );
+}
+
+function ManualBookingDialog({open,onClose,onCreated}:{open:boolean;onClose:()=>void;onCreated:()=>Promise<void>}){
+  const [catalog,setCatalog]=useState<{glamping:Row[];jeep:Row[];slots:Row[]}|null>(null),[business,setBusiness]=useState<"glamping"|"jeep">("glamping"),[productId,setProductId]=useState(""),[slotId,setSlotId]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  useEffect(()=>{if(open)void adminApi<{glamping:Row[];jeep:Row[];slots:Row[]}>("/catalog").then(value=>{setCatalog(value);setProductId(text(value.glamping[0]?.id??""))}).catch(()=>setError("Katalog belum dapat dimuat."))},[open]);
+  const products=business==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]),selected=products.find(row=>text(row.id)===productId),slots=(catalog?.slots??[]).filter(row=>text(row.jeepPackageId)===productId);
+  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=new FormData(event.currentTarget);setBusy(true);setError("");try{const common={source:form.get("source"),business,customer:{fullName:form.get("fullName"),email:form.get("email"),whatsapp:form.get("whatsapp")},specialRequest:form.get("specialRequest")||null,notes:form.get("notes")||null,paymentState:form.get("paymentState"),amountReceived:Number(form.get("amountReceived")),reservation:business==="glamping"?{productSlug:selected?.slug,checkInDate:form.get("startDate"),checkOutDate:form.get("endDate"),quantity:Number(form.get("quantity")),guestCount:Number(form.get("guestCount"))}:{packageSlug:selected?.slug,tourDate:form.get("startDate"),departureSlotId:slotId,quantity:Number(form.get("quantity")),guestCount:Number(form.get("guestCount"))}};await adminApi("/bookings/manual",{method:"POST",body:JSON.stringify(common)});onClose();await onCreated()}catch(caught){setError(caught instanceof Error?caught.message:"Booking manual belum dapat dibuat.")}finally{setBusy(false)}}
+  return <Dialog open={open} title="Tambah Booking Manual" description="Telepon, WhatsApp, booking di lokasi, dan walk-in—tetap dengan proteksi overbooking." onClose={onClose}><form className="dialog-form manual-booking-form" onSubmit={event=>void submit(event)}><div className="split"><Field label="Business"><AdminSelect value={business} onValueChange={value=>{const next=value as "glamping"|"jeep";setBusiness(next);const rows=next==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]);setProductId(text(rows[0]?.id??""));setSlotId("")}} placeholder="Pilih business" options={[{value:"glamping",label:"Shakila Glamping"},{value:"jeep",label:"Shakila Jeep Tour"}]}/></Field><Field label="Sumber booking"><AdminSelect name="source" defaultValue="ADMIN_MANUAL" placeholder="Pilih sumber" options={[{value:"ADMIN_MANUAL",label:"Admin Manual / Telepon / WhatsApp"},{value:"WALK_IN",label:"Walk-in / di lokasi"}]}/></Field></div><Field label={business==="glamping"?"Tipe akomodasi":"Paket Jeep"}><AdminSelect value={productId} onValueChange={value=>{setProductId(value);setSlotId("")}} placeholder="Pilih produk" options={products.map(row=>({value:text(row.id),label:text(row.name)}))}/></Field>{business==="jeep"?<Field label="Slot keberangkatan"><AdminSelect value={slotId} onValueChange={setSlotId} placeholder="Pilih slot" options={slots.map(row=>({value:text(row.id),label:`${String(row.departureTime).slice(0,5)} · ${text(row.name)}`}))}/></Field>:null}<div className="split"><Field label={business==="glamping"?"Check-in":"Tanggal tour"}><Input name="startDate" type="date" required/></Field>{business==="glamping"?<Field label="Check-out"><Input name="endDate" type="date" required/></Field>:null}</div><div className="split"><Field label="Jumlah unit"><Input name="quantity" type="number" min="1" defaultValue="1" required/></Field><Field label="Jumlah tamu"><Input name="guestCount" type="number" min="1" defaultValue="1" required/></Field></div><div className="split"><Field label="Nama customer"><Input name="fullName" required/></Field><Field label="WhatsApp / telepon"><Input name="whatsapp" required/></Field></div><Field label="Email (opsional)"><Input name="email" type="email"/></Field><div className="split"><Field label="Status pembayaran"><AdminSelect name="paymentState" defaultValue="UNPAID" placeholder="Pilih status" options={[{value:"UNPAID",label:"Belum dibayar"},{value:"PARTIALLY_PAID",label:"DP / sebagian diterima"},{value:"PAID",label:"Lunas"}]}/></Field><Field label="Nominal sudah diterima"><Input name="amountReceived" type="number" min="0" defaultValue="0" required/></Field></div><Field label="Permintaan customer"><Textarea name="specialRequest"/></Field><Field label="Catatan internal"><Textarea name="notes"/></Field><div className="payment-terms"><strong>Aturan operasional</strong><span>DP minimal 50%, batas pembayaran 12 jam, dan booking manual memakai allocator inventory yang sama.</span></div>{error?<div className="ui-alert danger">{error}</div>:null}<footer className="dialog-actions"><Button type="button" variant="ghost" onClick={onClose}>Batal</Button><Button disabled={busy||!productId||(business==="jeep"&&!slotId)}>{busy?"Memeriksa inventory...":"Simpan Booking Manual"}</Button></footer></form></Dialog>;
 }
 
 function BookingDetail({
@@ -1328,6 +1337,8 @@ function BookingDetail({
           <dl className="details">
             <dt>{t("common.business")}</dt>
             <dd>{text(booking.businessName)}</dd>
+            <dt>Sumber booking</dt>
+            <dd>{statusLabel(booking.bookingSource, language)}</dd>
             <dt>{t("common.customer")}</dt>
             <dd>
               {text(booking.customerName)}
@@ -1340,6 +1351,7 @@ function BookingDetail({
               {fmtDate(booking.startDate)}
               {booking.endDate ? ` — ${fmtDate(booking.endDate)}` : ""}
             </dd>
+            {booking.bookingType === "ACCOMMODATION" ? <><dt>Waktu menginap</dt><dd>Check-in mulai 13.00 WIB<small>Check-out maksimal 12.00 WIB</small></dd></> : null}
             <dt>{language === "id" ? "Tamu / jumlah" : "Guests / quantity"}</dt>
             <dd>
               {text(booking.guestCount)} / {text(booking.quantity)}
@@ -1352,6 +1364,7 @@ function BookingDetail({
             <dd>
               {rupiah(Number(booking.verifiedPaidAmount))} /{" "}
               {rupiah(Number(booking.remainingAmount))}
+              <small>DP minimal 50% · DP terbayar non-refundable bila booking dibatalkan.</small>
             </dd>
           </dl>
         </Card>
@@ -1570,6 +1583,25 @@ function BookingDetail({
   );
 }
 
+function ProofImage({id}:{id:string}){
+  const [url,setUrl]=useState("");
+  useEffect(()=>{let objectUrl="";void fetch(`${API_URL}/admin/payment-proofs/${id}/file`,{credentials:"include",cache:"no-store"}).then(response=>{if(!response.ok)throw new Error("proof");return response.blob()}).then(blob=>{objectUrl=URL.createObjectURL(blob);setUrl(objectUrl)}).catch(()=>setUrl(""));return()=>{if(objectUrl)URL.revokeObjectURL(objectUrl)}},[id]);
+  return url?<div className="proof-image" role="img" aria-label="Bukti pembayaran" style={{backgroundImage:`url(${url})`}}/>:<div className="proof-image loading">Memuat bukti...</div>;
+}
+
+function PaymentProofVerification({rows,reload}:{rows:Row[];reload:()=>Promise<void>}){
+  const {language}=useAdminLanguage();
+  const [selected,setSelected]=useState<Row|null>(null),[reason,setReason]=useState(""),[amount,setAmount]=useState(0),[busy,setBusy]=useState(false),[notice,setNotice]=useState("");
+  const pending=rows.filter(row=>row.status==="PENDING"),history=rows.filter(row=>row.status!=="PENDING");
+  async function act(action:"approve"|"reject") {if(!selected)return;setBusy(true);setNotice("");try{await adminApi(`/payment-proofs/${selected.id}/${action}`,{method:"POST",body:JSON.stringify(action==="approve"?{verifiedAmount:amount}:{reason})});setNotice(action==="approve"?"Pembayaran disetujui dan booking telah diperbarui.":"Bukti ditolak. Customer dapat mengunggah ulang sebelum batas waktu.");setSelected(null);setReason("");await reload()}catch(caught){setNotice(caught instanceof Error?caught.message:"Verifikasi belum dapat disimpan.")}finally{setBusy(false)}}
+  return <div className="verification-stack">
+    {notice?<div className="ui-alert">{notice}</div>:null}
+    <Card><div className="card-title"><div><h2>{pending.length} menunggu verifikasi</h2><p>Polling setiap 15 detik · bukti tersimpan persisten di PostgreSQL demo</p></div></div>{pending.length?<div className="proof-grid">{pending.map(row=><button className="proof-notification" key={text(row.id)} onClick={()=>{setSelected(row);setAmount(Number(row.claimedAmount));setReason("")}}><Bell/><span><strong>{text(row.customerName)}</strong><small>{text(row.bookingCode)} · {row.business==="glamping"?"Shakila Glamping":"Shakila Jeep Tour"}</small><b>{rupiah(Number(row.claimedAmount))}</b><time>{fmtDate(row.createdAt)}</time></span><ChevronRight/></button>)}</div>:<EmptyState title="Tidak ada bukti baru" description="Notifikasi baru akan muncul otomatis setelah customer mengunggah bukti."/>}</Card>
+    {history.length?<Card><h2>Riwayat verifikasi</h2><div className="table-scroll"><Table><TableHeader><TableRow><TableHead>Booking</TableHead><TableHead>Customer</TableHead><TableHead>Nominal</TableHead><TableHead>Status</TableHead><TableHead>Admin</TableHead></TableRow></TableHeader><TableBody>{history.map(row=><TableRow key={text(row.id)}><TableCell><Link className="code-link" href={`/bookings/${row.bookingCode}`}>{text(row.bookingCode)}</Link></TableCell><TableCell>{text(row.customerName)}</TableCell><TableCell>{rupiah(Number(row.verifiedAmount||row.claimedAmount))}</TableCell><TableCell><Badge value={row.status}>{statusLabel(row.status,language)}</Badge>{row.rejectionReason?<small>{text(row.rejectionReason)}</small>:null}</TableCell><TableCell>{text(row.verifiedByAdminEmail)}</TableCell></TableRow>)}</TableBody></Table></div></Card>:null}
+    <Dialog open={Boolean(selected)} title="Verifikasi bukti pembayaran" description={selected?`${text(selected.customerName)} · ${text(selected.bookingCode)}`:""} onClose={()=>setSelected(null)}>{selected?<div className="proof-review"><ProofImage id={text(selected.id)}/><dl className="details"><dt>Customer</dt><dd>{text(selected.customerName)}<small>{text(selected.customerWhatsapp)}</small></dd><dt>Business</dt><dd>{text(selected.businessName)}</dd><dt>Nominal diklaim</dt><dd>{rupiah(Number(selected.claimedAmount))}</dd><dt>Diunggah</dt><dd>{fmtDate(selected.createdAt)}</dd><dt>Booking kedaluwarsa</dt><dd>{fmtDate(selected.expiresAt)}</dd></dl><Field label="Nominal terverifikasi"><Input type="number" min="1" max={Number(selected.claimedAmount)} value={amount} onChange={event=>setAmount(Number(event.target.value))}/></Field><Field label="Alasan penolakan (wajib bila ditolak)"><Textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Contoh: nominal/rekening/tanggal pada bukti tidak sesuai"/></Field><div className="payment-terms"><strong>Aturan pembayaran</strong><span>DP minimal 50% · batas pembayaran 12 jam · DP non-refundable setelah pembatalan.</span></div><footer className="dialog-actions"><Button variant="destructive" disabled={busy||reason.trim().length<3} onClick={()=>void act("reject")}>Tolak Bukti</Button><Button disabled={busy||amount<1||amount>Number(selected.claimedAmount)} onClick={()=>void act("approve")}>{busy?"Menyimpan...":"Approve Payment"}</Button></footer></div>:null}</Dialog>
+  </div>;
+}
+
 function Payments({
   data,
   onPage,
@@ -1667,6 +1699,7 @@ function Payments({
   );
 }
 
+void Payments;
 function Customers({ rows }: { rows: Row[] }) {
   const { language, t } = useAdminLanguage();
   if (!rows.length)
@@ -2705,7 +2738,7 @@ function SettingsView({
               <Field label="DP percentage">
                 <Input
                   type="number"
-                  min="0"
+                  min="50"
                   max="100"
                   name="dpPercentage"
                   defaultValue={Number(row.dpPercentage)}
@@ -2721,11 +2754,13 @@ function SettingsView({
                 <Input
                   type="number"
                   min="1"
+                  max="720"
                   name="bookingHoldMinutes"
                   defaultValue={Number(row.bookingHoldMinutes)}
                 />
               </Field>
             </div>
+            <div className="payment-terms"><strong>Kebijakan pembayaran aktif</strong><span>DP minimal 50% · pembayaran maksimal 12 jam · DP non-refundable bila booking dibatalkan.</span></div>
             <Field label="Contact email">
               <Input
                 type="email"

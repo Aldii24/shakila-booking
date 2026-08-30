@@ -1,10 +1,11 @@
 import { describe,expect,it } from "vitest";
 import { assertCapacity } from "./availability.js";
-import { assertJeepDepartureOpen,calculateDp,calculateGlampingPrice,calculateJeepPrice,calculateNightCount,validateBookingTransition } from "./core.js";
+import { assertJeepDepartureOpen,bookingExpiration,calculateDp,calculateGlampingPrice,calculateJeepPrice,calculateNightCount,validateBookingTransition } from "./core.js";
 import { normalizeEmail,normalizeWhatsApp } from "@booking/validation";
 
 describe("booking calculations",()=>{
-  it("rounds the configured DP upward to whole rupiah",()=>expect(calculateDp(1001,30)).toBe(301));
+  it("calculates the minimum 50 percent DP in whole rupiah",()=>expect(calculateDp(1001,50)).toBe(501));
+  it("sets the payment deadline to 12 hours",()=>expect(bookingExpiration(new Date("2026-08-30T01:00:00Z")).toISOString()).toBe("2026-08-30T13:00:00.000Z"));
   it("calculates Glamping quantity times nights",()=>expect(calculateGlampingPrice(850000,2,"2026-08-29","2026-08-31").totalAmount).toBe(3_400_000));
   it("calculates Jeep price per physical Jeep",()=>expect(calculateJeepPrice(750000,3).totalAmount).toBe(2_250_000));
   it("rejects an invalid accommodation range",()=>expect(()=>calculateNightCount("2026-08-30","2026-08-30")).toThrow(/after/));

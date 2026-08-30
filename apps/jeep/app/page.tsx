@@ -1,213 +1,30 @@
 import Link from "next/link";
-import {
-  ArrowDownRight,
-  ArrowRight,
-  Compass,
-  Gauge,
-  Map,
-  Mountain,
-  ShieldCheck,
-  Star,
-  Sunrise,
-  Users,
-} from "lucide-react";
+import { ArrowRight, Clock3, Compass, Map, Mountain, ShieldCheck, Sunrise, Users } from "lucide-react";
 import { Footer, Header } from "@/components/site-chrome";
 import { JeepLandingSearch } from "@/components/landing-search";
+import { LandingMotion } from "@/components/landing-motion";
+import { PremiumFaq } from "@/components/premium-faq";
+
+const experiences = [
+  { icon: Sunrise, title: "Berangkat tepat waktu", text: "Slot perjalanan yang jelas untuk membantu Anda merencanakan pagi dengan nyaman." },
+  { icon: Compass, title: "Kru berpengalaman", text: "Perjalanan ditemani pengemudi yang memahami karakter medan dan operasional setempat." },
+  { icon: ShieldCheck, title: "Armada terjaga", text: "Setiap booking menggunakan unit fisik dan tetap terlindungi dari overbooking." },
+];
+
 export default function Home() {
-  return (
-    <>
-      <Header />
-      <main>
-        <section className="hero">
-          <div className="grain" />
-          <div className="hero-copy">
-            <p className="kicker">4×4 / SUNRISE / ADVENTURE</p>
-            <h1>
-              CHASE
-              <br />
-              <span>THE FIRST</span>
-              <br />
-              LIGHT.
-            </h1>
-            <p>
-              Berangkat sebelum dunia terbangun. Jeep privat, pengemudi lokal,
-              dan perjalanan pagi yang dipersiapkan dengan serius.
-            </p>
-            <Link className="button" href="/availability">
-              MULAI EKSPEDISI <ArrowDownRight />
-            </Link>
-          </div>
-          <div className="hero-stat">
-            <b>03.00</b>
-            <span>WIB · DINI HARI</span>
-          </div>
-        </section>
-        <JeepLandingSearch />
-        <section className="manifesto">
-          <p className="kicker">BUKAN SEKADAR ANTAR-JEMPUT</p>
-          <h2>
-            Gunung tidak menunggu.
-            <br />
-            Kita berangkat lebih dulu.
-          </h2>
-          <div>
-            <p>
-              Shakila Jeep Tour adalah operator tur 4×4 dengan delapan Jeep
-              fisik dan kru lokal yang mengenal setiap belokan kaldera. Tidak
-              ada kuota fiktif—setiap booking mengunci Jeep nyata untuk slot
-              Anda.
-            </p>
-            <span>01 — DRIVER LOKAL</span>
-            <span>02 — ARMADA TERAWAT</span>
-            <span>03 — GRUP PRIVAT</span>
-          </div>
-        </section>
-        <section id="routes" className="routes">
-          <article className="route sunrise">
-            <div className="route-no">01</div>
-            <div>
-              <p className="kicker">03.00 WIB · DINI HARI</p>
-              <h3>
-                Sunrise
-                <br />
-                Adventure
-              </h3>
-              <p>
-                Perjalanan fajar dengan lintasan pilihan dan waktu yang ringkas
-                untuk menikmati suasana pagi dari sudut terbaik.
-              </p>
-              <strong>Rp750.000 / JEEP</strong>
-              <Link href="/packages/sunrise-adventure">
-                LIHAT RUTE <ArrowRight />
-              </Link>
-            </div>
-          </article>
-          <article className="route full">
-            <div className="route-no">02</div>
-            <div>
-              <p className="kicker">03.00 WIB DINI HARI / 08.00 WIB PAGI</p>
-              <h3>
-                Full Adventure
-                <br />
-                Experience
-              </h3>
-              <p>
-                Rute lengkap untuk mereka yang ingin tinggal lebih lama: spot
-                utama, jalur savana, dan sudut kaldera yang lebih sunyi.
-              </p>
-              <strong>Rp950.000 / JEEP</strong>
-              <Link href="/packages/full-adventure-experience">
-                LIHAT RUTE <ArrowRight />
-              </Link>
-            </div>
-          </article>
-        </section>
-        <section className="route-line">
-          <div>
-            <Sunrise />
-            <b>TITIK FAJAR</b>
-          </div>
-          <span />
-          <div>
-            <Mountain />
-            <b>JALUR UTAMA</b>
-          </div>
-          <span />
-          <div>
-            <Compass />
-            <b>JALUR ALAM</b>
-          </div>
-          <span />
-          <div>
-            <Map />
-            <b>AREA PANDANG</b>
-          </div>
-        </section>
-        <section id="fleet" className="fleet">
-          <div className="fleet-image" />
-          <div>
-            <p className="kicker">THE FLEET</p>
-            <h2>
-              Delapan mesin.
-              <br />
-              Satu standar.
-            </h2>
-            <p>
-              Setiap Jeep diperiksa sebelum keberangkatan. Kabin bersih,
-              pengemudi berpengalaman, dan kapasitas maksimal enam tamu per
-              unit.
-            </p>
-            <div className="specs">
-              <span>
-                <Gauge /> 4×4 READY
-              </span>
-              <span>
-                <Users /> 6 GUESTS
-              </span>
-              <span>
-                <ShieldCheck /> DAILY CHECK
-              </span>
-            </div>
-            <Link className="button" href="/availability">
-              PILIH JEEP ANDA
-            </Link>
-          </div>
-        </section>
-        <section id="stories" className="stories">
-          <Star />
-          <blockquote>
-            “Driver kami tahu persis kapan harus berhenti dan kapan harus
-            melaju. Sunrise-nya luar biasa, tapi jalur savananya yang paling
-            membekas.”
-          </blockquote>
-          <p>— ARDIAN, JAKARTA</p>
-        </section>
-        <section id="faq" className="faq">
-          <div>
-            <p className="kicker">FIELD NOTES / FAQ</p>
-            <h2>Yang perlu Anda tahu.</h2>
-          </div>
-          <div>
-            <details open>
-              <summary>Berapa orang dalam satu Jeep?</summary>
-              <p>
-                Maksimal enam tamu. Sistem otomatis menghitung jumlah Jeep
-                minimum dari jumlah tamu Anda.
-              </p>
-            </details>
-            <details>
-              <summary>Apakah satu Jeep bisa dipakai slot lain?</summary>
-              <p>
-                Ya. Armada dapat digunakan lagi pada slot berbeda di tanggal
-                yang sama, sesuai model operasional demo.
-              </p>
-            </details>
-            <details>
-              <summary>Bagaimana jika cuaca buruk?</summary>
-              <p>
-                Tim lapangan akan menghubungi Anda bila kondisi membutuhkan
-                penyesuaian rute demi keselamatan.
-              </p>
-            </details>
-            <details>
-              <summary>Apakah harga per orang?</summary>
-              <p>Tidak. Harga adalah per Jeep, bukan per orang.</p>
-            </details>
-          </div>
-        </section>
-        <section className="cta">
-          <p className="kicker">YOUR WINDOW IS OPEN</p>
-          <h2>
-            Fajar berikutnya
-            <br />
-            sudah menunggu.
-          </h2>
-          <Link className="button pale" href="/availability">
-            BOOK THE RIDE <ArrowRight />
-          </Link>
-        </section>
-      </main>
-      <Footer />
-    </>
-  );
+  return <><Header/><main className="brand-home jeep-home"><LandingMotion/>
+    <section className="brand-hero jeep-hero"><div className="brand-hero-overlay"/><div className="brand-hero-content"><p className="brand-kicker">SHAKILA JEEP EXPERIENCE · NEPAL VAN JAVA</p><h1>Menjelajah lereng<br/><em>lebih dekat.</em></h1><p>Perjalanan Jeep privat dengan persiapan yang rapi, suasana yang personal, dan waktu yang dibuat untuk menikmati setiap lanskap.</p><Link className="brand-button brand-button-light" href="/availability">Rencanakan perjalanan <ArrowRight/></Link></div><div className="brand-scroll-cue"><span>JELAJAHI</span><i/></div></section>
+    <div className="brand-booking-shell jeep-booking-shell"><JeepLandingSearch/></div>
+    <section className="brand-intro" data-reveal><p className="brand-kicker">THE SHAKILA WAY</p><h2>Perjalanan yang berani, layanan yang tetap tenang.</h2><p className="brand-lead">Shakila membawa standar hospitality yang sama ke perjalanan Jeep: reservasi yang mudah, operasional yang jelas, dan pengalaman lapangan yang terasa personal.</p></section>
+    <section id="routes" className="brand-showcase" data-reveal><div className="brand-section-heading"><div><p className="brand-kicker">KATALOG PERJALANAN · DEMO</p><h2>Jeep Collection</h2></div><Link href="/availability">Lihat ketersediaan <ArrowRight/></Link></div><div className="brand-card-grid">
+      <article className="brand-image-card route-sunrise"><div className="brand-card-shade"/><div className="brand-card-copy"><span>01 · KATALOG DEMO</span><p>SUNRISE JOURNEY</p><h3>Mengejar cahaya pertama di lereng pegunungan.</h3><Link href="/packages/sunrise-adventure">Jelajahi perjalanan <ArrowRight/></Link></div></article>
+      <article className="brand-image-card route-full"><div className="brand-card-shade"/><div className="brand-card-copy"><span>02 · KATALOG DEMO</span><p>FULL EXPERIENCE</p><h3>Lebih banyak waktu menikmati jalan dan lanskap.</h3><Link href="/packages/full-adventure-experience">Jelajahi perjalanan <ArrowRight/></Link></div></article>
+    </div></section>
+    <section id="fleet" className="brand-split brand-split-reverse" data-reveal><div className="brand-split-image jeep-story"/><div className="brand-split-copy"><p className="brand-kicker">A COMPLETE JOURNEY</p><h2>Satu perjalanan, dipersiapkan dengan baik.</h2><p>Dari pemilihan slot hingga keberangkatan, setiap tahap dirancang sederhana. Armada dialokasikan saat booking agar kapasitas yang Anda lihat tetap nyata.</p><div className="brand-facts"><div><Clock3/><span><b>Slot terjadwal</b>Waktu keberangkatan jelas</span></div><div><Users/><span><b>Grup privat</b>Sesuai kapasitas unit</span></div><div><ShieldCheck/><span><b>DP 50%</b>Minimum pembayaran</span></div></div><Link className="brand-text-link" href="/availability">Pilih perjalanan <ArrowRight/></Link></div></section>
+    <section className="brand-values">{experiences.map(({icon:Icon,title,text})=><article key={title}><Icon/><h3>{title}</h3><p>{text}</p></article>)}</section>
+    <section id="stories" className="brand-quote jeep-quote"><p className="brand-kicker">SHAKILA GROUP</p><blockquote>“Petualangan terbaik tidak harus terasa terburu-buru. Ia dimulai dengan persiapan yang baik dan ruang untuk menikmati perjalanan.”</blockquote></section>
+    <section className="brand-route-notes"><div><Map/><span>RUTE TERPILIH</span></div><i/><div><Mountain/><span>NEPAL VAN JAVA</span></div><i/><div><Compass/><span>KRU LOKAL</span></div></section>
+    <section id="faq" className="brand-faq" data-reveal><div><p className="brand-kicker">SEBELUM BERANGKAT</p><h2>Informasi penting.</h2><p className="brand-faq-intro">Detail singkat agar perjalanan terasa nyaman sejak reservasi.</p></div><PremiumFaq items={[{question:"Apakah katalog dan harga sudah final?",answer:"Belum. Paket yang tampil adalah data demo dan akan diganti setelah katalog resmi klien tersedia."},{question:"Berapa minimum DP?",answer:"DP minimal 50% dari total booking dan harus dibayar maksimal 12 jam setelah booking dibuat."},{question:"Bagaimana kebijakan pembatalan?",answer:"DP yang telah dibayarkan tidak dapat dikembalikan apabila booking dibatalkan."}]}/></section>
+    <section className="brand-cta jeep-cta"><div><p className="brand-kicker">YOUR JOURNEY AWAITS</p><h2>Temukan Nepal van Java lebih dekat.</h2></div><Link className="brand-button brand-button-light" href="/availability">Pesan sekarang <ArrowRight/></Link></section>
+  </main><Footer/></>;
 }

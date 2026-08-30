@@ -73,6 +73,8 @@ type Status = {
   departureTime: string | null;
   invoiceStatus: string | null;
   requiresReview: boolean;
+  latestProofStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
+  latestProofRejectionReason: string | null;
 };
 const key = (code: string) => `shakila-jeep-booking:${code}`;
 const today = () =>
@@ -428,7 +430,7 @@ function useStatus(code: string) {
   }, [code]);
   return { status, error, setError, refresh };
 }
-export function PaymentPage({ bookingCode }: { bookingCode: string }) {
+function PaymentGatewayLegacy({ bookingCode }: { bookingCode: string }) {
   const router = useRouter(),
     { status, error, setError, refresh } = useStatus(bookingCode),
     [seconds, setSeconds] = useState(0),
@@ -635,6 +637,33 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
     </div>
   );
 }
+void PaymentGatewayLegacy;
+
+const proofToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+  reader.onerror = () => reject(new Error("INVALID_PAYMENT_PROOF"));
+  reader.readAsDataURL(file);
+});
+
+export function PaymentPage({ bookingCode }: { bookingCode: string }) {
+  const { status, error, setError, refresh } = useStatus(bookingCode);
+  const [seconds, setSeconds] = useState(0), [busy, setBusy] = useState(false), [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState(""), [claimedAmount, setClaimedAmount] = useState(0), [submitted, setSubmitted] = useState(false);
+  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { if (!status?.expiresAt) return; const tick=()=>setSeconds(Math.max(0,Math.floor((Date.parse(status.expiresAt!)-Date.now())/1000))); tick(); const timer=window.setInterval(tick,1000); return()=>window.clearInterval(timer); },[status?.expiresAt]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  async function submitProof(){const token=sessionStorage.getItem(key(bookingCode));if(!token||!file)return;if(!["image/jpeg","image/png"].includes(file.type)||file.size>5*1024*1024){setError("INVALID_PAYMENT_PROOF");return}setBusy(true);setError("");try{await api(`/public/bookings/${bookingCode}/payments`,{method:"POST",headers:{Authorization:`Booking ${token}`},body:JSON.stringify({claimedAmount:claimedAmount||status?.requiredDpAmount,fileName:file.name,mimeType:file.type,fileSize:file.size,fileDataBase64:await proofToBase64(file)})});setSubmitted(true);setFile(null);setPreview("");await refresh()}catch(caught){setError(caught instanceof Error?caught.message:"NETWORK_ERROR")}finally{setBusy(false)}}
+  if(error==="ACCESS_TOKEN_MISSING")return <div className="panel center-card"><h2>Akses reservasi diperlukan</h2><p>Buka booking dengan kode dan kontak Anda.</p><Link className="button" href="/booking/check">Cek booking</Link></div>;
+  if(!status)return <div className="panel center-card"><div className="loader"/><p>Memuat perjalanan...</p></div>;
+  const effectiveAmount=claimedAmount||status.requiredDpAmount;
+  const expired=status.status==="EXPIRED"||seconds===0,pending=status.latestProofStatus==="PENDING",approved=status.latestProofStatus==="APPROVED"||status.status==="CONFIRMED";
+  const countdown=`${String(Math.floor(seconds/3600)).padStart(2,"0")}:${String(Math.floor((seconds%3600)/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
+  return <div className="flow-grid manual-transfer-flow"><div className="panel"><p className="kicker">TRANSFER BANK MANUAL</p><h2>{status.bookingCode}</h2><p>{status.productName} · {status.startDate} · {status.departureTime?formatDepartureTime(status.departureTime):"—"}</p>
+    {approved?<p className="status-note"><CheckCircle2/> DP Terverifikasi</p>:expired?<p className="status-note error-note"><AlertTriangle/> Kedaluwarsa — armada telah dilepas.</p>:pending||submitted?<p className="status-note"><Clock3/> Bukti pembayaran sedang diverifikasi admin.</p>:status.latestProofStatus==="REJECTED"?<p className="status-note error-note"><AlertTriangle/> Bukti Ditolak. {status.latestProofRejectionReason||"Silakan unggah bukti baru."}</p>:<p className="status-note"><Clock3/> Menunggu Pembayaran</p>}
+    {!approved&&!expired?<><div className="countdown"><Clock3/> {countdown}</div><div className="bank-instructions"><p className="kicker">INSTRUKSI TRANSFER</p><h3>{process.env.NEXT_PUBLIC_BANK_NAME??"Rekening demo Shakila Group"}</h3><p>{process.env.NEXT_PUBLIC_BANK_ACCOUNT??"Nomor rekening akan dikonfigurasi setelah data resmi klien diterima."}</p><strong>{process.env.NEXT_PUBLIC_BANK_HOLDER??"Shakila Group"}</strong><small>Gunakan kode booking sebagai berita transfer.</small></div>{!pending?<div className="proof-upload"><Label>Nominal yang ditransfer<Input type="number" min={status.requiredDpAmount} max={status.totalAmount} value={effectiveAmount} onChange={(event)=>setClaimedAmount(Number(event.target.value))}/></Label><Label>Bukti pembayaran (JPG, JPEG, atau PNG · maks. 5 MB)<Input type="file" accept="image/jpeg,image/png" onChange={(event)=>{const selected=event.target.files?.[0]??null;if(preview)URL.revokeObjectURL(preview);setFile(selected);setPreview(selected?URL.createObjectURL(selected):"")}}/></Label>{preview?<div className="proof-preview" role="img" aria-label="Pratinjau bukti pembayaran" style={{backgroundImage:`url(${preview})`}}/>:null}<Button className="button" disabled={busy||!file||effectiveAmount<status.requiredDpAmount} onClick={()=>void submitProof()}>{busy?"Mengunggah bukti...":"Kirim bukti pembayaran"}</Button></div>:null}</>:null}
+    {error&&error!=="ACCESS_TOKEN_MISSING"?<p className="status-note error-note">Bukti belum dapat dikirim. Periksa format dan ukuran file.</p>:null}<Button variant="ghost" className="text-button" onClick={()=>void refresh()}>Periksa status</Button></div>
+    <aside className="summary"><h3>Ringkasan pembayaran</h3><div><span>Total</span><b>{rupiah(status.totalAmount)}</b></div><div><span>Minimum DP ({status.dpPercentage}%)</span><b>{rupiah(status.requiredDpAmount)}</b></div><div><span>Jumlah transfer</span><b>{rupiah(status.requiredDpAmount)}</b></div><div className="total"><span>Sisa</span><b>{rupiah(status.remainingAmount)}</b></div><p>DP minimal 50% dari total booking.</p><p>Pembayaran DP maksimal 12 jam setelah booking dibuat.</p><p>DP yang telah dibayarkan tidak dapat dikembalikan apabila booking dibatalkan.</p></aside></div>;
+}
 export function SuccessPage({ bookingCode }: { bookingCode: string }) {
   const { status, error, refresh } = useStatus(bookingCode),
     [invoice, setInvoice] = useState<{ status: string; url?: string } | null>(
@@ -694,6 +723,7 @@ export function SuccessPage({ bookingCode }: { bookingCode: string }) {
           <p>
             {status.productName} · {status.startDate}
           </p>
+          <p className="status-note">DP yang telah dibayarkan tidak dapat dikembalikan apabila booking dibatalkan.</p>
           {invoice?.status === "GENERATED" ? (
             <Button
               className="button"
