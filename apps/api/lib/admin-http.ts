@@ -74,6 +74,7 @@ const createProductSchema = z.object({
   description: z.string().trim().min(2).max(5000),
   price: z.number().int().positive(),
   capacity: z.number().int().positive(),
+  kind: z.enum(["GLAMPING", "HOMESTAY"]).optional(),
   isActive: z.boolean().optional(),
 });
 const unitSchema = z.object({
@@ -408,7 +409,7 @@ export async function handleAdmin(
     const proofFileMatch = path.match(/^payment-proofs\/([0-9a-f-]+)\/file$/);
     if (proofFileMatch && request.method === "GET") {
       const proof = await getPaymentProofFile(proofFileMatch[1]!);
-      return new Response(Buffer.from(proof.fileDataBase64, "base64"), {
+      return new Response(new Uint8Array(proof.bytes), {
         headers: { "content-type": proof.mimeType, "content-disposition": `inline; filename="${proof.fileName.replaceAll('"', '')}"`, "cache-control": "private, no-store" },
       });
     }

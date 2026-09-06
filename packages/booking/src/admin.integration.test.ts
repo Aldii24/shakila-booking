@@ -91,7 +91,7 @@ integration("admin operations against PostgreSQL", () => {
     const slot = (await db.execute(
       sql`insert into jeep_departure_slots(business_id,jeep_package_id,name,departure_time)
           select p.business_id,p.id,'Admin Lifecycle Test','23:59'::time
-          from jeep_packages p where p.slug='sunrise-adventure'
+          from jeep_packages p where p.slug='short-1'
           returning id`,
     )) as unknown as { id: string }[];
     const slotId = slot[0]?.id;
@@ -100,11 +100,11 @@ integration("admin operations against PostgreSQL", () => {
       {
         business: "jeep",
         reservation: {
-          packageSlug: "sunrise-adventure",
+          packageSlug: "short-1",
           tourDate: jakartaDate(),
           departureSlotId: slotId,
           quantity: 1,
-          guestCount: 2,
+          guestCount: 1,
         },
         customer: {
           fullName: "Admin Lifecycle",
@@ -151,7 +151,7 @@ integration("admin operations against PostgreSQL", () => {
       {
         business: "glamping",
         reservation: {
-          productSlug: "deluxe-dome",
+          productSlug: "glamping-deluxe",
           checkInDate: jakartaDate(),
           checkOutDate: tomorrowInJakarta(),
           quantity: 1,
@@ -183,7 +183,7 @@ integration("admin operations against PostgreSQL", () => {
       {
         business: "glamping",
         reservation: {
-          productSlug: "deluxe-dome",
+          productSlug: "glamping-deluxe",
           checkInDate: "2099-12-02",
           checkOutDate: "2099-12-03",
           quantity: 1,
@@ -218,7 +218,7 @@ integration("admin operations against PostgreSQL", () => {
     ).rejects.toMatchObject({ code: "INVENTORY_IN_USE" });
 
     const product = (await db.execute(
-      sql`select id,base_price::int as price from accommodation_types where slug='deluxe-dome'`,
+      sql`select id,base_price::int as price from accommodation_types where slug='glamping-deluxe'`,
     )) as unknown as { id: string; price: number }[];
     const currentProduct = product[0];
     if (!currentProduct)

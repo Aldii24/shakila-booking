@@ -10,7 +10,6 @@ export const positiveIntegerSchema = z.int().positive();
 export const idrAmountSchema = z.int().nonnegative();
 
 export const appModeSchema = z.enum(["demo", "production"]);
-export const paymentProviderSchema = z.enum(["demo", "pakasir"]);
 export const emailProviderSchema = z.enum(["preview", "resend"]);
 export const invoiceStorageSchema = z.enum(["direct", "r2"]);
 export const backgroundJobModeSchema = z.enum(["inline", "inngest"]);
@@ -21,9 +20,6 @@ export function getIntegrationMode() {
   const demo = appMode === "demo";
   return {
     appMode,
-    paymentProvider: paymentProviderSchema.parse(
-      process.env.PAYMENT_PROVIDER ?? (demo ? "demo" : "pakasir"),
-    ),
     emailProvider: emailProviderSchema.parse(
       process.env.EMAIL_PROVIDER ?? (demo ? "preview" : "resend"),
     ),

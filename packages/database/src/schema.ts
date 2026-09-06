@@ -25,6 +25,7 @@ const timestamps = {
 const money = (name: string) => bigint(name, { mode: "number" });
 
 export const businessTypeEnum = pgEnum("business_type", ["ACCOMMODATION", "ACTIVITY"]);
+export const accommodationKindEnum = pgEnum("accommodation_kind", ["GLAMPING", "HOMESTAY"]);
 export const bookingTypeEnum = pgEnum("booking_type", ["ACCOMMODATION", "JEEP"]);
 export const bookingStatusEnum = pgEnum("booking_status", [
   "PENDING", "WAITING_PAYMENT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "COMPLETED", "CANCELLED", "EXPIRED",
@@ -100,9 +101,14 @@ export const accommodationTypes = pgTable("accommodation_types", {
   businessId: uuid("business_id").notNull().references(() => businesses.id),
   slug: varchar("slug", { length: 100 }).notNull(),
   name: varchar("name", { length: 160 }).notNull(),
+  kind: accommodationKindEnum("kind").notNull().default("GLAMPING"),
   description: text("description").notNull(),
   basePrice: money("base_price").notNull(),
   capacityPerUnit: integer("capacity_per_unit").notNull(),
+  breakfastIncludedPax: integer("breakfast_included_pax"),
+  facilities: jsonb("facilities").notNull().default(sql`'[]'::jsonb`),
+  mediaKey: varchar("media_key", { length: 255 }),
+  isDemoData: boolean("is_demo_data").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   ...timestamps,
@@ -111,6 +117,7 @@ export const accommodationTypes = pgTable("accommodation_types", {
   index("accommodation_types_business_idx").on(table.businessId),
   check("accommodation_types_price_check", sql`${table.basePrice} >= 0`),
   check("accommodation_types_capacity_check", sql`${table.capacityPerUnit} > 0`),
+  check("accommodation_types_breakfast_check", sql`${table.breakfastIncludedPax} is null or ${table.breakfastIncludedPax} > 0`),
 ]);
 
 export const accommodationUnits = pgTable("accommodation_units", {
@@ -130,6 +137,10 @@ export const jeepPackages = pgTable("jeep_packages", {
   description: text("description").notNull(),
   pricePerUnit: money("price_per_unit").notNull(),
   capacityPerUnit: integer("capacity_per_unit").notNull(),
+  routes: jsonb("routes").notNull().default(sql`'[]'::jsonb`),
+  facilities: jsonb("facilities").notNull().default(sql`'[]'::jsonb`),
+  mediaKey: varchar("media_key", { length: 255 }),
+  isDemoData: boolean("is_demo_data").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   ...timestamps,
@@ -146,6 +157,7 @@ export const jeepDepartureSlots = pgTable("jeep_departure_slots", {
   jeepPackageId: uuid("jeep_package_id").references(() => jeepPackages.id),
   name: varchar("name", { length: 80 }).notNull(),
   departureTime: time("departure_time").notNull(),
+  isDemoData: boolean("is_demo_data").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   ...timestamps,
 }, (table) => [index("jeep_departure_slots_package_idx").on(table.jeepPackageId)]);
@@ -155,6 +167,7 @@ export const jeepUnits = pgTable("jeep_units", {
   businessId: uuid("business_id").notNull().references(() => businesses.id),
   code: varchar("code", { length: 40 }).notNull(),
   name: varchar("name", { length: 120 }).notNull(),
+  isDemoInventory: boolean("is_demo_inventory").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   ...timestamps,
 }, (table) => [unique("jeep_units_business_code_unique").on(table.businessId, table.code), index("jeep_units_business_idx").on(table.businessId)]);
@@ -329,7 +342,9 @@ export const paymentProofs = pgTable("payment_proofs", {
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 100 }).notNull(),
   fileSize: bigint("file_size", { mode: "number" }).notNull(),
-  fileDataBase64: text("file_data_base64").notNull(),
+  storageProvider: varchar("storage_provider", { length: 32 }).notNull().default("DATABASE"),
+  storageKey: varchar("storage_key", { length: 512 }).notNull().default("legacy"),
+  fileDataBase64: text("file_data_base64"),
   rejectionReason: text("rejection_reason"),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   verifiedByAdminEmail: varchar("verified_by_admin_email", { length: 254 }),

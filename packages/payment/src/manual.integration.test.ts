@@ -36,7 +36,7 @@ integration("manual transfer and Admin booking revision", () => {
     const { getDb } = await import("@booking/database");
     const { approveManualPaymentProof, rejectManualPaymentProof, submitManualPaymentProof } = await import("./manual.js");
     const db = getDb();
-    const booking = await createGlampingBooking({ business: "glamping", reservation: { productSlug: "deluxe-dome", checkInDate: "2099-10-02", checkOutDate: "2099-10-03", quantity: 1, guestCount: 2 }, customer: { fullName: "Manual Proof Flow", email, whatsapp: "081288881111" } }, randomUUID(), db);
+    const booking = await createGlampingBooking({ business: "glamping", reservation: { productSlug: "glamping-deluxe", checkInDate: "2099-10-02", checkOutDate: "2099-10-03", quantity: 1, guestCount: 2 }, customer: { fullName: "Manual Proof Flow", email, whatsapp: "081288881111" } }, randomUUID(), db);
     const base64 = Buffer.from("89504e470d0a1a0a", "hex").toString("base64");
     const first = await submitManualPaymentProof(booking.bookingCode, booking.bookingId, { claimedAmount: booking.requiredDpAmount, fileName: "proof.png", mimeType: "image/png", fileSize: 8, fileDataBase64: base64 }, db);
     let state = (await db.execute(sql`select status,payment_status as "paymentStatus" from bookings where id=${booking.bookingId}::uuid`)) as unknown as { status: string; paymentStatus: string }[];
@@ -62,11 +62,11 @@ integration("manual transfer and Admin booking revision", () => {
       select count(*)::int as count
       from accommodation_units u
       join accommodation_types t on t.id=u.accommodation_type_id
-      where t.slug='deluxe-dome' and u.is_active=true and t.is_active=true
+      where t.slug='glamping-deluxe' and u.is_active=true and t.is_active=true
     `)) as unknown as { count: number }[];
     const quantity = inventory[0]?.count ?? 0;
     expect(quantity).toBeGreaterThan(0);
-    const make = (suffix: string) => createAdminManualBooking({ source: "WALK_IN", business: "glamping", reservation: { productSlug: "deluxe-dome", checkInDate: "2099-10-10", checkOutDate: "2099-10-11", quantity, guestCount: 2 }, customer: { fullName: `Walk In ${suffix}`, whatsapp: `08128888222${suffix}` }, notes: "manual-overbook-test", paymentState: "UNPAID", amountReceived: 0 }, "admin@shakila.test", db);
+    const make = (suffix: string) => createAdminManualBooking({ source: "WALK_IN", business: "glamping", reservation: { productSlug: "glamping-deluxe", checkInDate: "2099-10-10", checkOutDate: "2099-10-11", quantity, guestCount: 2 }, customer: { fullName: `Walk In ${suffix}`, whatsapp: `08128888222${suffix}` }, notes: "manual-overbook-test", paymentState: "UNPAID", amountReceived: 0 }, "admin@shakila.test", db);
     const results = await Promise.allSettled([make("1"), make("2")]);
     const failures = results.filter((result) => result.status === "rejected").map((result) => {
       const reason = result.reason as { message?: string; cause?: { message?: string; cause?: { message?: string } } };

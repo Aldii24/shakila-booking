@@ -379,16 +379,16 @@ export async function removeInventoryBlock(
 export async function getAdminCatalog(database: BookingDatabase = getDb()) {
   const [glamping, jeep, settings, slots] = await Promise.all([
     database.execute(
-      sql`select t.id,t.slug,t.name,t.description,t.base_price::int as price,t.capacity_per_unit as capacity,t.is_active as "isActive",(select count(*)::int from accommodation_units u where u.accommodation_type_id=t.id) as "unitCount" from accommodation_types t order by t.sort_order`,
+      sql`select t.id,t.slug,t.name,t.kind,t.description,t.base_price::int as price,t.capacity_per_unit as capacity,t.breakfast_included_pax as "breakfastIncludedPax",t.facilities,t.media_key as "mediaKey",t.is_demo_data as "isDemoData",t.is_active as "isActive",(select count(*)::int from accommodation_units u where u.accommodation_type_id=t.id and u.is_active) as "unitCount" from accommodation_types t order by t.sort_order`,
     ),
     database.execute(
-      sql`select p.id,p.slug,p.name,p.description,p.price_per_unit::int as price,p.capacity_per_unit as capacity,p.is_active as "isActive",(select count(*)::int from jeep_units u where u.business_id=p.business_id) as "fleetCount" from jeep_packages p order by p.sort_order`,
+      sql`select p.id,p.slug,p.name,p.description,p.price_per_unit::int as price,p.capacity_per_unit as capacity,p.routes,p.facilities,p.media_key as "mediaKey",p.is_demo_data as "isDemoData",p.is_active as "isActive",(select count(*)::int from jeep_units u where u.business_id=p.business_id and u.is_active) as "fleetCount" from jeep_packages p order by p.sort_order`,
     ),
     database.execute(
       sql`select s.id,bu.slug as business,bu.timezone,s.dp_percentage as "dpPercentage",s.booking_hold_minutes as "bookingHoldMinutes",s.contact_email as "contactEmail",s.contact_phone as "contactPhone",s.default_check_in_time::text as "checkInTime",s.default_check_out_time::text as "checkOutTime" from business_settings s join businesses bu on bu.id=s.business_id order by bu.slug`,
     ),
     database.execute(
-      sql`select id,jeep_package_id as "jeepPackageId",name,departure_time::text as "departureTime",is_active as "isActive" from jeep_departure_slots order by departure_time`,
+      sql`select id,jeep_package_id as "jeepPackageId",name,departure_time::text as "departureTime",is_demo_data as "isDemoData",is_active as "isActive" from jeep_departure_slots order by departure_time`,
     ),
   ]);
   return {
@@ -432,6 +432,7 @@ export type AdminProductInput = {
   description: string;
   price: number;
   capacity: number;
+  kind?: "GLAMPING" | "HOMESTAY";
   isActive?: boolean;
 };
 
@@ -479,7 +480,7 @@ export async function createAdminProduct(
     for (let suffix = 2; used.has(slug); suffix += 1) slug = `${base}-${suffix}`;
     const created = rows<Record<string, unknown>>(await tx.execute(
       kind === "glamping"
-        ? sql`insert into accommodation_types(business_id,slug,name,description,base_price,capacity_per_unit,is_active,sort_order) select id,${slug},${input.name.trim()},${input.description.trim()},${input.price},${input.capacity},${input.isActive ?? true},coalesce((select max(sort_order)+1 from accommodation_types),0) from businesses where slug='glamping' returning id,slug,name,description,base_price::int as price,capacity_per_unit as capacity,is_active as "isActive"`
+        ? sql`insert into accommodation_types(business_id,slug,name,kind,description,base_price,capacity_per_unit,is_active,sort_order) select id,${slug},${input.name.trim()},${input.kind ?? "GLAMPING"},${input.description.trim()},${input.price},${input.capacity},${input.isActive ?? true},coalesce((select max(sort_order)+1 from accommodation_types),0) from businesses where slug='glamping' returning id,slug,name,kind,description,base_price::int as price,capacity_per_unit as capacity,is_active as "isActive"`
         : sql`insert into jeep_packages(business_id,slug,name,description,price_per_unit,capacity_per_unit,is_active,sort_order) select id,${slug},${input.name.trim()},${input.description.trim()},${input.price},${input.capacity},${input.isActive ?? true},coalesce((select max(sort_order)+1 from jeep_packages),0) from businesses where slug='jeep' returning id,slug,name,description,price_per_unit::int as price,capacity_per_unit as capacity,is_active as "isActive"`,
     ));
     if (!created[0]) throw new DomainError("BUSINESS_NOT_FOUND", "Business was not found.", 404);
@@ -541,7 +542,7 @@ export async function updateAdminAccommodationUnit(
 
 export async function listAdminJeepUnits(database: BookingDatabase = getDb()) {
   return rows<Record<string, unknown>>(await database.execute(sql`
-    select u.id,u.code,u.name,u.is_active as "isActive",
+    select u.id,u.code,u.name,u.is_demo_inventory as "isDemoInventory",u.is_active as "isActive",
       exists(select 1 from jeep_unit_reservations r where r.jeep_unit_id=u.id and r.state in ('HELD','CONFIRMED','IN_USE') and r.tour_date>=(now() at time zone 'Asia/Jakarta')::date) as "hasActiveReservation"
     from jeep_units u join businesses b on b.id=u.business_id where b.slug='jeep' order by u.code
   `));

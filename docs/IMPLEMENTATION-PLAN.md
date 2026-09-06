@@ -1,5 +1,7 @@
 # Implementation Plan
 
+> **Klarifikasi client — 6 September 2026 (otoritatif):** Milestone payment gateway/Pakasir di bawah tidak aktif dan digantikan alur transfer bank manual → unggah bukti → verifikasi Admin. Jangan membangun checkout, redirect, webhook, atau verifikasi otomatis.
+
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 
 **Document:** `IMPLEMENTATION-PLAN.md`  

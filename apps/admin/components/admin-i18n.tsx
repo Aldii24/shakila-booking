@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
 
 export type AdminLanguage = "id" | "en";
 const copy = {
@@ -10,11 +10,11 @@ const copy = {
   "nav.operations": ["OPERASIONAL", "OPERATIONS"],
   "nav.bookings": ["Booking", "Bookings"],
   "nav.calendar": ["Kalender", "Calendar"],
-  "nav.inventory": ["Inventory", "Inventory"],
+  "nav.inventory": ["Inventori", "Inventory"],
   "nav.payments": ["Pembayaran", "Payments"],
   "nav.customers": ["Pelanggan", "Customers"],
   "nav.business": ["BISNIS", "BUSINESS"],
-  "nav.glamping": ["Glamping", "Glamping"],
+  "nav.glamping": ["Akomodasi", "Accommodation"],
   "nav.jeep": ["Jeep", "Jeep"],
   "nav.system": ["SISTEM", "SYSTEM"],
   "nav.settings": ["Pengaturan", "Settings"],
@@ -90,12 +90,12 @@ const copy = {
   "customers.empty": ["Tidak ada pelanggan ditemukan.", "No customers found."],
   "calendar.title": ["Kalender operasional", "Operations calendar"],
   "calendar.description": ["Kedatangan Glamping dan perjalanan Jeep dalam 45 hari.", "Glamping arrivals and Jeep trips over 45 days."],
-  "inventory.title": ["Inventory fisik", "Physical inventory"],
+  "inventory.title": ["Inventori fisik", "Physical inventory"],
   "inventory.description": ["Unit fisik dan blok operasional, bukan counter buatan.", "Physical units and operational blocks, never synthetic counters."],
   "inventory.createBlock": ["Buat blok inventory", "Create inventory block"],
   "inventory.activeBlocks": ["Blok aktif", "Active blocks"],
   "inventory.units": ["Unit fisik", "Physical units"],
-  "catalog.glampingTitle": ["Katalog Glamping", "Glamping catalog"],
+  "catalog.glampingTitle": ["Katalog Akomodasi", "Accommodation catalog"],
   "catalog.glampingDescription": ["Kelola tipe akomodasi dan unit fisik tanpa mengubah snapshot historis.", "Manage accommodation types and physical units without changing historical snapshots."],
   "catalog.jeepTitle": ["Katalog Jeep", "Jeep catalog"],
   "catalog.jeepDescription": ["Kelola paket, slot keberangkatan, dan armada fisik.", "Manage packages, departure slots, and physical fleet."],
@@ -120,19 +120,11 @@ const copy = {
 } as const satisfies Record<string, readonly [string, string]>;
 
 type TranslationKey = keyof typeof copy;
-type ContextValue = { language: AdminLanguage; setLanguage: (language: AdminLanguage) => void; t: (key: TranslationKey) => string };
+type ContextValue = { language: AdminLanguage; t: (key: TranslationKey) => string };
 const Context = createContext<ContextValue | null>(null);
 
 export function AdminLanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<AdminLanguage>("id");
-  useEffect(() => {
-    const saved = window.localStorage.getItem("shakila-admin-language");
-    const timer = window.setTimeout(() => {
-      if (saved === "id" || saved === "en") setLanguage(saved);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-  const value = useMemo<ContextValue>(() => ({ language, setLanguage: (next) => { setLanguage(next); window.localStorage.setItem("shakila-admin-language", next); }, t: (key) => copy[key][language === "id" ? 0 : 1] }), [language]);
+  const value = useMemo<ContextValue>(() => ({ language: "id", t: (key) => copy[key][0] }), []);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
@@ -144,7 +136,7 @@ export function useAdminLanguage() {
 
 export function statusLabel(value: unknown, language: AdminLanguage) {
   const statuses: Record<string, [string, string]> = {
-    WAITING_PAYMENT: ["Menunggu Pembayaran", "Waiting Payment"], CONFIRMED: ["Dikonfirmasi", "Confirmed"], CHECKED_IN: ["Sudah Check-in", "Checked In"], CHECKED_OUT: ["Sudah Check-out", "Checked Out"], COMPLETED: ["Selesai", "Completed"], CANCELLED: ["Dibatalkan", "Cancelled"], EXPIRED: ["Kedaluwarsa", "Expired"], UNPAID: ["Belum Dibayar", "Unpaid"], PENDING: ["Pending", "Pending"], PARTIALLY_PAID: ["DP Dibayar", "DP Paid"], PAID: ["Lunas", "Paid"], FAILED: ["Gagal", "Failed"], REFUNDED: ["Dikembalikan", "Refunded"], SUCCESS: ["Berhasil", "Success"], CREATED: ["Dibuat", "Created"], EXCEPTION: ["Perlu Ditinjau", "Exception"], HELD: ["Ditahan", "Held"], IN_USE: ["Digunakan", "In Use"], RELEASED: ["Dilepas", "Released"], GENERATED: ["Dibuat", "Generated"], ACTIVE: ["Aktif", "Active"], INACTIVE: ["Nonaktif", "Inactive"],
+    WAITING_PAYMENT: ["Menunggu Pembayaran", "Waiting Payment"], CONFIRMED: ["Dikonfirmasi", "Confirmed"], CHECKED_IN: ["Sudah Check-in", "Checked In"], CHECKED_OUT: ["Sudah Check-out", "Checked Out"], COMPLETED: ["Selesai", "Completed"], CANCELLED: ["Dibatalkan", "Cancelled"], EXPIRED: ["Kedaluwarsa", "Expired"], UNPAID: ["Belum Dibayar", "Unpaid"], PENDING: ["Menunggu", "Pending"], PARTIALLY_PAID: ["DP Terverifikasi", "DP Paid"], PAID: ["Lunas", "Paid"], FAILED: ["Gagal", "Failed"], REFUNDED: ["Dikembalikan", "Refunded"], SUCCESS: ["Berhasil", "Success"], CREATED: ["Dibuat", "Created"], EXCEPTION: ["Perlu Ditinjau", "Exception"], HELD: ["Ditahan", "Held"], IN_USE: ["Digunakan", "In Use"], RELEASED: ["Dilepas", "Released"], GENERATED: ["Dibuat", "Generated"], ACTIVE: ["Aktif", "Active"], INACTIVE: ["Nonaktif", "Inactive"], APPROVED: ["Disetujui", "Approved"], REJECTED: ["Ditolak", "Rejected"], ONLINE: ["Daring", "Online"], ADMIN_MANUAL: ["Booking manual Admin", "Manual Admin booking"], WALK_IN: ["Datang langsung", "Walk-in"], MANUAL_TRANSFER: ["Transfer manual", "Manual transfer"], BANK_TRANSFER: ["Transfer bank", "Bank transfer"], ACCOMMODATION: ["Akomodasi", "Accommodation"], CUSTOMER: ["Pelanggan", "Customer"], SYSTEM: ["Sistem", "System"], BACKGROUND_JOB: ["Proses latar", "Background job"],
   };
   const found = statuses[String(value)];
   return found ? found[language === "id" ? 0 : 1] : String(value ?? "—").replaceAll("_", " ");

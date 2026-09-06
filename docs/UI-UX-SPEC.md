@@ -1,12 +1,12 @@
 # UI/UX Specification
 
-> **Client revision — 30 August 2026:** Accommodation and Jeep share the real Shakila logo, premium editorial hospitality hierarchy, core forest/cream/gold palette, typography, buttons, forms, spacing, header, and footer language. Plataran is a directional reference only; no text, photography, logo, or proprietary asset is copied. Customer payment UI shows manual bank instructions, 12-hour countdown, proof preview/upload, and Indonesian proof states. Homestay and Jeep catalog content must be labelled demo/mock until final client data arrives.
+> **Klarifikasi client — 6 September 2026 (otoritatif):** Seluruh UI customer dan Admin hanya memakai Bahasa Indonesia; pemilih bahasa Admin dihapus. Akomodasi dan Jeep memakai logo asli serta satu sistem visual Shakila dengan Plataran sebagai referensi arah, bukan salinan. Pembayaran hanya menampilkan instruksi transfer manual, hitung mundur 12 jam, pratinjau/unggah bukti, dan status verifikasi Admin. Data Homestay serta paket/harga/rute Jeep berasal dari katalog client; hanya stok Jeep 8 unit, slot, kapasitas, dan data lain yang belum tersedia yang diberi label data demo.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 
 > **Revision baseline:** customer availability is calendar-first, and the admin
-> product uses the Shakila Group identity with Bahasa Indonesia as its default
-> presentation language and English as a persisted secondary language.
+> product uses the Shakila Group identity with Bahasa Indonesia as its only
+> presentation language.
 
 **Document:** `UI-UX-SPEC.md`  
 **Version:** 1.0  

@@ -12,6 +12,7 @@ import {
   Clock3,
   Download,
   Search,
+  ShieldCheck,
 } from "lucide-react";
 import { API_URL, api, message, rupiah } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -20,12 +21,16 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Turnstile } from "./turnstile";
+import { ProofFilePicker } from "@/components/ui/proof-file-picker";
 type Product = {
   slug: string;
   name: string;
   description: string;
   basePrice: number;
   capacityPerUnit: number;
+  kind: "GLAMPING" | "HOMESTAY";
+  breakfastIncludedPax: number | null;
+  isDemoData: boolean;
 };
 type Availability = {
   slug: string;
@@ -77,7 +82,44 @@ type Status = {
   latestProofStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
   latestProofRejectionReason: string | null;
 };
+const bookingStatusLabel = (status:string) => ({PENDING:"Menunggu",WAITING_PAYMENT:"Menunggu Pembayaran",CONFIRMED:"Dikonfirmasi",CHECKED_IN:"Sudah Check-in",CHECKED_OUT:"Sudah Check-out",COMPLETED:"Selesai",CANCELLED:"Dibatalkan",EXPIRED:"Kedaluwarsa"} as Record<string,string>)[status] ?? "Sedang diproses";
 const tokenKey = (code: string) => `shakila-glamping-booking:${code}`;
+const paymentDraftKey = (code: string) => `shakila-glamping-payment-draft:${code}`;
+type RememberedBookingAccess = { token: string; expiresAt: number };
+function tokenExpiry(token: string) {
+  try {
+    const encoded = token.split(".")[0];
+    if (!encoded) return Date.now() + 86_400_000;
+    const normalized = encoded.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(normalized)) as { exp?: number };
+    return payload.exp ? payload.exp * 1000 : Date.now() + 86_400_000;
+  } catch {
+    return Date.now() + 86_400_000;
+  }
+}
+function rememberBookingAccess(code: string, token: string) {
+  const value: RememberedBookingAccess = { token, expiresAt: tokenExpiry(token) };
+  sessionStorage.setItem(tokenKey(code), token);
+  try { localStorage.setItem(tokenKey(code), JSON.stringify(value)); } catch { /* session recovery remains available */ }
+}
+function getBookingAccess(code: string) {
+  const active = sessionStorage.getItem(tokenKey(code));
+  if (active) return active;
+  try {
+    const stored = localStorage.getItem(tokenKey(code));
+    if (!stored) return null;
+    const value = JSON.parse(stored) as RememberedBookingAccess;
+    if (!value.token || value.expiresAt <= Date.now()) {
+      localStorage.removeItem(tokenKey(code));
+      return null;
+    }
+    sessionStorage.setItem(tokenKey(code), value.token);
+    return value.token;
+  } catch {
+    localStorage.removeItem(tokenKey(code));
+    return null;
+  }
+}
 const today = () =>
   new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 export function Availability({
@@ -194,8 +236,7 @@ export function Availability({
                 <h3>{p.name}</h3>
                 <p>{p.description}</p>
                 <p className="price">
-                  {rupiah(p.basePrice)} / unit / malam · kapasitas{" "}
-                  {p.capacityPerUnit} tamu
+                  {rupiah(p.basePrice)} / unit / malam · kapasitas {p.capacityPerUnit} tamu{p.isDemoData ? " · data demo" : ""}
                 </p>
               </div>
               {item.availableQuantity > 0 ? (
@@ -203,7 +244,7 @@ export function Availability({
                   className="button"
                   onClick={() => router.push(`/booking?${params}`)}
                 >
-                  Pilih dome <ArrowRight size={17} />
+                  Pilih akomodasi <ArrowRight size={17} />
                 </Button>
               ) : (
                 <span className="status-note">Pilih tanggal lain</span>
@@ -305,10 +346,7 @@ export function BookingForm({
           turnstileToken: turnstileToken || undefined,
         }),
       });
-      sessionStorage.setItem(
-        tokenKey(booking.bookingCode),
-        booking.accessToken,
-      );
+      rememberBookingAccess(booking.bookingCode, booking.accessToken);
       router.push(`/booking/payment?bookingCode=${booking.bookingCode}`);
     } catch (e) {
       submissionLocked.current = false;
@@ -344,7 +382,7 @@ export function BookingForm({
           />
         </Label>
         <Label>
-          Jumlah dome
+          Jumlah unit
           <Input
             type="number"
             min="1"
@@ -365,7 +403,7 @@ export function BookingForm({
       </form>
       <aside className="summary">
         <p className="eyebrow">Ringkasan reservasi</p>
-        <h3>{product?.name ?? "Memuat dome..."}</h3>
+        <h3>{product?.name ?? "Memuat akomodasi..."}</h3>
         <div>
           <span>Tanggal</span>
           <strong>
@@ -410,7 +448,7 @@ function useBookingStatus(code: string) {
   const [status, setStatus] = useState<Status | null>(null),
     [error, setError] = useState("");
   const refresh = useCallback(async () => {
-    const token = sessionStorage.getItem(tokenKey(code));
+    const token = getBookingAccess(code);
     if (!token) {
       setError("ACCESS_TOKEN_MISSING");
       return null;
@@ -429,227 +467,6 @@ function useBookingStatus(code: string) {
   }, [code]);
   return { status, error, refresh, setError };
 }
-function PaymentGatewayLegacy({ bookingCode }: { bookingCode: string }) {
-  const router = useRouter(),
-    { status, error, refresh, setError } = useBookingStatus(bookingCode),
-    [busy, setBusy] = useState(false),
-    [seconds, setSeconds] = useState(0),
-    [attempt, setAttempt] = useState<{
-      provider: string;
-      orderId: string;
-      amount: number;
-      checkoutUrl: string | null;
-      demo?: boolean;
-    } | null>(null);
-  const bookingStatus = status?.status;
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-  useEffect(() => {
-    if (!status?.expiresAt) return;
-    const tick = () =>
-      setSeconds(
-        Math.max(
-          0,
-          Math.floor(
-            (new Date(status.expiresAt!).getTime() - Date.now()) / 1000,
-          ),
-        ),
-      );
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [status?.expiresAt]);
-  useEffect(() => {
-    if (bookingStatus !== "WAITING_PAYMENT") return;
-    let tries = 0;
-    const id = setInterval(async () => {
-      tries++;
-      const value = await refresh();
-      if (value?.status === "CONFIRMED")
-        router.push(`/booking/success?bookingCode=${bookingCode}`);
-      if (tries >= 24) clearInterval(id);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [bookingStatus, bookingCode, refresh, router]);
-  const pay = async () => {
-    const token = sessionStorage.getItem(tokenKey(bookingCode));
-    if (!token) return;
-    setBusy(true);
-    setError("");
-    try {
-      const payment = await api<{
-        provider: string;
-        orderId: string;
-        amount: number;
-        checkoutUrl: string | null;
-        demo?: boolean;
-      }>(`/public/bookings/${bookingCode}/payments`, {
-        method: "POST",
-        headers: { Authorization: `Booking ${token}` },
-      });
-      if (payment.checkoutUrl) location.assign(payment.checkoutUrl);
-      else {
-        setAttempt(payment);
-        setBusy(false);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "NETWORK_ERROR");
-      setBusy(false);
-    }
-  };
-  const settle = async (outcome: "complete" | "fail") => {
-    const token = sessionStorage.getItem(tokenKey(bookingCode));
-    if (!token || !attempt) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await api<{ bookingStatus: string }>(
-        `/public/bookings/${bookingCode}/payments`,
-        {
-          method: "POST",
-          headers: { Authorization: `Booking ${token}` },
-          body: JSON.stringify({ action: outcome, orderId: attempt.orderId }),
-        },
-      );
-      if (outcome === "complete" && result.bookingStatus === "CONFIRMED")
-        router.push(`/booking/success?bookingCode=${bookingCode}`);
-      else {
-        setAttempt(null);
-        await refresh();
-        setBusy(false);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "NETWORK_ERROR");
-      setBusy(false);
-    }
-  };
-  if (error === "ACCESS_TOKEN_MISSING")
-    return (
-      <div className="panel center-card">
-        <h2>Akses reservasi diperlukan</h2>
-        <p>Buka kembali booking melalui kode dan kontak Anda.</p>
-        <Link className="button" href="/booking/check">
-          Cek booking
-        </Link>
-      </div>
-    );
-  if (!status)
-    return (
-      <div className="panel center-card">
-        <div className="loader" />
-        <p>Memuat reservasi...</p>
-      </div>
-    );
-  const expired = status.status === "EXPIRED" || seconds === 0;
-  return (
-    <div className="flow-grid">
-      <div className="panel">
-        <p className="eyebrow">Pembayaran aman</p>
-        <h2>{status.bookingCode}</h2>
-        <p>
-          {status.productName} · {status.startDate}
-          {status.endDate ? ` — ${status.endDate}` : ""}
-        </p>
-        {status.status === "CONFIRMED" ? (
-          <p className="status-note">
-            <CheckCircle2 /> Pembayaran terverifikasi. Reservasi dikonfirmasi.
-          </p>
-        ) : expired ? (
-          <p className="status-note error-note">
-            <AlertCircle /> Waktu reservasi telah berakhir. Inventori sudah
-            dilepas.
-          </p>
-        ) : (
-          <>
-            <p>Selesaikan pembayaran DP sebelum waktu tunggu berakhir.</p>
-            <p className="countdown">
-              <Clock3 /> {String(Math.floor(seconds / 60)).padStart(2, "0")}:
-              {String(seconds % 60).padStart(2, "0")}
-            </p>
-            {!attempt ? (
-              <Button
-                className="button"
-                onClick={() => void pay()}
-                disabled={busy}
-              >
-                {busy ? "Menyiapkan pembayaran..." : "Buka pembayaran"}
-              </Button>
-            ) : (
-              <div className="demo-gateway">
-                <p className="eyebrow">DEMO PAYMENT GATEWAY</p>
-                <h3>Simulasi QRIS</h3>
-                <p>
-                  Nominal terkunci oleh server:{" "}
-                  <strong>{rupiah(attempt.amount)}</strong>
-                </p>
-                <p>
-                  <small>Mode demo — tidak ada transaksi uang nyata.</small>
-                </p>
-                <div className="gateway-actions">
-                  <Button
-                    className="button"
-                    disabled={busy}
-                    onClick={() => void settle("complete")}
-                  >
-                    {busy
-                      ? "Memverifikasi..."
-                      : "Simulasikan pembayaran berhasil"}
-                  </Button>
-                  <Button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => void settle("fail")}
-                  >
-                    Simulasikan gagal
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-        {error ? (
-          <p className="status-note error-note">
-            {message(error)}
-            <br />
-            <small>
-              Pembayaran mungkin tetap diterima. Kami belum dapat
-              memverifikasinya.
-            </small>
-          </p>
-        ) : null}
-        <Button variant="ghost" className="text-button" onClick={() => void refresh()}>
-          Periksa status pembayaran
-        </Button>
-      </div>
-      <aside className="summary">
-        <h3>Ringkasan</h3>
-        <div>
-          <span>Total</span>
-          <strong>{rupiah(status.totalAmount)}</strong>
-        </div>
-        <div>
-          <span>DP ({status.dpPercentage}%)</span>
-          <strong>{rupiah(status.requiredDpAmount)}</strong>
-        </div>
-        <div>
-          <span>Sudah diverifikasi</span>
-          <strong>{rupiah(status.verifiedPaidAmount)}</strong>
-        </div>
-        <div className="total">
-          <span>Sisa</span>
-          <strong>{rupiah(status.remainingAmount)}</strong>
-        </div>
-        <p>
-          Dalam mode demo, gateway tetap diverifikasi server dan dicatat pada
-          database. State browser tidak pernah mengonfirmasi booking.
-        </p>
-      </aside>
-    </div>
-  );
-}
-void PaymentGatewayLegacy;
-
 const proofToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
@@ -667,19 +484,43 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
   const [submitted, setSubmitted] = useState(false);
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
+    let saved = 0;
+    try { saved = Number(localStorage.getItem(paymentDraftKey(bookingCode)) ?? 0); } catch { return; }
+    if (!Number.isFinite(saved) || saved <= 0) return;
+    const frame = window.requestAnimationFrame(() => setClaimedAmount(saved));
+    return () => window.cancelAnimationFrame(frame);
+  }, [bookingCode]);
+  useEffect(() => {
+    if (claimedAmount > 0) try { localStorage.setItem(paymentDraftKey(bookingCode), String(claimedAmount)); } catch { /* optional draft only */ }
+  }, [bookingCode, claimedAmount]);
+  useEffect(() => {
     if (!status?.expiresAt) return;
     const tick = () => setSeconds(Math.max(0, Math.floor((Date.parse(status.expiresAt!) - Date.now()) / 1000)));
     tick(); const timer = window.setInterval(tick, 1000); return () => window.clearInterval(timer);
   }, [status?.expiresAt]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(() => {
+    if (!file || submitted) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [file, submitted]);
+  function selectProof(selected: File | null) {
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(selected);
+    setPreview(selected ? URL.createObjectURL(selected) : "");
+  }
   async function submitProof() {
-    const token = sessionStorage.getItem(tokenKey(bookingCode));
+    const token = getBookingAccess(bookingCode);
     if (!token || !file) return;
     if (!["image/jpeg", "image/png"].includes(file.type) || file.size > 5 * 1024 * 1024) { setError("INVALID_PAYMENT_PROOF"); return; }
     setBusy(true); setError("");
     try {
       await api(`/public/bookings/${bookingCode}/payments`, { method: "POST", headers: { Authorization: `Booking ${token}` }, body: JSON.stringify({ claimedAmount: claimedAmount || status?.requiredDpAmount, fileName: file.name, mimeType: file.type, fileSize: file.size, fileDataBase64: await proofToBase64(file) }) });
-      setSubmitted(true); setFile(null); setPreview(""); await refresh();
+      setSubmitted(true); setFile(null); setPreview(""); try { localStorage.removeItem(paymentDraftKey(bookingCode)); } catch { /* optional draft only */ } await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "NETWORK_ERROR"); }
     finally { setBusy(false); }
   }
@@ -696,13 +537,14 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
     <div className="panel">
       <p className="eyebrow">Transfer bank manual</p><h2>{status.bookingCode}</h2>
       <p>{status.productName} · {status.startDate}{status.endDate ? ` — ${status.endDate}` : ""}</p>
-      {approved ? <p className="status-note"><CheckCircle2/> DP Terverifikasi</p> : expired ? <p className="status-note error-note"><AlertCircle/> Kedaluwarsa — inventori telah dilepas.</p> : pending || submitted ? <p className="status-note"><Clock3/> Bukti pembayaran sedang diverifikasi admin.</p> : status.latestProofStatus === "REJECTED" ? <p className="status-note error-note"><AlertCircle/> Bukti Ditolak. {status.latestProofRejectionReason || "Silakan unggah bukti yang benar."}</p> : <p className="status-note"><Clock3/> Menunggu Pembayaran</p>}
+      <p className="payment-recovery-note"><ShieldCheck aria-hidden="true"/> Halaman ini aman untuk di-refresh. Akses booking dan nominal transfer disimpan selama maksimal 24 jam di perangkat ini. Demi privasi, foto bukti yang belum dikirim harus dipilih kembali.</p>
+      {approved ? <p className="status-note"><CheckCircle2/> DP Terverifikasi</p> : expired ? <p className="status-note error-note"><AlertCircle/> Kedaluwarsa — inventori telah dilepas.</p> : pending || submitted ? <p className="status-note"><Clock3/> Bukti pembayaran sedang menunggu verifikasi Admin.</p> : status.latestProofStatus === "REJECTED" ? <p className="status-note error-note"><AlertCircle/> Bukti Pembayaran Ditolak. {status.latestProofRejectionReason || "Silakan unggah bukti yang benar."}</p> : <p className="status-note"><Clock3/> Menunggu Pembayaran</p>}
       {!approved && !expired ? <>
         <div className="countdown"><Clock3/> {hours}:{minutes}:{secs}</div>
         <div className="bank-instructions"><p className="eyebrow">Instruksi transfer</p><h3>{process.env.NEXT_PUBLIC_BANK_NAME ?? "Rekening demo Shakila Group"}</h3><p>{process.env.NEXT_PUBLIC_BANK_ACCOUNT ?? "Nomor rekening akan dikonfigurasi setelah data resmi klien diterima."}</p><strong>{process.env.NEXT_PUBLIC_BANK_HOLDER ?? "Shakila Group"}</strong><small>Transfer minimal sebesar DP dan gunakan kode booking sebagai berita transfer.</small></div>
         {!pending ? <div className="proof-upload">
           <Label>Nominal yang ditransfer<Input type="number" min={status.requiredDpAmount} max={status.totalAmount} value={effectiveAmount} onChange={(event) => setClaimedAmount(Number(event.target.value))}/></Label>
-          <Label>Bukti pembayaran (JPG, JPEG, atau PNG · maks. 5 MB)<Input type="file" accept="image/jpeg,image/png" onChange={(event) => { const selected=event.target.files?.[0] ?? null; if (preview) URL.revokeObjectURL(preview); setFile(selected); setPreview(selected ? URL.createObjectURL(selected) : ""); }}/></Label>
+          <div className="proof-field"><span>Bukti pembayaran</span><ProofFilePicker file={file} onFileChange={selectProof}/></div>
           {preview ? <div className="proof-preview" role="img" aria-label="Pratinjau bukti pembayaran" style={{backgroundImage:`url(${preview})`}}/> : null}
           <Button className="button" disabled={busy || !file || effectiveAmount < status.requiredDpAmount} onClick={() => void submitProof()}>{busy ? "Mengunggah bukti..." : "Kirim bukti pembayaran"}</Button>
         </div> : null}
@@ -720,21 +562,23 @@ export function SuccessPage({ bookingCode }: { bookingCode: string }) {
       url?: string;
       fileName?: string;
     } | null>(null);
-  const isConfirmed = status?.status === "CONFIRMED";
+  const canAccessConfirmedDocuments = Boolean(
+    status && ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "COMPLETED"].includes(status.status),
+  );
   useEffect(() => {
     void refresh();
   }, [refresh]);
   useEffect(() => {
-    if (!isConfirmed) return;
-    const token = sessionStorage.getItem(tokenKey(bookingCode));
+    if (!canAccessConfirmedDocuments) return;
+    const token = getBookingAccess(bookingCode);
     if (token)
       void api<{ status: string; url?: string; fileName?: string }>(
         `/public/bookings/${bookingCode}/invoice`,
         { headers: { Authorization: `Booking ${token}` } },
       ).then(setInvoice);
-  }, [isConfirmed, bookingCode]);
+  }, [canAccessConfirmedDocuments, bookingCode]);
   const securedFile = async (kind: "invoice" | "email-preview") => {
-    const token = sessionStorage.getItem(tokenKey(bookingCode));
+    const token = getBookingAccess(bookingCode);
     if (!token) return;
     const suffix = kind === "invoice" ? "invoice?download=1" : "email-preview";
     const response = await fetch(
@@ -747,7 +591,7 @@ export function SuccessPage({ bookingCode }: { bookingCode: string }) {
     if (kind === "invoice") {
       const a = document.createElement("a");
       a.href = url;
-      a.download = invoice?.fileName ?? `invoice-${bookingCode}.pdf`;
+      a.download = invoice?.fileName ?? `invois-${bookingCode}.pdf`;
       a.click();
     } else window.open(url, "_blank", "noopener,noreferrer");
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
@@ -759,38 +603,75 @@ export function SuccessPage({ bookingCode }: { bookingCode: string }) {
         <p>{error ? message(error) : "Memverifikasi pembayaran..."}</p>
       </div>
     );
+
+  const completedStates: Record<string, { eyebrow: string; title: string; copy: string }> = {
+    CONFIRMED: {
+      eyebrow: "Reservasi terkonfirmasi",
+      title: "Sampai jumpa di atas awan.",
+      copy: "DP telah diverifikasi dan unit Anda sudah diamankan.",
+    },
+    CHECKED_IN: {
+      eyebrow: "Sedang menginap",
+      title: "Selamat menikmati Shakila.",
+      copy: "Reservasi sudah melalui proses check-in.",
+    },
+    CHECKED_OUT: {
+      eyebrow: "Sudah check-out",
+      title: "Terima kasih telah menginap bersama kami.",
+      copy: "Proses check-out telah selesai dan reservasi sedang ditutup.",
+    },
+    COMPLETED: {
+      eyebrow: "Reservasi selesai",
+      title: "Semoga perjalanan ini tinggal dalam ingatan.",
+      copy: "Seluruh rangkaian reservasi telah selesai.",
+    },
+  };
+  const completedState = completedStates[status.status];
+  const proofPending = status.latestProofStatus === "PENDING";
+  const proofRejected = status.latestProofStatus === "REJECTED";
+
   return (
-    <div className="panel center-card">
-      {status.status === "CONFIRMED" ? (
+    <div className="panel center-card booking-status-card">
+      {completedState ? (
         <>
           <CheckCircle2 size={48} />
-          <p className="eyebrow">Reservasi terkonfirmasi</p>
-          <h1>Sampai jumpa di atas awan.</h1>
+          <p className="eyebrow">{completedState.eyebrow}</p>
+          <h1>{completedState.title}</h1>
+          <p>{completedState.copy}</p>
           <p>Kode booking Anda</p>
           <div className="countdown">{status.bookingCode}</div>
           <p>
             {status.productName} · {status.startDate}
             {status.endDate ? ` — ${status.endDate}` : ""}
           </p>
-          <p className="status-note">Check-in mulai pukul 13.00 WIB. Check-out maksimal pukul 12.00 WIB.</p>
-          <p className="status-note">DP yang telah dibayarkan tidak dapat dikembalikan apabila booking dibatalkan.</p>
+          <div className="booking-status-finance">
+            <div><span>Total booking</span><strong>{rupiah(status.totalAmount)}</strong></div>
+            <div><span>DP terverifikasi</span><strong>{rupiah(status.verifiedPaidAmount)}</strong></div>
+            <div><span>Sisa pembayaran</span><strong>{rupiah(status.remainingAmount)}</strong></div>
+          </div>
+          {status.bookingType === "ACCOMMODATION" ? (
+            <p className="status-note">Check-in mulai pukul 13.00 WIB. Check-out maksimal pukul 12.00 WIB.</p>
+          ) : null}
+          {status.verifiedPaidAmount > 0 ? (
+            <p className="status-note">DP yang telah dibayarkan tidak dapat dikembalikan apabila booking dibatalkan.</p>
+          ) : null}
           {invoice?.status === "GENERATED" ? (
             <Button
               className="button"
               onClick={() => void securedFile("invoice")}
             >
-              <Download size={17} /> Unduh invoice
+              <Download size={17} /> Unduh invois
             </Button>
-          ) : (
+          ) : status.verifiedPaidAmount > 0 ? (
             <p className="status-note">
-              Invoice sedang disiapkan dan akan tersedia di halaman ini.
+              Invois sedang disiapkan dan akan tersedia di halaman ini.
             </p>
-          )}
+          ) : null}
           <Button
             className="text-button"
             onClick={() => void securedFile("email-preview")}
           >
-            Lihat preview email konfirmasi
+            Lihat pratinjau surel konfirmasi
           </Button>
         </>
       ) : status.status === "EXPIRED" ? (
@@ -802,17 +683,42 @@ export function SuccessPage({ bookingCode }: { bookingCode: string }) {
             Cari tanggal baru
           </Link>
         </>
+      ) : status.status === "CANCELLED" ? (
+        <>
+          <AlertCircle size={48} />
+          <p className="eyebrow">Reservasi dibatalkan</p>
+          <h1>Booking ini sudah tidak aktif.</h1>
+          <p>Kode booking {status.bookingCode} tersimpan sebagai riwayat reservasi.</p>
+          {status.verifiedPaidAmount > 0 ? (
+            <p className="status-note error-note">DP yang telah dibayarkan tidak dapat dikembalikan apabila booking dibatalkan.</p>
+          ) : null}
+          <Link className="button" href="/availability">Buat reservasi baru</Link>
+        </>
+      ) : status.status === "WAITING_PAYMENT" ? (
+        <>
+          {proofRejected ? <AlertCircle size={48} /> : <Clock3 size={48} />}
+          <p className="eyebrow">{proofPending ? "Menunggu verifikasi" : proofRejected ? "Bukti ditolak" : "Menunggu pembayaran"}</p>
+          <h1>{proofPending ? "Bukti pembayaran sedang diperiksa." : proofRejected ? "Bukti pembayaran perlu dikirim ulang." : "Selesaikan DP untuk mengamankan reservasi."}</h1>
+          <p>{proofRejected ? status.latestProofRejectionReason || "Silakan unggah bukti pembayaran yang benar sebelum batas waktu." : proofPending ? "Admin akan memeriksa mutasi rekening sebelum mengonfirmasi booking Anda." : "Pembayaran DP maksimal 12 jam setelah booking dibuat."}</p>
+          <div className="countdown">{status.bookingCode}</div>
+          <div className="booking-status-finance">
+            <div><span>Total booking</span><strong>{rupiah(status.totalAmount)}</strong></div>
+            <div><span>Minimum DP</span><strong>{rupiah(status.requiredDpAmount)}</strong></div>
+            <div><span>Sisa pembayaran</span><strong>{rupiah(status.remainingAmount)}</strong></div>
+          </div>
+          <Link className="button" href={`/booking/payment?bookingCode=${bookingCode}`}>
+            {proofPending ? "Lihat status pembayaran" : proofRejected ? "Unggah bukti baru" : "Lanjutkan pembayaran"}
+          </Link>
+        </>
       ) : (
         <>
           <Clock3 size={48} />
-          <h1>Pembayaran masih diverifikasi.</h1>
-          <p>
-            Kami belum dapat memastikan status pembayaran. Pembayaran mungkin
-            tetap telah diterima.
-          </p>
+          <p className="eyebrow">Reservasi diproses</p>
+          <h1>Booking sedang kami siapkan.</h1>
+          <p>Status terkini: {bookingStatusLabel(status.status)}.</p>
           <Link
             className="button"
-            href={`/booking/payment?bookingCode=${bookingCode}`}
+            href="/booking/check"
           >
             Periksa kembali
           </Link>
@@ -824,7 +730,15 @@ export function SuccessPage({ bookingCode }: { bookingCode: string }) {
 type Lookup = { bookingCode: string; email: string; whatsapp: string };
 export function BookingLookup() {
   const router = useRouter(),
-    { register, handleSubmit } = useForm<Lookup>(),
+    {
+      register,
+      handleSubmit,
+      clearErrors,
+      formState: { errors },
+    } = useForm<Lookup>({
+      shouldUnregister: true,
+      defaultValues: { bookingCode: "", email: "", whatsapp: "" },
+    }),
     [method, setMethod] = useState<"email" | "whatsapp">("email"),
     [token, setToken] = useState(""),
     [busy, setBusy] = useState(false),
@@ -842,7 +756,7 @@ export function BookingLookup() {
           turnstileToken: token || undefined,
         }),
       });
-      sessionStorage.setItem(tokenKey(result.bookingCode), result.accessToken);
+      rememberBookingAccess(result.bookingCode, result.accessToken);
       router.push(`/booking/success?bookingCode=${result.bookingCode}`);
     } catch (e) {
       setError(message(e instanceof Error ? e.message : "NETWORK_ERROR"));
@@ -855,14 +769,28 @@ export function BookingLookup() {
       <Label className="full">
         Kode booking
         <Input
-          {...register("bookingCode", { required: true })}
-          placeholder="GLP-260825-000001"
+          {...register("bookingCode", {
+            required: "Kode booking wajib diisi.",
+            minLength: { value: 8, message: "Periksa kembali kode booking Anda." },
+            setValueAs: (value: string) => value.trim().toUpperCase(),
+          })}
+          autoCapitalize="characters"
+          autoComplete="off"
+          aria-invalid={Boolean(errors.bookingCode)}
+          placeholder="Contoh: GLP-260830-000001"
         />
+        {errors.bookingCode ? (
+          <span className="field-error">{errors.bookingCode.message}</span>
+        ) : null}
       </Label>
       <Tabs
         className="full lookup-tabs"
         value={method}
-        onValueChange={(value) => setMethod(value as "email" | "whatsapp")}
+        onValueChange={(value) => {
+          setMethod(value as "email" | "whatsapp");
+          clearErrors();
+          setError("");
+        }}
       >
         <TabsList>
           <TabsTrigger value="email">Email</TabsTrigger>
@@ -872,17 +800,41 @@ export function BookingLookup() {
       {method === "email" ? (
         <Label className="full">
           Email
-          <Input type="email" {...register("email", { required: true })} />
+          <Input
+            type="email"
+            autoComplete="email"
+            aria-invalid={Boolean(errors.email)}
+            placeholder="nama@email.com"
+            {...register("email", {
+              required: "Email yang digunakan saat booking wajib diisi.",
+              setValueAs: (value: string) => value.trim().toLowerCase(),
+            })}
+          />
+          {errors.email ? <span className="field-error">{errors.email.message}</span> : null}
         </Label>
       ) : (
         <Label className="full">
           WhatsApp
-          <Input {...register("whatsapp", { required: true })} />
+          <Input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            aria-invalid={Boolean(errors.whatsapp)}
+            placeholder="Contoh: 0812 3456 7890"
+            {...register("whatsapp", {
+              required: "Nomor WhatsApp yang digunakan saat booking wajib diisi.",
+              minLength: { value: 8, message: "Periksa kembali nomor WhatsApp Anda." },
+              setValueAs: (value: string) => value.trim(),
+            })}
+          />
+          {errors.whatsapp ? (
+            <span className="field-error">{errors.whatsapp.message}</span>
+          ) : null}
         </Label>
       )}
       <Turnstile onToken={setToken} />
       {error ? <p className="status-note error-note full">{error}</p> : null}
-      <Button className="button full" disabled={busy}>
+      <Button type="submit" className="button full" disabled={busy}>
         {busy ? (
           "Mencari booking..."
         ) : (

@@ -21,7 +21,7 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
   page.drawRectangle({x:42,y:42,width:4,height:758,color:accent});
   page.drawText(item.businessName.toUpperCase(),{x:70,y:765,size:13,font:bold,color:ink});
   page.drawText(item.businessSlug==="glamping"?"H O S P I T A L I T A S   B R O M O":"P E R J A L A N A N   B R O M O",{x:70,y:747,size:7,font:regular,color:muted});
-  right("INVOICE",754,30,bold);
+  right("INVOIS",754,30,bold);
   right(item.invoiceNumber,726,11,bold);
 
   page.drawText("D I T A G I H K A N   K E P A D A",{x:70,y:674,size:7,font:bold,color:muted});
@@ -69,7 +69,7 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
 }
 export async function generateAndStoreInvoice(bookingId:string,database:BookingDatabase=getDb()){
   const item=await snapshot(bookingId,database);if(item.status==="GENERATED"&&item.r2ObjectKey)return {invoiceNumber:item.invoiceNumber,objectKey:item.r2ObjectKey,duplicate:true};
-  try{const bytes=await renderInvoicePdf(item),{client,bucket}=r2Config(),objectKey=`invoices/${item.businessSlug}/${item.bookingCode}/${item.invoiceNumber}.pdf`,fileName=`${item.invoiceNumber}.pdf`;await client.send(new PutObjectCommand({Bucket:bucket,Key:objectKey,Body:bytes,ContentType:"application/pdf",ContentDisposition:`attachment; filename="${fileName}"`}));await database.transaction(async tx=>{await tx.execute(sql`update invoices set status='GENERATED',r2_object_key=${objectKey},file_name=${fileName},mime_type='application/pdf',file_size=${bytes.length},generated_at=now(),updated_at=now() where id=${item.invoiceId}::uuid`);await tx.execute(sql`insert into booking_events (booking_id,event_type,actor_type,title,metadata) values (${bookingId}::uuid,'INVOICE_GENERATED','BACKGROUND_JOB','Invoice generated',${JSON.stringify({invoiceNumber:item.invoiceNumber})}::jsonb)`);});return {invoiceNumber:item.invoiceNumber,objectKey,duplicate:false};}catch(error){await database.transaction(async tx=>{await tx.execute(sql`update invoices set status='FAILED',updated_at=now() where id=${item.invoiceId}::uuid`);await tx.execute(sql`insert into booking_events (booking_id,event_type,actor_type,title) values (${bookingId}::uuid,'INVOICE_FAILED','BACKGROUND_JOB','Invoice generation failed')`);});throw error;}
+  try{const bytes=await renderInvoicePdf(item),{client,bucket}=r2Config(),objectKey=`invoices/${item.businessSlug}/${item.bookingCode}/${item.invoiceNumber}.pdf`,fileName=`${item.invoiceNumber}.pdf`;await client.send(new PutObjectCommand({Bucket:bucket,Key:objectKey,Body:bytes,ContentType:"application/pdf",ContentDisposition:`attachment; filename="${fileName}"`}));await database.transaction(async tx=>{await tx.execute(sql`update invoices set status='GENERATED',r2_object_key=${objectKey},file_name=${fileName},mime_type='application/pdf',file_size=${bytes.length},generated_at=now(),updated_at=now() where id=${item.invoiceId}::uuid`);await tx.execute(sql`insert into booking_events (booking_id,event_type,actor_type,title,metadata) values (${bookingId}::uuid,'INVOICE_GENERATED','BACKGROUND_JOB','Invoice berhasil dibuat',${JSON.stringify({invoiceNumber:item.invoiceNumber})}::jsonb)`);});return {invoiceNumber:item.invoiceNumber,objectKey,duplicate:false};}catch(error){await database.transaction(async tx=>{await tx.execute(sql`update invoices set status='FAILED',updated_at=now() where id=${item.invoiceId}::uuid`);await tx.execute(sql`insert into booking_events (booking_id,event_type,actor_type,title) values (${bookingId}::uuid,'INVOICE_FAILED','BACKGROUND_JOB','Pembuatan invoice gagal')`);});throw error;}
 }
 export async function getInvoiceDownload(bookingId:string,database:BookingDatabase=getDb()){const item=rows<{invoiceNumber:string;status:string;objectKey:string|null;fileName:string|null}>(await database.execute(sql`select invoice_number as "invoiceNumber",status,r2_object_key as "objectKey",file_name as "fileName" from invoices where booking_id=${bookingId}::uuid limit 1`))[0];if(!item)return {status:"PENDING" as const};if(item.status!=="GENERATED"||!item.objectKey)return {status:item.status};const {client,bucket}=r2Config();return {status:"GENERATED" as const,invoiceNumber:item.invoiceNumber,fileName:item.fileName,url:await getSignedUrl(client,new GetObjectCommand({Bucket:bucket,Key:item.objectKey}),{expiresIn:300})};}
 
@@ -103,7 +103,7 @@ export async function generateDirectInvoice(
         await tx.execute(sql`
           insert into booking_events (booking_id, event_type, actor_type, title, metadata)
           values (${bookingId}::uuid, 'INVOICE_GENERATED', 'BACKGROUND_JOB',
-            'Demo invoice PDF ready',
+            'Pratinjau PDF invoice siap',
             ${JSON.stringify({ invoiceNumber: item.invoiceNumber, storage: "DIRECT" })}::jsonb)
         `);
       }

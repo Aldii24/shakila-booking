@@ -1,6 +1,6 @@
 # Database Design
 
-> **Client revision — 30 August 2026:** Add append-only `payment_proofs` audit records with claimed/verified amount, persistent demo-safe file data, review status, rejection reason, timestamps, and reviewing Admin identity. Add booking source (`ONLINE`, `ADMIN_MANUAL`, `WALK_IN`) and internal manual-booking notes. Existing booking price/payment snapshots remain unchanged; migration updates only current business settings to minimum 50% DP, 720-minute deadline, and accommodation times 13:00/12:00. No destructive reset is permitted.
+> **Klarifikasi client — 6 September 2026 (otoritatif):** `payment_proofs` adalah satu-satunya sumber verifikasi pembayaran customer: menyimpan nominal klaim/verifikasi, status tinjauan, alasan penolakan, waktu, Admin pemeriksa, serta referensi adapter penyimpanan. Tidak ada transaksi atau webhook payment gateway aktif. Booking source adalah `ONLINE`, `ADMIN_MANUAL`, atau `WALK_IN`; DP minimal 50%, tenggat 720 menit, serta waktu akomodasi 13:00/12:00 WIB. Migrasi tidak boleh merusak snapshot historis.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 

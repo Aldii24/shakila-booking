@@ -55,7 +55,7 @@ export async function prepareDemoEmailPreview(bookingId: string, database: Booki
   await renderSnapshot(await getSnapshot(bookingId, database));
   const inserted = rows<{id:string}>(await database.execute(sql`
     insert into booking_events (booking_id,event_type,actor_type,title,metadata)
-    select ${bookingId}::uuid,'EMAIL_SENT','SYSTEM','Email confirmation demo preview ready',${JSON.stringify({provider:"PREVIEW",delivered:false})}::jsonb
+    select ${bookingId}::uuid,'EMAIL_SENT','SYSTEM','Pratinjau email konfirmasi siap',${JSON.stringify({provider:"PREVIEW",delivered:false})}::jsonb
     where not exists (select 1 from booking_events where booking_id=${bookingId}::uuid and event_type='EMAIL_SENT') returning id
   `));
   return {duplicate:inserted.length===0,delivered:false,provider:"PREVIEW" as const};
@@ -71,7 +71,7 @@ export async function sendBookingConfirmation(bookingId: string, database: Booki
   const resend=new Resend(apiKey);
   const {data,error}=await resend.emails.send({from,to:item.email,subject:`Reservasi ${item.bookingCode} dikonfirmasi`,html},{idempotencyKey:`booking-confirmed/${bookingId}`});
   if(error)throw new Error(`Resend delivery failed: ${error.name}`);
-  await database.execute(sql`insert into booking_events (booking_id,event_type,actor_type,title,metadata) values (${bookingId}::uuid,'EMAIL_SENT','BACKGROUND_JOB','Confirmation email sent',${JSON.stringify({provider:"RESEND",providerMessageId:data?.id??null})}::jsonb)`);
+  await database.execute(sql`insert into booking_events (booking_id,event_type,actor_type,title,metadata) values (${bookingId}::uuid,'EMAIL_SENT','BACKGROUND_JOB','Email konfirmasi terkirim',${JSON.stringify({provider:"RESEND",providerMessageId:data?.id??null})}::jsonb)`);
   return {duplicate:false,messageId:data?.id};
 }
 

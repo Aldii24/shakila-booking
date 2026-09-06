@@ -112,10 +112,6 @@ export const bookingLookupRequestSchema = z.object({
   message: "Provide exactly one of email or WhatsApp.",
 });
 
-export const paymentInitiationResponseSchema=z.discriminatedUnion("provider",[
-  z.object({provider:z.literal("PAKASIR"),orderId:z.string(),amount:z.number().int().nonnegative(),expiresAt:z.string().nullable(),checkoutUrl:z.url()}),
-  z.object({provider:z.literal("DEMO"),orderId:z.string(),amount:z.number().int().nonnegative(),expiresAt:z.string().nullable(),checkoutUrl:z.null(),demo:z.literal(true)}),
-]);
 export const bookingStatusResponseSchema=z.object({bookingCode:bookingCodeSchema,bookingType:z.enum(["ACCOMMODATION","JEEP"]),status:z.enum(bookingStatuses),paymentStatus:z.enum(paymentStatuses),customerName:z.string(),quantity:z.number().int(),guestCount:z.number().int(),subtotalAmount:z.number().int(),totalAmount:z.number().int(),dpPercentage:z.number().int(),requiredDpAmount:z.number().int(),verifiedPaidAmount:z.number().int(),remainingAmount:z.number().int(),expiresAt:z.coerce.string().nullable(),requiresReview:z.boolean(),bookingSource:z.enum(["ONLINE","ADMIN_MANUAL","WALK_IN"]),productName:z.string(),unitPrice:z.number().int(),nightCount:z.number().int().nullable(),startDate:z.string(),endDate:z.string().nullable(),departureTime:z.string().nullable(),invoiceStatus:z.enum(["PENDING","GENERATED","FAILED"]).nullable(),invoiceNumber:z.string().nullable(),latestProofStatus:z.enum(["PENDING","APPROVED","REJECTED"]).nullable(),latestProofRejectionReason:z.string().nullable(),latestProofCreatedAt:z.coerce.string().nullable()});
 
 export type CreateBookingRequest = z.infer<typeof createBookingRequestSchema>;

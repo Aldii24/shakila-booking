@@ -1,5 +1,7 @@
 # Demo Data Specification
 
+> **Klarifikasi client — 6 September 2026 (otoritatif):** Data katalog utama berasal dari `docs/CLIENT-CATALOG.md` dan `data/client-catalog.json`. Stok Jeep 8 unit, slot keberangkatan, kapasitas yang belum diberikan, serta harga/kapasitas Glamping yang belum diberikan harus ditandai sebagai data demo. Tidak ada seed transaksi gateway maupun efek samping provider.
+
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 
 **Document:** `DEMO-DATA.md`  

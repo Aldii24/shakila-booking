@@ -1,6 +1,6 @@
 # Technical Architecture
 
-> **Client revision — 30 August 2026:** The active payment adapter is manual bank transfer plus Admin verification. For the deployed product demo, proof binaries are persisted in PostgreSQL with strict MIME/size validation so Vercel local filesystem is never authoritative. This is a deliberate demo storage adapter and can later be replaced by private object storage without changing the proof audit model. Admin notification uses bounded polling and an in-app/audio cue after browser interaction.
+> **Klarifikasi client — 6 September 2026 (otoritatif):** Tidak ada payment gateway dalam produk aktif. Pembayaran hanya berupa transfer bank manual, unggah bukti, serta persetujuan/penolakan manual oleh Admin. Bukti memakai adapter penyimpanan persisten PostgreSQL untuk demo dan kontraknya siap diganti ke Cloudflare R2; filesystem deployment tidak pernah menjadi sumber data. Seluruh arsitektur Pakasir/provider lama di bawah bersifat usang.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 

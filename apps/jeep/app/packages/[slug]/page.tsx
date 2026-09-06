@@ -1,1 +1,22 @@
-import Link from "next/link";import {ArrowRight,Clock3,Map,Mountain,Sunrise,Users} from "lucide-react";import {Footer,Header} from "@/components/site-chrome";const packs={"sunrise-adventure":{name:"SUNRISE ADVENTURE",className:"sunrise",price:"Rp750.000",slots:"03.00 WIB · dini hari",copy:"Kejar cahaya pertama melalui lintasan pilihan dengan perjalanan privat yang dipersiapkan sejak dini hari."},"full-adventure-experience":{name:"FULL ADVENTURE EXPERIENCE",className:"full",price:"Rp950.000",slots:"03.00 WIB · dini hari / 08.00 WIB · pagi",copy:"Ekspedisi yang lebih lengkap dengan waktu perjalanan lebih panjang dan lebih banyak lintasan pilihan."}};export default async function Page({params}:{params:Promise<{slug:string}>}){const {slug}=await params,p=packs[slug as keyof typeof packs]??packs["sunrise-adventure"];return <><Header/><main><section className={`detail-hero ${p.className}`}><div><p className="kicker">SHAKILA SIGNATURE ROUTE</p><h1>{p.name}</h1><p>{p.copy}</p></div></section><section className="detail-copy"><div><p className="kicker">THE ROUTE</p><h2>MORE GROUND.<br/>BETTER STORIES.</h2><p>{p.copy} Pengemudi lokal mengatur tempo perjalanan sesuai kondisi lapangan dan keselamatan rombongan.</p></div><aside className="summary"><div><Clock3/><span>{p.slots}</span></div><div><Users/><span>Maks. 6 tamu / Jeep</span></div><div><Sunrise/><span>Perjalanan fajar</span></div><div><Mountain/><span>Lintasan utama</span></div><div><Map/><span>Area pandang</span></div><div className="total"><span>Harga per Jeep</span><b>{p.price}</b></div><Link className="button" href={`/availability?guestCount=4`}>CHECK AVAILABILITY <ArrowRight/></Link></aside></section></main><Footer/></>}
+import Link from "next/link";
+import { ArrowRight, Clock3, Map, ShieldCheck } from "lucide-react";
+import { Footer, Header } from "@/components/site-chrome";
+import { api, rupiah } from "@/lib/api";
+
+type JeepPackage = { slug:string; name:string; description:string; pricePerUnit:number; routes:string[]; facilities:string[]; isDemoData:boolean; departureSlots:{id:string;name:string;departureTime:string;isDemoData:boolean}[] };
+const imageFor = (slug:string) => slug.startsWith("short") ? "/media/jeep-short.jpg" : slug.startsWith("medium") ? "/media/jeep-medium.jpg" : "/media/jeep-long.jpg";
+
+export default async function Page({params}:{params:Promise<{slug:string}>}) {
+  const {slug}=await params;
+  const item=await api<JeepPackage>(`/public/jeep/packages/${slug}`);
+  return <><Header/><main>
+    <section className="detail-hero client-media" style={{backgroundImage:`linear-gradient(90deg,rgba(20,26,18,.72),rgba(20,26,18,.12)),url(${imageFor(slug)})`}}><div><p className="kicker">Paket perjalanan Shakila</p><h1>{item.name}</h1><p>{item.description}</p>{item.isDemoData?<span className="catalog-demo-badge">Slot, kapasitas, dan stok masih berupa data demo</span>:null}</div></section>
+    <section className="detail-copy"><div><p className="kicker">Rute perjalanan</p><h2>Jelajahi lebih dekat.</h2><p>{item.description}</p><div className="facility-list">{item.routes.map(route=><span key={route}>• {route}</span>)}</div>{item.facilities.length?<div className="facility-list"><strong>Fasilitas</strong>{item.facilities.map(value=><span key={value}>• {value}</span>)}</div>:null}</div><aside className="summary">
+      <div><Clock3/><span>{item.departureSlots.map(slot=>`${slot.departureTime.slice(0,5)} WIB`).join(" · ")} · slot demo</span></div>
+      <div><Map/><span>{item.routes.length} titik rute</span></div>
+      <div><ShieldCheck/><span>Stok sementara 8 Jeep · data demo</span></div>
+      <div className="total"><span>Harga paket</span><b>{rupiah(item.pricePerUnit)}</b></div>
+      <Link className="button" href="/availability">Cek ketersediaan <ArrowRight/></Link>
+    </aside></section>
+  </main><Footer/></>;
+}

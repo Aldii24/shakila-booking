@@ -28,7 +28,7 @@ export function ConfirmationEmail(props:ConfirmationEmailProps){
           <table role="presentation" style={{width:"100%",borderCollapse:"collapse",marginTop:"22px"}}><tbody>
             <tr><td style={{padding:"11px 0",fontSize:"14px",color:"#66635d",borderBottom:"1px solid #e4e1da"}}>DP terverifikasi</td><td style={{padding:"11px 0",fontSize:"15px",fontWeight:700,textAlign:"right",color:ink,borderBottom:"1px solid #e4e1da"}}>{props.paidAmount}</td></tr>
             <tr><td style={{padding:"11px 0",fontSize:"14px",color:"#66635d",borderBottom:"1px solid #e4e1da"}}>Sisa pembayaran</td><td style={{padding:"11px 0",fontSize:"15px",fontWeight:700,textAlign:"right",color:ink,borderBottom:"1px solid #e4e1da"}}>{props.remainingAmount}</td></tr>
-            <tr><td style={{padding:"11px 0",fontSize:"14px",color:"#66635d"}}>Invoice</td><td style={{padding:"11px 0",fontSize:"13px",fontWeight:700,textAlign:"right",color:accent}}>{props.invoiceState}{props.invoiceNumber?` · ${props.invoiceNumber}`:""}</td></tr>
+            <tr><td style={{padding:"11px 0",fontSize:"14px",color:"#66635d"}}>Invois</td><td style={{padding:"11px 0",fontSize:"13px",fontWeight:700,textAlign:"right",color:accent}}>{props.invoiceState}{props.invoiceNumber?` · ${props.invoiceNumber}`:""}</td></tr>
           </tbody></table>
           <p style={{fontSize:"12px",lineHeight:"1.6",color:"#77746d",margin:"28px 0 0",paddingTop:"18px",borderTop:"1px solid #e4e1da"}}>Simpan kode booking ini. Detail reservasi hanya dapat dibuka dengan kode booking serta email atau WhatsApp yang digunakan saat memesan.</p>
         </div>

@@ -11,6 +11,19 @@ export class AdminApiError extends Error {
   }
 }
 
+const pesanKesalahan: Record<string, string> = {
+  AUTH_REQUIRED: "Sesi Admin telah berakhir. Silakan masuk kembali.",
+  FORBIDDEN: "Anda tidak memiliki izin untuk tindakan ini.",
+  INVENTORY_NOT_AVAILABLE: "Inventori tidak mencukupi. Pilih tanggal, slot, atau jumlah lain.",
+  PAYMENT_PROOF_ALREADY_REVIEWED: "Bukti pembayaran ini sudah diverifikasi sebelumnya.",
+  PAYMENT_PROOF_NOT_FOUND: "Bukti pembayaran tidak ditemukan.",
+  PAYMENT_PROOF_STORAGE_UNAVAILABLE: "Bukti pembayaran belum dapat dibuka.",
+  BOOKING_EXPIRED: "Booking sudah kedaluwarsa dan inventori telah dilepas.",
+  INVALID_PAYMENT_AMOUNT: "Nominal pembayaran tidak memenuhi ketentuan booking.",
+  VALIDATION_ERROR: "Data belum lengkap atau tidak valid.",
+  REQUEST_FAILED: "Permintaan belum dapat diproses.",
+};
+
 export async function adminApi<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}/admin${path}`, {
     ...init,
@@ -25,7 +38,7 @@ export async function adminApi<T>(path: string, init?: RequestInit): Promise<T> 
   if (!response.ok || envelope.error)
     throw new AdminApiError(
       envelope.error?.code ?? "REQUEST_FAILED",
-      envelope.error?.message ?? "Permintaan gagal.",
+      pesanKesalahan[envelope.error?.code ?? "REQUEST_FAILED"] ?? "Permintaan belum dapat diproses. Silakan coba lagi.",
     );
   return envelope.data as T;
 }

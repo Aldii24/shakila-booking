@@ -1,0 +1,1127 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "2026-09-06-client-ingestion-1",
+  "ingestedAt": "2026-09-06",
+  "timezone": "Asia/Jakarta",
+  "scope": "CLIENT_DATA_INGESTION_ONLY",
+  "dataLabels": [
+    "CONFIRMED_CLIENT_DATA",
+    "SOURCE_DERIVED_DATA",
+    "TEMP_DEMO_DATA",
+    "MISSING_OR_UNCERTAIN_DATA"
+  ],
+  "sourceRoots": {
+    "glamping": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING",
+    "homestay": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY",
+    "jeep": "C:\\Downloads\\SHAKILAGRUP\\JEEP",
+    "jeepPrimaryPdf": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+    "clientLogo": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+  },
+  "brand": {
+    "name": {
+      "value": "Shakila",
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePaths": [
+        "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+      ]
+    },
+    "alternateName": {
+      "value": "Shakila Group",
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePaths": [
+        "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf"
+      ]
+    },
+    "logo": {
+      "sourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg",
+      "status": "CONFIRMED_CLIENT_DATA"
+    },
+    "descriptor": {
+      "value": "CAFE • PENGINAPAN • TOUR JEEP",
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePaths": [
+        "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+      ]
+    },
+    "contacts": {
+      "entries": [
+        {
+          "context": "glamping",
+          "channel": "phone",
+          "value": "0878-2000-4830",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+        },
+        {
+          "context": "glamping",
+          "channel": "instagram",
+          "value": "@shakila.glamping",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+        },
+        {
+          "context": "jeep-cross-reference",
+          "channel": "phone",
+          "value": "0878-2000-4830",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png"
+        },
+        {
+          "context": "jeep-cross-reference",
+          "channel": "website",
+          "value": "www.shakilagrup.com",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png"
+        },
+        {
+          "context": "jeep-cross-reference",
+          "channel": "instagram",
+          "value": "@shakila.jeep",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png"
+        },
+        {
+          "context": "jeep-primary-pdf",
+          "channel": "phone-whatsapp",
+          "value": "0851-4835-7152",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf"
+        }
+      ],
+      "authoritativeJeepContact": {
+        "value": null,
+        "status": "MISSING_OR_UNCERTAIN_DATA",
+        "note": "The Jeep PDF and PNG provide different phone numbers."
+      }
+    },
+    "address": {
+      "value": null,
+      "status": "MISSING_OR_UNCERTAIN_DATA",
+      "note": "No complete street address appears in the supplied sources."
+    },
+    "locationText": {
+      "value": "Nepal Van Java",
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePaths": [
+        "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png",
+        "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+        "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf"
+      ],
+      "note": "Preserved as source location text; not normalized as a street address."
+    }
+  },
+  "glamping": {
+    "catalogStatus": "CONFIRMED_CLIENT_DATA",
+    "primaryCatalogImagePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png",
+    "items": [
+      {
+        "id": "glamping-deluxe",
+        "name": "Deluxe",
+        "nameStatus": "CONFIRMED_CLIENT_DATA",
+        "sourceDisplayName": "DELUXE ROOM",
+        "sourceDisplayNameStatus": "SOURCE_DERIVED_DATA",
+        "physicalRoomCount": {
+          "value": 2,
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "price": {
+          "amountIdr": null,
+          "basis": "per-night",
+          "status": "MISSING_OR_UNCERTAIN_DATA",
+          "note": "No Glamping price appears in the supplied sources."
+        },
+        "guestCapacity": {
+          "value": null,
+          "status": "MISSING_OR_UNCERTAIN_DATA",
+          "note": "Bed type and breakfast count are not treated as guest capacity."
+        },
+        "breakfast": {
+          "included": true,
+          "includedPax": 2,
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "facilities": [
+          {
+            "name": "Tempat tidur Queen Size",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Kamar mandi dalam",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Air panas (Water Heater)",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Smart TV",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Wi-Fi Gratis",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Perlengkapan mandi",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Kopi & Teh Gratis",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Teras pribadi dengan pemandangan alam",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Breakfast for 2 pax",
+            "status": "CONFIRMED_CLIENT_DATA",
+            "sourcePath": null
+          }
+        ],
+        "media": {
+          "catalogImages": [
+            {
+              "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png",
+              "status": "SOURCE_DERIVED_DATA"
+            }
+          ],
+          "photos": [
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2359.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2361.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2369.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2370.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2371.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2502.jpg",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2503.jpg"
+          ],
+          "photoStatus": "SOURCE_DERIVED_DATA",
+          "videos": [
+            {
+              "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\GLAMPING DELUXE.mp4",
+              "status": "SOURCE_DERIVED_DATA",
+              "codec": "h264",
+              "audioCodec": "aac",
+              "width": 2560,
+              "height": 1440,
+              "fps": 50,
+              "durationSeconds": 32.54
+            }
+          ],
+          "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+        }
+      },
+      {
+        "id": "glamping-twin-bed",
+        "name": "Twin Bed",
+        "nameStatus": "CONFIRMED_CLIENT_DATA",
+        "sourceDisplayName": "TWIN BED",
+        "sourceDisplayNameStatus": "SOURCE_DERIVED_DATA",
+        "physicalRoomCount": {
+          "value": 4,
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "price": {
+          "amountIdr": null,
+          "basis": "per-night",
+          "status": "MISSING_OR_UNCERTAIN_DATA",
+          "note": "No Glamping price appears in the supplied sources."
+        },
+        "guestCapacity": {
+          "value": null,
+          "status": "MISSING_OR_UNCERTAIN_DATA",
+          "note": "Bed type and breakfast count are not treated as guest capacity."
+        },
+        "breakfast": {
+          "included": true,
+          "includedPax": 2,
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "facilities": [
+          {
+            "name": "Tempat tidur Double",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Kamar mandi dalam",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Air panas (Water Heater)",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Smart TV",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Wi-Fi Gratis",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Perlengkapan mandi",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Kopi & Teh Gratis",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Teras pribadi dengan pemandangan alam",
+            "status": "SOURCE_DERIVED_DATA",
+            "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png"
+          },
+          {
+            "name": "Breakfast for 2 pax",
+            "status": "CONFIRMED_CLIENT_DATA",
+            "sourcePath": null
+          }
+        ],
+        "media": {
+          "catalogImages": [
+            {
+              "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png",
+              "status": "SOURCE_DERIVED_DATA"
+            }
+          ],
+          "photos": [
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping twin\\IMG_2343.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping twin\\IMG_2347.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping twin\\IMG_2348.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping twin\\IMG_2349.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping twin\\IMG_2351.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping twin\\IMG_2371.HEIC"
+          ],
+          "photoStatus": "SOURCE_DERIVED_DATA",
+          "videos": [
+            {
+              "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\GLAMPING TWIN BED.mp4",
+              "status": "SOURCE_DERIVED_DATA",
+              "codec": "h264",
+              "audioCodec": "aac",
+              "width": 2560,
+              "height": 1440,
+              "fps": 30,
+              "durationSeconds": 24.533333
+            }
+          ],
+          "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+        }
+      }
+    ],
+    "marketingClaim": {
+      "value": "Comfortable mountain stay with fresh air for families and couples.",
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping.png",
+      "note": "Normalized summary of supplied Indonesian source copy; not independently verified."
+    }
+  },
+  "homestay": {
+    "primaryCatalogImagePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png",
+    "sharedFacilitySet": {
+      "id": "homestay-shared-facilities",
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png",
+      "appliesTo": "The poster presents these as shared facilities and does not distinguish facilities by room type.",
+      "facilities": [
+        "Kamar Mandi Dalam",
+        "Air Hangat",
+        "TV",
+        "Free Wifi",
+        "Welcome Drink",
+        "Peralatan Mandi",
+        "Menu Makan",
+        "Sarapan/kamar 2",
+        "Rooftop"
+      ],
+      "breakfastMeaning": {
+        "value": null,
+        "sourceText": "Sarapan/kamar 2",
+        "status": "MISSING_OR_UNCERTAIN_DATA",
+        "note": "The source does not define whether 2 means pax, portions, or another unit."
+      }
+    },
+    "extraBedRule": {
+      "appliesToItemIds": [
+        "homestay-standard",
+        "homestay-superior"
+      ],
+      "amountIdr": 100000,
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png",
+      "note": "Required above the stated two-adult capacity for Standard and Superior."
+    },
+    "items": [
+      {
+        "id": "homestay-standard",
+        "name": "Standard",
+        "nameStatus": "CONFIRMED_CLIENT_DATA",
+        "sourceFolderSpelling": "Homestay standart",
+        "physicalRoomCount": {
+          "value": 1,
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "price": {
+          "amountIdr": 250000,
+          "currency": "IDR",
+          "basis": "per-night",
+          "sourceText": "250K/MALAM",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+        },
+        "guestCapacity": {
+          "maxAdults": 2,
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+        },
+        "facilitySetId": "homestay-shared-facilities",
+        "media": {
+          "catalogImages": [
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+          ],
+          "photos": [
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay standart\\IMG_2504.jpg",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay standart\\IMG_2505.jpg",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay standart\\IMG_2506.jpg",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay standart\\IMG_2508.jpg"
+          ],
+          "photoStatus": "SOURCE_DERIVED_DATA",
+          "videos": [
+            {
+              "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay.mp4",
+              "status": "SOURCE_DERIVED_DATA",
+              "scope": "shared-property",
+              "itemAssignmentStatus": "MISSING_OR_UNCERTAIN_DATA",
+              "codec": "h264",
+              "audioCodec": "aac",
+              "width": 2560,
+              "height": 1440,
+              "fps": 30,
+              "durationSeconds": 32.533333
+            }
+          ],
+          "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+        }
+      },
+      {
+        "id": "homestay-superior",
+        "name": "Superior",
+        "nameStatus": "CONFIRMED_CLIENT_DATA",
+        "physicalRoomCount": {
+          "value": 3,
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "price": {
+          "amountIdr": 300000,
+          "currency": "IDR",
+          "basis": "per-night",
+          "sourceText": "300K/MALAM",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+        },
+        "guestCapacity": {
+          "maxAdults": 2,
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+        },
+        "facilitySetId": "homestay-shared-facilities",
+        "media": {
+          "catalogImages": [
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+          ],
+          "photos": [
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2371.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2395.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2402.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2403.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2426.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2427.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2429.HEIC"
+          ],
+          "photoStatus": "SOURCE_DERIVED_DATA",
+          "videos": [
+            {
+              "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay.mp4",
+              "status": "SOURCE_DERIVED_DATA",
+              "scope": "shared-property",
+              "itemAssignmentStatus": "MISSING_OR_UNCERTAIN_DATA",
+              "codec": "h264",
+              "audioCodec": "aac",
+              "width": 2560,
+              "height": 1440,
+              "fps": 30,
+              "durationSeconds": 32.533333
+            }
+          ],
+          "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+        }
+      },
+      {
+        "id": "homestay-twin-bed",
+        "name": "Twin Bed",
+        "nameStatus": "CONFIRMED_CLIENT_DATA",
+        "physicalRoomCount": {
+          "value": 1,
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "price": {
+          "amountIdr": 400000,
+          "currency": "IDR",
+          "basis": "per-night",
+          "sourceText": "400K/MALAM",
+          "status": "SOURCE_DERIVED_DATA",
+          "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+        },
+        "guestCapacity": {
+          "maxAdults": null,
+          "status": "MISSING_OR_UNCERTAIN_DATA",
+          "note": "The poster states two-adult capacity only for Standard and Superior."
+        },
+        "facilitySetId": "homestay-shared-facilities",
+        "media": {
+          "catalogImages": [
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png"
+          ],
+          "photos": [
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2409.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2414.HEIC",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2501.jpg",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2506.jpg",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2507.jpg",
+            "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2508.jpg"
+          ],
+          "photoStatus": "SOURCE_DERIVED_DATA",
+          "videos": [
+            {
+              "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay.mp4",
+              "status": "SOURCE_DERIVED_DATA",
+              "scope": "shared-property",
+              "itemAssignmentStatus": "MISSING_OR_UNCERTAIN_DATA",
+              "codec": "h264",
+              "audioCodec": "aac",
+              "width": 2560,
+              "height": 1440,
+              "fps": 30,
+              "durationSeconds": 32.533333
+            }
+          ],
+          "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+        }
+      }
+    ],
+    "ancillaryServices": [
+      {
+        "name": "Paket wisata Jeep dan ojek",
+        "status": "SOURCE_DERIVED_DATA",
+        "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png",
+        "detailsStatus": "MISSING_OR_UNCERTAIN_DATA"
+      },
+      {
+        "name": "Pickup from airport, terminal, and station",
+        "status": "SOURCE_DERIVED_DATA",
+        "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png",
+        "detailsStatus": "MISSING_OR_UNCERTAIN_DATA"
+      }
+    ],
+    "locationClaim": {
+      "value": "Located around Nepal Van Java and mountains Sumbing, Merapi, Merbabu, Kunci, and Tidar.",
+      "status": "SOURCE_DERIVED_DATA",
+      "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\pricelist.png",
+      "note": "Normalized summary of source claim; not a precise address and not independently verified."
+    }
+  },
+  "jeep": {
+    "primarySourcePath": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+    "crossReferenceSourcePath": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+    "physicalInventory": {
+      "physicalUnitCount": 8,
+      "status": "TEMP_DEMO_DATA",
+      "realStockStatus": "MISSING_OR_UNCERTAIN_DATA",
+      "replacementRequired": true,
+      "replacementField": "jeep.physicalInventory.physicalUnitCount",
+      "note": "Replace this one count when the client supplies real Jeep stock. Individual unit identities are intentionally not invented."
+    },
+    "routes": [
+      {
+        "id": "medium-2",
+        "name": "MEDIUM 2",
+        "marketingLabel": "ENTRY PACKAGE",
+        "stops": [
+          "Nepal Van Java",
+          "Silancur Highland",
+          "Wanamukti"
+        ],
+        "status": "SOURCE_DERIVED_DATA",
+        "sourcePaths": [
+          "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+          "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png"
+        ]
+      },
+      {
+        "id": "medium-1",
+        "name": "MEDIUM 1",
+        "marketingLabel": "MOST POPULAR",
+        "stops": [
+          "Nepal Van Java",
+          "Jalan Viral Sukoyoso",
+          "Negeri Sayur Sukomakmur",
+          "Air Terjun / Hutan Pinus"
+        ],
+        "status": "SOURCE_DERIVED_DATA",
+        "sourcePaths": [
+          "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+          "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png"
+        ]
+      },
+      {
+        "id": "long-1",
+        "name": "LONG 1",
+        "marketingLabel": "BEST VALUE",
+        "stops": [
+          "Nepal Van Java",
+          "Jalan Viral Sukoyoso",
+          "Negeri Sayur Sukomakmur",
+          "Air Terjun",
+          "Hutan Pinus"
+        ],
+        "status": "SOURCE_DERIVED_DATA",
+        "sourcePaths": [
+          "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+          "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png"
+        ]
+      },
+      {
+        "id": "long-2",
+        "name": "LONG 2",
+        "marketingLabel": "COMPLETE",
+        "stops": [
+          "Nepal Van Java",
+          "Silancur Highland",
+          "Air Terjun / Hutan Pinus",
+          "Jalan Viral Sukoyoso",
+          "Negeri Sayur Sukomakmur"
+        ],
+        "status": "SOURCE_DERIVED_DATA",
+        "sourcePaths": [
+          "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+          "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png"
+        ]
+      }
+    ],
+    "routeAmbiguity": {
+      "sourceText": "Air Terjun / Hutan Pinus",
+      "meaning": null,
+      "status": "MISSING_OR_UNCERTAIN_DATA",
+      "note": "The slash is preserved; the source does not clarify whether it means a choice, substitution, or combined stop."
+    },
+    "tourStay": {
+      "status": "SOURCE_DERIVED_DATA",
+      "sharedInclusions": {
+        "common": [
+          "1 unit Jeep according to route",
+          "1 night accommodation according to room type",
+          "Breakfast for 4 guests",
+          "1 meal for 4 guests",
+          "Destination tickets according to the route points",
+          "Round-trip ojek where the route requires it"
+        ],
+        "long1AndLong2Additional": [
+          "Additional lunch for 4 guests"
+        ],
+        "status": "SOURCE_DERIVED_DATA",
+        "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf"
+      },
+      "importantConditions": [
+        {
+          "text": "Price applies to one package booking and the maximum capacity of its room type.",
+          "status": "SOURCE_DERIVED_DATA"
+        },
+        {
+          "text": "Package price includes tickets according to the route; it may be adjusted if official destination tariffs change.",
+          "status": "SOURCE_DERIVED_DATA"
+        },
+        {
+          "text": "Included ojek follows the route and points that require ojek.",
+          "status": "SOURCE_DERIVED_DATA"
+        },
+        {
+          "text": "Weekend or holiday surcharge is Rp50.000 per package.",
+          "amountIdr": 50000,
+          "status": "SOURCE_DERIVED_DATA"
+        },
+        {
+          "text": "Room and Jeep availability follows the booking date.",
+          "status": "SOURCE_DERIVED_DATA"
+        }
+      ],
+      "items": [
+        {
+          "id": "family-deluxe-medium-2",
+          "bundleName": "FAMILY ADVENTURE - DELUXE",
+          "routeId": "medium-2",
+          "routePackageName": "MEDIUM 2",
+          "marketingLabel": "ENTRY PACKAGE",
+          "price": {
+            "amountIdr": 1799000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 449750,
+            "displayedPerParticipantSourceUnit": "peserta*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 2,
+            "maxChildrenUnderAge": 10,
+            "maxChildren": 2
+          },
+          "composition": {
+            "roomType": "Deluxe",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "family-deluxe-medium-1",
+          "bundleName": "FAMILY ADVENTURE - DELUXE",
+          "routeId": "medium-1",
+          "routePackageName": "MEDIUM 1",
+          "marketingLabel": "MOST POPULAR",
+          "price": {
+            "amountIdr": 1999000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 499750,
+            "displayedPerParticipantSourceUnit": "peserta*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 2,
+            "maxChildrenUnderAge": 10,
+            "maxChildren": 2
+          },
+          "composition": {
+            "roomType": "Deluxe",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "family-deluxe-long-1",
+          "bundleName": "FAMILY ADVENTURE - DELUXE",
+          "routeId": "long-1",
+          "routePackageName": "LONG 1",
+          "marketingLabel": "BEST VALUE",
+          "price": {
+            "amountIdr": 2349000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 587250,
+            "displayedPerParticipantSourceUnit": "peserta*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 2,
+            "maxChildrenUnderAge": 10,
+            "maxChildren": 2
+          },
+          "composition": {
+            "roomType": "Deluxe",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common-plus-long-lunch",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "family-deluxe-long-2",
+          "bundleName": "FAMILY ADVENTURE - DELUXE",
+          "routeId": "long-2",
+          "routePackageName": "LONG 2",
+          "marketingLabel": "COMPLETE EXPERIENCE",
+          "price": {
+            "amountIdr": 2549000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 637250,
+            "displayedPerParticipantSourceUnit": "peserta*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 2,
+            "maxChildrenUnderAge": 10,
+            "maxChildren": 2
+          },
+          "composition": {
+            "roomType": "Deluxe",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common-plus-long-lunch",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "group-twin-medium-2",
+          "bundleName": "GROUP ADVENTURE - TWIN BED",
+          "routeId": "medium-2",
+          "routePackageName": "MEDIUM 2",
+          "marketingLabel": "ENTRY PACKAGE",
+          "price": {
+            "amountIdr": 1899000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 474750,
+            "displayedPerParticipantSourceUnit": "orang*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 4
+          },
+          "composition": {
+            "roomType": "Twin Bed",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "group-twin-medium-1",
+          "bundleName": "GROUP ADVENTURE - TWIN BED",
+          "routeId": "medium-1",
+          "routePackageName": "MEDIUM 1",
+          "marketingLabel": "MOST POPULAR",
+          "price": {
+            "amountIdr": 2099000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 524750,
+            "displayedPerParticipantSourceUnit": "orang*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 4
+          },
+          "composition": {
+            "roomType": "Twin Bed",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "group-twin-long-1",
+          "bundleName": "GROUP ADVENTURE - TWIN BED",
+          "routeId": "long-1",
+          "routePackageName": "LONG 1",
+          "marketingLabel": "BEST VALUE",
+          "price": {
+            "amountIdr": 2449000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 612250,
+            "displayedPerParticipantSourceUnit": "orang*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 4
+          },
+          "composition": {
+            "roomType": "Twin Bed",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common-plus-long-lunch",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "group-twin-long-2",
+          "bundleName": "GROUP ADVENTURE - TWIN BED",
+          "routeId": "long-2",
+          "routePackageName": "LONG 2",
+          "marketingLabel": "COMPLETE EXPEROENCE",
+          "price": {
+            "amountIdr": 2649000,
+            "currency": "IDR",
+            "basis": "per-package",
+            "displayedPerParticipantAmountIdr": 662250,
+            "displayedPerParticipantSourceUnit": "orang*",
+            "asteriskMeaningStatus": "MISSING_OR_UNCERTAIN_DATA"
+          },
+          "capacity": {
+            "maxAdults": 4
+          },
+          "composition": {
+            "roomType": "Twin Bed",
+            "roomQuantity": 1,
+            "jeepQuantity": 1
+          },
+          "inclusionSet": "tour-stay-common-plus-long-lunch",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "primaryDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "crossReferenceCatalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        }
+      ]
+    },
+    "standaloneJeepPackages": {
+      "status": "SOURCE_DERIVED_DATA",
+      "sourceNote": "Secondary cross-reference PNG; kept separate from the primary PDF bundles.",
+      "ticketsIncluded": false,
+      "ticketRuleSourceText": "Harga paket belum termasuk tiket masuk destinasi wisata.",
+      "priceBasis": {
+        "value": null,
+        "status": "MISSING_OR_UNCERTAIN_DATA",
+        "note": "The PNG does not explicitly define a per-Jeep, per-person, or other unit basis."
+      },
+      "items": [
+        {
+          "id": "standalone-short-1",
+          "name": "SHORT 1",
+          "priceAmountIdr": 400000,
+          "stops": [
+            "Nepal Van Java",
+            "Jalan Viral Sukoyoso",
+            "Negeri Sayur Sukomakmur"
+          ],
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "catalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "routeCrossReferenceDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "standalone-short-2",
+          "name": "SHORT 2",
+          "priceAmountIdr": 500000,
+          "stops": [
+            "Nepal Van Java",
+            "Jalan Viral Sukoyoso",
+            "Air Terjun / Hutan Pinus"
+          ],
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "catalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "routeCrossReferenceDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "standalone-medium-1",
+          "name": "MEDIUM 1",
+          "priceAmountIdr": 650000,
+          "routeId": "medium-1",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "catalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "routeCrossReferenceDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "standalone-medium-2",
+          "name": "MEDIUM 2",
+          "priceAmountIdr": 650000,
+          "routeId": "medium-2",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "catalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "routeCrossReferenceDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "standalone-long-1",
+          "name": "LONG 1",
+          "priceAmountIdr": 850000,
+          "routeId": "long-1",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "catalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "routeCrossReferenceDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        },
+        {
+          "id": "standalone-long-2",
+          "name": "LONG 2",
+          "priceAmountIdr": 1000000,
+          "routeId": "long-2",
+          "status": "SOURCE_DERIVED_DATA",
+          "media": {
+            "catalogImage": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+            "routeCrossReferenceDocument": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+            "photos": [],
+            "photoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "videos": [],
+            "videoStatus": "MISSING_OR_UNCERTAIN_DATA",
+            "brandLogoSourcePath": "C:\\PROJECTS\\booking-demo\\assets\\shakila-logo.jpeg"
+          }
+        }
+      ],
+      "departureSlots": {
+        "value": [],
+        "status": "MISSING_OR_UNCERTAIN_DATA"
+      },
+      "passengerCapacity": {
+        "value": null,
+        "status": "MISSING_OR_UNCERTAIN_DATA"
+      }
+    }
+  },
+  "mediaIntegrity": {
+    "representativeVideoFrameFractionsInspected": [
+      0.2,
+      0.5,
+      0.8
+    ],
+    "frameByFrameInspectionPerformed": false,
+    "duplicateContentGroups": [
+      {
+        "sha256": "F6680DCE087CA8C268AEB4D6B7E8BFB1DF06A99DC50229EE61B1F7320BC4423E",
+        "sourcePaths": [
+          "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\Glamping Deluxe\\IMG_2371.HEIC",
+          "C:\\Downloads\\SHAKILAGRUP\\GLAMPING\\glamping twin\\IMG_2371.HEIC",
+          "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay Superior\\IMG_2371.HEIC"
+        ]
+      },
+      {
+        "sha256": "08E934C06E9A76D9291C7D1FACF2EF3063268A83168D4CF3C2AB898B61F04143",
+        "sourcePaths": [
+          "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay standart\\IMG_2506.jpg",
+          "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2506.jpg"
+        ]
+      },
+      {
+        "sha256": "D03342BCFC1042B1B90550FB19F53C44E3C68DC58A37E9C9AA8D2FC35B8207A8",
+        "sourcePaths": [
+          "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay standart\\IMG_2508.jpg",
+          "C:\\Downloads\\SHAKILAGRUP\\HOMESTAY\\Homestay TwinBed\\IMG_2508.jpg"
+        ]
+      }
+    ],
+    "sourceFilesModified": false
+  },
+  "knownMissingOrUncertain": [
+    "Glamping nightly prices",
+    "Glamping guest capacities",
+    "Homestay Twin Bed guest capacity",
+    "Meaning or unit of Homestay source text Sarapan/kamar 2",
+    "Real Jeep physical stock and individual unit identities",
+    "Jeep departure slots",
+    "Standalone Jeep passenger capacity",
+    "Meaning of Air Terjun / Hutan Pinus slash notation",
+    "Current authoritative Jeep contact number",
+    "Complete street addresses",
+    "Separate Jeep destination photos and videos"
+  ]
+}

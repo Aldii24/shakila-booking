@@ -1,6 +1,6 @@
 # API Specification
 
-> **Client revision — 30 August 2026:** Customer `POST /public/bookings/:bookingCode/payments` submits a JPG/JPEG/PNG proof and claimed amount; it does not initiate a gateway. Admin endpoints list proofs, securely stream proof images, approve with a verified amount, or reject with a required reason. `POST /admin/bookings/manual` creates `ADMIN_MANUAL`/`WALK_IN` bookings via the shared allocator. Pakasir endpoints/code may remain dormant for reuse but are not part of the active demo flow.
+> **Klarifikasi client — 6 September 2026 (otoritatif):** Customer `POST /public/bookings/:bookingCode/payments` hanya mengirim bukti transfer JPG/JPEG/PNG dan nominal yang diklaim. Admin meninjau rekening lalu menyetujui atau menolak bukti secara manual. Tidak ada endpoint Pakasir, checkout provider, redirect pembayaran, webhook provider, maupun verifikasi otomatis. Seluruh bagian lama tentang payment gateway di bawah bersifat usang dan tidak boleh diimplementasikan.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 

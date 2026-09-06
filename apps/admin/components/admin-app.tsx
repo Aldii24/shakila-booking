@@ -82,7 +82,6 @@ import {
   Dialog,
   EmptyState,
   Field,
-  Flag,
   Input,
   Pagination,
   Skeleton,
@@ -221,7 +220,7 @@ function LoginContent({
 }: {
   showDemoCredentials: boolean;
 }) {
-  const { language, setLanguage, t } = useAdminLanguage();
+  const { t } = useAdminLanguage();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -240,11 +239,7 @@ function LoginContent({
       });
       router.replace("/dashboard");
     } catch {
-      setError(
-        language === "id"
-          ? "Email atau kata sandi tidak valid."
-          : "Invalid email or password.",
-      );
+      setError("Email atau kata sandi tidak valid.");
       setBusy(false);
     }
   }
@@ -253,39 +248,22 @@ function LoginContent({
       <section className="login-brand">
         <div>
           <Image className="login-logo" src="/shakila-logo-transparent.png" alt="Shakila" width={180} height={120} priority />
-          <p className="section-kicker">SHAKILA GROUP ADMIN</p>
+          <p className="section-kicker">ADMIN SHAKILA GROUP</p>
           <h1>
-            One group.
+            Satu grup.
             <br />
-            <em>Clear operations.</em>
+            <em>Operasional jelas.</em>
           </h1>
-          <p>
-            {language === "id"
-              ? "Satu pusat kendali untuk pengalaman menginap, perjalanan Jeep, dan setiap pembayaran."
-              : "One control center for every stay, Jeep tour, and payment."}
-          </p>
+          <p>Satu pusat kendali untuk pengalaman menginap, perjalanan Jeep, dan setiap pembayaran.</p>
         </div>
       </section>
       <section className="login-panel">
         <form className="login-card" onSubmit={submit}>
           <div className="login-card-head">
             <div>
-              <p className="section-kicker">SHAKILA GROUP ADMIN</p>
+              <p className="section-kicker">ADMIN SHAKILA GROUP</p>
               <h2>{t("login.welcome")}</h2>
             </div>
-            <label className="language-compact">
-              <Flag language={language} />
-              <AdminSelect
-                ariaLabel="Language"
-                value={language}
-                onValueChange={(next) => setLanguage(next as "id" | "en")}
-                placeholder="Language"
-                options={[
-                  { value: "id", label: "Bahasa Indonesia" },
-                  { value: "en", label: "English" },
-                ]}
-              />
-            </label>
           </div>
           <p className="muted">{t("login.description")}</p>
           <Field label="Email">
@@ -313,7 +291,7 @@ function LoginContent({
             </aside>
           ) : null}
           <small className="login-security">
-            DEMO MODE · HttpOnly session · PostgreSQL live
+            MODE DEMO · SESI AMAN · DATA POSTGRESQL LANGSUNG
           </small>
         </form>
       </section>
@@ -523,7 +501,7 @@ function AdminSidebar() {
           <span className="avatar">DA</span>
           <div>
             <strong>Demo Admin</strong>
-            <small>Owner · Demo Mode</small>
+            <small>Pemilik · Mode Demo</small>
           </div>
           <Button
             title={t("common.logout")}
@@ -539,27 +517,30 @@ function AdminSidebar() {
 }
 
 function AdminTopbar() {
-  const { language, setLanguage, t } = useAdminLanguage();
+  const router = useRouter();
+  const { t } = useAdminLanguage();
   const { business, setBusiness } = useAdminBusiness();
   const { toggleSidebar } = useSidebar();
   const [proofCount,setProofCount]=useState(0),[toast,setToast]=useState("");
-  const lastCount=useRef<number|null>(null),audioReady=useRef(false);
-  useEffect(()=>{const enable=()=>{audioReady.current=true};window.addEventListener("pointerdown",enable,{once:true});return()=>window.removeEventListener("pointerdown",enable)},[]);
-  useEffect(()=>{let active=true;const poll=async()=>{try{const proofs=await adminApi<Row[]>("/payment-proofs?status=PENDING");if(!active)return;const count=proofs.length;if(lastCount.current!==null&&count>lastCount.current){setToast(`${count-lastCount.current} bukti pembayaran baru menunggu verifikasi.`);window.setTimeout(()=>setToast(""),4500);if(audioReady.current){const context=new AudioContext(),oscillator=context.createOscillator(),gain=context.createGain();oscillator.frequency.setValueAtTime(740,context.currentTime);gain.gain.setValueAtTime(.0001,context.currentTime);gain.gain.exponentialRampToValueAtTime(.12,context.currentTime+.01);gain.gain.exponentialRampToValueAtTime(.0001,context.currentTime+.28);oscillator.connect(gain).connect(context.destination);oscillator.start();oscillator.stop(context.currentTime+.3);oscillator.onended=()=>void context.close()}}lastCount.current=count;setProofCount(count)}catch{if(active)setProofCount(lastCount.current??0)}};void poll();const timer=window.setInterval(()=>void poll(),15000);return()=>{active=false;window.clearInterval(timer)}},[]);
+  const lastCount=useRef<number|null>(null),audioReady=useRef(false),audioContext=useRef<AudioContext|null>(null);
+  useEffect(()=>{const enable=()=>{audioReady.current=true;audioContext.current??=new AudioContext();void audioContext.current.resume()};window.addEventListener("pointerdown",enable,{once:true});return()=>window.removeEventListener("pointerdown",enable)},[]);
+  const playAlert=useCallback(()=>{if(!audioReady.current)return;const context=audioContext.current??new AudioContext();audioContext.current=context;void context.resume();const master=context.createGain();master.gain.setValueAtTime(.0001,context.currentTime);master.gain.exponentialRampToValueAtTime(.3,context.currentTime+.025);master.gain.exponentialRampToValueAtTime(.0001,context.currentTime+.72);master.connect(context.destination);const tones:Array<[number,number,number]>=[[660,0,.22],[880,.24,.25],[1040,.5,.18]];tones.forEach(([frequency,delay,duration])=>{const oscillator=context.createOscillator(),tone=context.createGain();oscillator.type="sine";oscillator.frequency.setValueAtTime(frequency,context.currentTime+delay);tone.gain.setValueAtTime(.0001,context.currentTime+delay);tone.gain.exponentialRampToValueAtTime(.75,context.currentTime+delay+.015);tone.gain.exponentialRampToValueAtTime(.0001,context.currentTime+delay+duration);oscillator.connect(tone).connect(master);oscillator.start(context.currentTime+delay);oscillator.stop(context.currentTime+delay+duration)})},[]);
+  useEffect(()=>{let active=true;const poll=async()=>{try{const proofs=await adminApi<Row[]>("/payment-proofs?status=PENDING");if(!active)return;const count=proofs.length;if(lastCount.current!==null&&count>lastCount.current){const added=count-lastCount.current;setToast(`${added} bukti pembayaran baru menunggu verifikasi.`);window.setTimeout(()=>setToast(""),6500);playAlert();if(document.hidden&&"Notification" in window&&Notification.permission==="granted"){const notification=new Notification("Pembayaran baru masuk",{body:`${added} bukti pembayaran menunggu verifikasi.`,icon:"/shakila-logo-transparent.png",tag:"payment-proof",silent:true});notification.onclick=()=>{window.focus();router.push("/payments");notification.close()}}}lastCount.current=count;setProofCount(count)}catch{if(active)setProofCount(lastCount.current??0)}};void poll();const timer=window.setInterval(()=>void poll(),10000);return()=>{active=false;window.clearInterval(timer)}},[playAlert,router]);
+  const enableDesktopNotifications=()=>{if("Notification" in window&&Notification.permission==="default")void Notification.requestPermission()};
   return (
         <header className="topbar">
           <Button
             className="mobile-menu"
             variant="outline"
             size="icon"
-            aria-label={language === "id" ? "Buka menu navigasi" : "Open navigation menu"}
+            aria-label="Buka menu navigasi"
             onClick={toggleSidebar}
           >
             <Menu />
           </Button>
           <div className="topbar-context">
             <span className="live-dot" />
-            <span>PostgreSQL live</span>
+            <span>Data PostgreSQL langsung</span>
           </div>
           <div className="top-actions">
             <label className="top-select">
@@ -582,27 +563,9 @@ function AdminTopbar() {
                 </SelectContent>
               </ShadcnSelect>
             </label>
-            <label className="top-select language-select">
-              <span>Language</span>
-              <div>
-                <Flag language={language} />
-                <ShadcnSelect
-                  value={language}
-                  onValueChange={(value) => setLanguage(value as "id" | "en")}
-                >
-                  <SelectTrigger aria-label="Language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="id">Bahasa Indonesia</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                  </SelectContent>
-                </ShadcnSelect>
-              </div>
-            </label>
-            <Link className="notification-bell" href="/payments" aria-label={`${proofCount} bukti pembayaran menunggu verifikasi`}><Bell/>{proofCount>0?<span>{proofCount}</span>:null}</Link>
+            <Link className="notification-bell" href="/payments" onClick={enableDesktopNotifications} aria-label={`${proofCount} bukti pembayaran menunggu verifikasi`} title="Buka notifikasi pembayaran"><Bell/>{proofCount>0?<span>{proofCount}</span>:null}</Link>
           </div>
-          {toast?<div className="admin-toast" role="status"><Bell/><div><strong>Pembayaran baru</strong><span>{toast}</span></div></div>:null}
+          {toast?<div className="admin-toast" role="status"><span className="admin-toast-icon"><Bell/></span><div><small>PEMBAYARAN · BARU MASUK</small><strong>Bukti pembayaran perlu diperiksa</strong><span>{toast}</span><Link href="/payments">Buka verifikasi <ChevronRight/></Link></div><button type="button" onClick={()=>setToast("")} aria-label="Tutup notifikasi"><X/></button></div>:null}
         </header>
   );
 }
@@ -622,10 +585,11 @@ function PageHeader({ view }: { view: View }) {
     jeep: ["catalog.jeepTitle", "catalog.jeepDescription"],
     settings: ["settings.title", "settings.description"],
   } as const;
+  const section = { dashboard: "RINGKASAN", bookings: "BOOKING", booking: "DETAIL BOOKING", calendar: "KALENDER", inventory: "INVENTORI", payments: "PEMBAYARAN", customers: "PELANGGAN", customer: "DETAIL PELANGGAN", glamping: "AKOMODASI", jeep: "JEEP", settings: "PENGATURAN" }[view];
   return (
     <header className="page-header">
       <div>
-        <p className="section-kicker">SHAKILA GROUP / {view.toUpperCase()}</p>
+        <p className="section-kicker">SHAKILA GROUP / {section}</p>
         <h1>{t(copy[view][0])}</h1>
         <p>{t(copy[view][1])}</p>
       </div>
@@ -660,7 +624,7 @@ type Filters = {
   setPage: (v: number) => void;
 };
 function selectOptions(values: string[]) {
-  return values.map((value) => ({ value, label: value.replaceAll("_", " ") }));
+  return values.map((value) => ({ value, label: statusLabel(value, "id") }));
 }
 function FilterShell({
   children,
@@ -1156,7 +1120,7 @@ function ManualBookingDialog({open,onClose,onCreated}:{open:boolean;onClose:()=>
   useEffect(()=>{if(open)void adminApi<{glamping:Row[];jeep:Row[];slots:Row[]}>("/catalog").then(value=>{setCatalog(value);setProductId(text(value.glamping[0]?.id??""))}).catch(()=>setError("Katalog belum dapat dimuat."))},[open]);
   const products=business==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]),selected=products.find(row=>text(row.id)===productId),slots=(catalog?.slots??[]).filter(row=>text(row.jeepPackageId)===productId);
   async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=new FormData(event.currentTarget);setBusy(true);setError("");try{const common={source:form.get("source"),business,customer:{fullName:form.get("fullName"),email:form.get("email"),whatsapp:form.get("whatsapp")},specialRequest:form.get("specialRequest")||null,notes:form.get("notes")||null,paymentState:form.get("paymentState"),amountReceived:Number(form.get("amountReceived")),reservation:business==="glamping"?{productSlug:selected?.slug,checkInDate:form.get("startDate"),checkOutDate:form.get("endDate"),quantity:Number(form.get("quantity")),guestCount:Number(form.get("guestCount"))}:{packageSlug:selected?.slug,tourDate:form.get("startDate"),departureSlotId:slotId,quantity:Number(form.get("quantity")),guestCount:Number(form.get("guestCount"))}};await adminApi("/bookings/manual",{method:"POST",body:JSON.stringify(common)});onClose();await onCreated()}catch(caught){setError(caught instanceof Error?caught.message:"Booking manual belum dapat dibuat.")}finally{setBusy(false)}}
-  return <Dialog open={open} title="Tambah Booking Manual" description="Telepon, WhatsApp, booking di lokasi, dan walk-in—tetap dengan proteksi overbooking." onClose={onClose}><form className="dialog-form manual-booking-form" onSubmit={event=>void submit(event)}><div className="split"><Field label="Business"><AdminSelect value={business} onValueChange={value=>{const next=value as "glamping"|"jeep";setBusiness(next);const rows=next==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]);setProductId(text(rows[0]?.id??""));setSlotId("")}} placeholder="Pilih business" options={[{value:"glamping",label:"Shakila Glamping"},{value:"jeep",label:"Shakila Jeep Tour"}]}/></Field><Field label="Sumber booking"><AdminSelect name="source" defaultValue="ADMIN_MANUAL" placeholder="Pilih sumber" options={[{value:"ADMIN_MANUAL",label:"Admin Manual / Telepon / WhatsApp"},{value:"WALK_IN",label:"Walk-in / di lokasi"}]}/></Field></div><Field label={business==="glamping"?"Tipe akomodasi":"Paket Jeep"}><AdminSelect value={productId} onValueChange={value=>{setProductId(value);setSlotId("")}} placeholder="Pilih produk" options={products.map(row=>({value:text(row.id),label:text(row.name)}))}/></Field>{business==="jeep"?<Field label="Slot keberangkatan"><AdminSelect value={slotId} onValueChange={setSlotId} placeholder="Pilih slot" options={slots.map(row=>({value:text(row.id),label:`${String(row.departureTime).slice(0,5)} · ${text(row.name)}`}))}/></Field>:null}<div className="split"><Field label={business==="glamping"?"Check-in":"Tanggal tour"}><Input name="startDate" type="date" required/></Field>{business==="glamping"?<Field label="Check-out"><Input name="endDate" type="date" required/></Field>:null}</div><div className="split"><Field label="Jumlah unit"><Input name="quantity" type="number" min="1" defaultValue="1" required/></Field><Field label="Jumlah tamu"><Input name="guestCount" type="number" min="1" defaultValue="1" required/></Field></div><div className="split"><Field label="Nama customer"><Input name="fullName" required/></Field><Field label="WhatsApp / telepon"><Input name="whatsapp" required/></Field></div><Field label="Email (opsional)"><Input name="email" type="email"/></Field><div className="split"><Field label="Status pembayaran"><AdminSelect name="paymentState" defaultValue="UNPAID" placeholder="Pilih status" options={[{value:"UNPAID",label:"Belum dibayar"},{value:"PARTIALLY_PAID",label:"DP / sebagian diterima"},{value:"PAID",label:"Lunas"}]}/></Field><Field label="Nominal sudah diterima"><Input name="amountReceived" type="number" min="0" defaultValue="0" required/></Field></div><Field label="Permintaan customer"><Textarea name="specialRequest"/></Field><Field label="Catatan internal"><Textarea name="notes"/></Field><div className="payment-terms"><strong>Aturan operasional</strong><span>DP minimal 50%, batas pembayaran 12 jam, dan booking manual memakai allocator inventory yang sama.</span></div>{error?<div className="ui-alert danger">{error}</div>:null}<footer className="dialog-actions"><Button type="button" variant="ghost" onClick={onClose}>Batal</Button><Button disabled={busy||!productId||(business==="jeep"&&!slotId)}>{busy?"Memeriksa inventory...":"Simpan Booking Manual"}</Button></footer></form></Dialog>;
+  return <Dialog open={open} title="Tambah Booking Manual" description="Untuk telepon, WhatsApp, booking di lokasi, dan kedatangan langsung—tetap dengan proteksi overbooking." onClose={onClose}><form className="dialog-form manual-booking-form" onSubmit={event=>void submit(event)}><div className="split"><Field label="Bisnis"><AdminSelect value={business} onValueChange={value=>{const next=value as "glamping"|"jeep";setBusiness(next);const rows=next==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]);setProductId(text(rows[0]?.id??""));setSlotId("")}} placeholder="Pilih bisnis" options={[{value:"glamping",label:"Shakila Akomodasi"},{value:"jeep",label:"Shakila Jeep Tour"}]}/></Field><Field label="Sumber booking"><AdminSelect name="source" defaultValue="ADMIN_MANUAL" placeholder="Pilih sumber" options={[{value:"ADMIN_MANUAL",label:"Admin manual / telepon / WhatsApp"},{value:"WALK_IN",label:"Datang langsung / di lokasi"}]}/></Field></div><Field label={business==="glamping"?"Tipe akomodasi":"Paket Jeep"}><AdminSelect value={productId} onValueChange={value=>{setProductId(value);setSlotId("")}} placeholder="Pilih produk" options={products.map(row=>({value:text(row.id),label:`${text(row.kind)==="HOMESTAY"?"Homestay":"Glamping"} · ${text(row.name)}`}))}/></Field>{business==="jeep"?<Field label="Slot keberangkatan"><AdminSelect value={slotId} onValueChange={setSlotId} placeholder="Pilih slot" options={slots.map(row=>({value:text(row.id),label:`${String(row.departureTime).slice(0,5)} · ${text(row.name)}`}))}/></Field>:null}<div className="split"><Field label={business==="glamping"?"Check-in":"Tanggal tur"}><Input name="startDate" type="date" required/></Field>{business==="glamping"?<Field label="Check-out"><Input name="endDate" type="date" required/></Field>:null}</div><div className="split"><Field label="Jumlah unit"><Input name="quantity" type="number" min="1" defaultValue="1" required/></Field><Field label="Jumlah tamu"><Input name="guestCount" type="number" min="1" defaultValue="1" required/></Field></div><div className="split"><Field label="Nama pelanggan"><Input name="fullName" required/></Field><Field label="WhatsApp / telepon"><Input name="whatsapp" required/></Field></div><Field label="Email (opsional)"><Input name="email" type="email"/></Field><div className="split"><Field label="Status pembayaran"><AdminSelect name="paymentState" defaultValue="UNPAID" placeholder="Pilih status" options={[{value:"UNPAID",label:"Belum dibayar"},{value:"PARTIALLY_PAID",label:"DP / sebagian diterima"},{value:"PAID",label:"Lunas"}]}/></Field><Field label="Nominal sudah diterima"><Input name="amountReceived" type="number" min="0" defaultValue="0" required/></Field></div><Field label="Permintaan pelanggan"><Textarea name="specialRequest"/></Field><Field label="Catatan internal"><Textarea name="notes"/></Field><div className="payment-terms"><strong>Aturan operasional</strong><span>DP minimal 50%, batas pembayaran 12 jam, dan booking manual memakai pengalokasi inventori yang sama.</span></div>{error?<div className="ui-alert danger">{error}</div>:null}<footer className="dialog-actions"><Button type="button" variant="ghost" onClick={onClose}>Batal</Button><Button disabled={busy||!productId||(business==="jeep"&&!slotId)}>{busy?"Memeriksa inventori...":"Simpan Booking Manual"}</Button></footer></form></Dialog>;
 }
 
 function BookingDetail({
@@ -1364,7 +1328,7 @@ function BookingDetail({
             <dd>
               {rupiah(Number(booking.verifiedPaidAmount))} /{" "}
               {rupiah(Number(booking.remainingAmount))}
-              <small>DP minimal 50% · DP terbayar non-refundable bila booking dibatalkan.</small>
+              <small>DP minimal 50% · DP terbayar tidak dapat dikembalikan bila booking dibatalkan.</small>
             </dd>
           </dl>
         </Card>
@@ -1454,7 +1418,7 @@ function BookingDetail({
           commandSuccess
             ? language === "id"
               ? "Berhasil disimpan"
-              : "Successfully saved"
+              : "Berhasil disimpan"
             : command === "cancel"
             ? t("booking.cancel")
             : command === "check-in"
@@ -1484,7 +1448,7 @@ function BookingDetail({
                   : "Check-in successful"
                 : language === "id"
                   ? "Checkout berhasil diselesaikan"
-                  : "Checkout completed"}
+                  : "Check-out berhasil diselesaikan"}
             </strong>
             <span>
               {language === "id"
@@ -1505,14 +1469,14 @@ function BookingDetail({
                     label:
                       language === "id"
                         ? "Perubahan rencana"
-                        : "Change of plans",
+                        : "Perubahan rencana",
                   },
                   {
                     value: "Permintaan pelanggan",
                     label:
                       language === "id"
                         ? "Permintaan pelanggan"
-                        : "Customer request",
+                        : "Permintaan pelanggan",
                   },
                   {
                     value: "Operasional",
@@ -1593,12 +1557,12 @@ function PaymentProofVerification({rows,reload}:{rows:Row[];reload:()=>Promise<v
   const {language}=useAdminLanguage();
   const [selected,setSelected]=useState<Row|null>(null),[reason,setReason]=useState(""),[amount,setAmount]=useState(0),[busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const pending=rows.filter(row=>row.status==="PENDING"),history=rows.filter(row=>row.status!=="PENDING");
-  async function act(action:"approve"|"reject") {if(!selected)return;setBusy(true);setNotice("");try{await adminApi(`/payment-proofs/${selected.id}/${action}`,{method:"POST",body:JSON.stringify(action==="approve"?{verifiedAmount:amount}:{reason})});setNotice(action==="approve"?"Pembayaran disetujui dan booking telah diperbarui.":"Bukti ditolak. Customer dapat mengunggah ulang sebelum batas waktu.");setSelected(null);setReason("");await reload()}catch(caught){setNotice(caught instanceof Error?caught.message:"Verifikasi belum dapat disimpan.")}finally{setBusy(false)}}
+  async function act(action:"approve"|"reject") {if(!selected)return;setBusy(true);setNotice("");try{await adminApi(`/payment-proofs/${selected.id}/${action}`,{method:"POST",body:JSON.stringify(action==="approve"?{verifiedAmount:amount}:{reason})});setNotice(action==="approve"?"Pembayaran disetujui dan booking telah diperbarui.":"Bukti ditolak. Pelanggan dapat mengunggah ulang sebelum batas waktu.");setSelected(null);setReason("");await reload()}catch(caught){setNotice(caught instanceof Error?caught.message:"Verifikasi belum dapat disimpan.")}finally{setBusy(false)}}
   return <div className="verification-stack">
     {notice?<div className="ui-alert">{notice}</div>:null}
-    <Card><div className="card-title"><div><h2>{pending.length} menunggu verifikasi</h2><p>Polling setiap 15 detik · bukti tersimpan persisten di PostgreSQL demo</p></div></div>{pending.length?<div className="proof-grid">{pending.map(row=><button className="proof-notification" key={text(row.id)} onClick={()=>{setSelected(row);setAmount(Number(row.claimedAmount));setReason("")}}><Bell/><span><strong>{text(row.customerName)}</strong><small>{text(row.bookingCode)} · {row.business==="glamping"?"Shakila Glamping":"Shakila Jeep Tour"}</small><b>{rupiah(Number(row.claimedAmount))}</b><time>{fmtDate(row.createdAt)}</time></span><ChevronRight/></button>)}</div>:<EmptyState title="Tidak ada bukti baru" description="Notifikasi baru akan muncul otomatis setelah customer mengunggah bukti."/>}</Card>
-    {history.length?<Card><h2>Riwayat verifikasi</h2><div className="table-scroll"><Table><TableHeader><TableRow><TableHead>Booking</TableHead><TableHead>Customer</TableHead><TableHead>Nominal</TableHead><TableHead>Status</TableHead><TableHead>Admin</TableHead></TableRow></TableHeader><TableBody>{history.map(row=><TableRow key={text(row.id)}><TableCell><Link className="code-link" href={`/bookings/${row.bookingCode}`}>{text(row.bookingCode)}</Link></TableCell><TableCell>{text(row.customerName)}</TableCell><TableCell>{rupiah(Number(row.verifiedAmount||row.claimedAmount))}</TableCell><TableCell><Badge value={row.status}>{statusLabel(row.status,language)}</Badge>{row.rejectionReason?<small>{text(row.rejectionReason)}</small>:null}</TableCell><TableCell>{text(row.verifiedByAdminEmail)}</TableCell></TableRow>)}</TableBody></Table></div></Card>:null}
-    <Dialog open={Boolean(selected)} title="Verifikasi bukti pembayaran" description={selected?`${text(selected.customerName)} · ${text(selected.bookingCode)}`:""} onClose={()=>setSelected(null)}>{selected?<div className="proof-review"><ProofImage id={text(selected.id)}/><dl className="details"><dt>Customer</dt><dd>{text(selected.customerName)}<small>{text(selected.customerWhatsapp)}</small></dd><dt>Business</dt><dd>{text(selected.businessName)}</dd><dt>Nominal diklaim</dt><dd>{rupiah(Number(selected.claimedAmount))}</dd><dt>Diunggah</dt><dd>{fmtDate(selected.createdAt)}</dd><dt>Booking kedaluwarsa</dt><dd>{fmtDate(selected.expiresAt)}</dd></dl><Field label="Nominal terverifikasi"><Input type="number" min="1" max={Number(selected.claimedAmount)} value={amount} onChange={event=>setAmount(Number(event.target.value))}/></Field><Field label="Alasan penolakan (wajib bila ditolak)"><Textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Contoh: nominal/rekening/tanggal pada bukti tidak sesuai"/></Field><div className="payment-terms"><strong>Aturan pembayaran</strong><span>DP minimal 50% · batas pembayaran 12 jam · DP non-refundable setelah pembatalan.</span></div><footer className="dialog-actions"><Button variant="destructive" disabled={busy||reason.trim().length<3} onClick={()=>void act("reject")}>Tolak Bukti</Button><Button disabled={busy||amount<1||amount>Number(selected.claimedAmount)} onClick={()=>void act("approve")}>{busy?"Menyimpan...":"Approve Payment"}</Button></footer></div>:null}</Dialog>
+    <Card><div className="card-title"><div><h2>{pending.length} menunggu verifikasi</h2><p>Diperbarui otomatis setiap 10 detik · bukti tersimpan persisten di PostgreSQL</p></div></div>{pending.length?<div className="proof-grid">{pending.map(row=><button className="proof-notification" key={text(row.id)} onClick={()=>{setSelected(row);setAmount(Number(row.claimedAmount));setReason("")}}><Bell/><span><strong>{text(row.customerName)}</strong><small>{text(row.bookingCode)} · {row.business==="glamping"?"Shakila Akomodasi":"Shakila Jeep Tour"}</small><b>{rupiah(Number(row.claimedAmount))}</b><time>{fmtDate(row.createdAt)}</time></span><ChevronRight/></button>)}</div>:<EmptyState title="Tidak ada bukti baru" description="Notifikasi baru akan muncul otomatis setelah pelanggan mengunggah bukti."/>}</Card>
+    {history.length?<Card><h2>Riwayat verifikasi</h2><div className="table-scroll"><Table><TableHeader><TableRow><TableHead>Booking</TableHead><TableHead>Pelanggan</TableHead><TableHead>Nominal</TableHead><TableHead>Status</TableHead><TableHead>Admin</TableHead></TableRow></TableHeader><TableBody>{history.map(row=><TableRow key={text(row.id)}><TableCell><Link className="code-link" href={`/bookings/${row.bookingCode}`}>{text(row.bookingCode)}</Link></TableCell><TableCell>{text(row.customerName)}</TableCell><TableCell>{rupiah(Number(row.verifiedAmount||row.claimedAmount))}</TableCell><TableCell><Badge value={row.status}>{statusLabel(row.status,language)}</Badge>{row.rejectionReason?<small>{text(row.rejectionReason)}</small>:null}</TableCell><TableCell>{text(row.verifiedByAdminEmail)}</TableCell></TableRow>)}</TableBody></Table></div></Card>:null}
+    <Dialog open={Boolean(selected)} title="Verifikasi bukti pembayaran" description={selected?`${text(selected.customerName)} · ${text(selected.bookingCode)}`:""} onClose={()=>setSelected(null)}>{selected?<div className="proof-review"><ProofImage id={text(selected.id)}/><dl className="details"><dt>Pelanggan</dt><dd>{text(selected.customerName)}<small>{text(selected.customerWhatsapp)}</small></dd><dt>Bisnis</dt><dd>{text(selected.businessName)}</dd><dt>Nominal diklaim</dt><dd>{rupiah(Number(selected.claimedAmount))}</dd><dt>Diunggah</dt><dd>{fmtDate(selected.createdAt)}</dd><dt>Batas pembayaran</dt><dd>{fmtDate(selected.expiresAt)}</dd></dl><Field label="Nominal terverifikasi"><Input type="number" min="1" max={Number(selected.claimedAmount)} value={amount} onChange={event=>setAmount(Number(event.target.value))}/></Field><Field label="Alasan penolakan (wajib bila ditolak)"><Textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Contoh: nominal, rekening, atau tanggal pada bukti tidak sesuai"/></Field><div className="payment-terms"><strong>Aturan pembayaran</strong><span>DP minimal 50% · batas pembayaran 12 jam · DP tidak dapat dikembalikan setelah pembatalan.</span></div><footer className="dialog-actions"><Button variant="destructive" disabled={busy||reason.trim().length<3} onClick={()=>void act("reject")}>Tolak Bukti</Button><Button disabled={busy||amount<1||amount>Number(selected.claimedAmount)} onClick={()=>void act("approve")}>{busy?"Menyimpan...":"Setujui Pembayaran"}</Button></footer></div>:null}</Dialog>
   </div>;
 }
 
@@ -1776,7 +1740,7 @@ function Customer({ item }: { item: Row }) {
             {String(item.fullName).slice(0, 1)}
           </span>
           <div>
-            <p className="section-kicker">CUSTOMER PROFILE</p>
+            <p className="section-kicker">PROFIL PELANGGAN</p>
             <h2>{text(item.fullName)}</h2>
             <div className="profile-contact">
               <span>
@@ -2209,6 +2173,7 @@ function CatalogManager({
         description: String(form.get("description")),
         price: Number(form.get("price")),
         capacity: Number(form.get("capacity")),
+        ...(kind === "glamping" ? { kind: String(form.get("kind") || row?.kind || "GLAMPING") } : {}),
         isActive: form.get("isActive") === "on",
       };
     await mutate(
@@ -2281,7 +2246,7 @@ function CatalogManager({
         <Card className="fleet-card">
           <div className="card-title">
             <div>
-              <p className="section-kicker">PHYSICAL FLEET</p>
+              <p className="section-kicker">ARMADA FISIK · STOK 8 UNIT DATA DEMO</p>
               <h2>{t("catalog.fleet")}</h2>
             </div>
             <Button
@@ -2305,7 +2270,7 @@ function CatalogManager({
             <form onSubmit={(event) => void saveProduct(event, row)}>
               <div className="product-head">
                 <div>
-                  <p className="section-kicker">{text(row.slug)}</p>
+                  <p className="section-kicker">{kind === "glamping" ? `${text(row.kind) === "HOMESTAY" ? "HOMESTAY" : "GLAMPING"} · ${text(row.slug)}` : text(row.slug)}</p>
                   <h2>{text(row.name)}</h2>
                 </div>
                 <Badge value={row.isActive ? "ACTIVE" : "INACTIVE"}>
@@ -2365,7 +2330,7 @@ function CatalogManager({
                   <p>
                     {kind === "glamping"
                       ? `${units.filter((item) => item.accommodationTypeId === row.id).length} ${t("catalog.units")}`
-                      : `${slots.filter((item) => item.jeepPackageId === row.id).length} slots`}
+                      : `${slots.filter((item) => item.jeepPackageId === row.id).length} slot`}
                   </p>
                 </div>
                 <Button
@@ -2459,6 +2424,7 @@ function CatalogManager({
           >
             {dialog.type === "product" ? (
               <>
+                {kind === "glamping" ? <Field label="Jenis akomodasi"><AdminSelect name="kind" defaultValue={text(dialog.item?.kind || "GLAMPING")} placeholder="Pilih jenis" options={[{value:"GLAMPING",label:"Glamping"},{value:"HOMESTAY",label:"Homestay"}]}/></Field> : null}
                 <Field label={t("common.name")}>
                   <Input
                     name="name"
@@ -2760,7 +2726,7 @@ function SettingsView({
                 />
               </Field>
             </div>
-            <div className="payment-terms"><strong>Kebijakan pembayaran aktif</strong><span>DP minimal 50% · pembayaran maksimal 12 jam · DP non-refundable bila booking dibatalkan.</span></div>
+            <div className="payment-terms"><strong>Kebijakan pembayaran aktif</strong><span>DP minimal 50% · pembayaran maksimal 12 jam · DP tidak dapat dikembalikan bila booking dibatalkan.</span></div>
             <Field label="Contact email">
               <Input
                 type="email"

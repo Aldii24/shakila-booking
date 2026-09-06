@@ -1,6 +1,6 @@
 # Business Rules
 
-> **Client revision — 30 August 2026 (authoritative):** `required_dp_amount` is at least 50% of booking total. `expires_at` is created at booking time with a maximum 12-hour payment window. Uploading a proof never confirms a booking. Only an Admin-approved manual transfer amount is verified; confirmation occurs when cumulative verified payment reaches required DP. Rejected proofs leave a non-expired booking in `WAITING_PAYMENT` and permit retry. Paid DP is non-refundable when the booking is cancelled. Accommodation check-in starts 13:00 WIB and check-out is no later than 12:00 WIB. All date/time decisions use `Asia/Jakarta`.
+> **Klarifikasi client — 6 September 2026 (otoritatif):** Tidak ada payment gateway. `required_dp_amount` minimal 50% dari total, `expires_at` maksimal 12 jam sejak booking dibuat, dan unggah bukti tidak pernah mengonfirmasi booking. Hanya transfer manual yang disetujui Admin yang dihitung terverifikasi. Bukti ditolak wajib memiliki alasan dan dapat diunggah ulang selama booking belum kedaluwarsa. DP yang sudah dibayar hangus jika customer membatalkan. Check-in mulai 13.00 WIB, check-out maksimal 12.00 WIB, dan seluruh waktu memakai `Asia/Jakarta`. Semua aturan Pakasir/provider lama di bawah bersifat usang.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
 

@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { DomainError } from "@booking/booking";
 import { getDb, type BookingDatabase } from "@booking/database";
+import {
+  databasePaymentProofStorage,
+  type PaymentProofStorageAdapter,
+} from "./proof-storage";
 
 const rows = <T>(value: unknown) => value as T[];
 export const MAX_PAYMENT_PROOF_BYTES = 5 * 1024 * 1024;
@@ -52,11 +56,17 @@ export async function submitManualPaymentProof(
   bookingId: string,
   input: PaymentProofInput,
   database: BookingDatabase = getDb(),
+  storage: PaymentProofStorageAdapter = databasePaymentProofStorage,
 ) {
   validateProof(input);
+  const stored = await storage.store({
+    bookingCode,
+    mimeType: input.mimeType as "image/jpeg" | "image/png",
+    fileDataBase64: input.fileDataBase64,
+  });
   return database.transaction(async (tx) => {
-    const found = rows<{ paymentId: string; status: string; expiresAt: string | null }>(await tx.execute(sql`
-      select p.id as "paymentId",b.status,b.expires_at::text as "expiresAt"
+    const found = rows<{ paymentId: string; status: string; expiresAt: string | null; requiredDp: number; verifiedPaid: number; totalAmount: number }>(await tx.execute(sql`
+      select p.id as "paymentId",b.status,b.expires_at::text as "expiresAt",b.required_dp_amount::int as "requiredDp",b.verified_paid_amount::int as "verifiedPaid",b.total_amount::int as "totalAmount"
       from bookings b join payments p on p.booking_id=b.id
       where b.id=${bookingId}::uuid and b.booking_code=${bookingCode}
       for update of b,p
@@ -64,6 +74,9 @@ export async function submitManualPaymentProof(
     if (!found) throw new DomainError("BOOKING_NOT_FOUND", "Booking was not found.", 404);
     if (found.status !== "WAITING_PAYMENT" || !found.expiresAt || Date.parse(found.expiresAt) <= Date.now())
       throw new DomainError("BOOKING_EXPIRED", "Booking payment deadline has expired.", 409);
+    const minimumOutstandingDp = Math.max(found.requiredDp - found.verifiedPaid, 0);
+    if (input.claimedAmount < minimumOutstandingDp || input.claimedAmount > found.totalAmount - found.verifiedPaid)
+      throw new DomainError("PAYMENT_AMOUNT_MISMATCH", "Nominal bukti harus memenuhi sisa minimum DP dan tidak melebihi sisa booking.", 409);
 
     const orderId = `TRANSFER-${bookingCode}-${randomUUID().slice(0, 8).toUpperCase()}`;
     const attempt = rows<{ id: string }>(await tx.execute(sql`
@@ -72,8 +85,8 @@ export async function submitManualPaymentProof(
       returning id
     `))[0]!;
     const proof = rows<{ id: string; createdAt: string }>(await tx.execute(sql`
-      insert into payment_proofs(payment_id,booking_id,payment_attempt_id,claimed_amount,file_name,mime_type,file_size,file_data_base64)
-      values(${found.paymentId}::uuid,${bookingId}::uuid,${attempt.id}::uuid,${input.claimedAmount},${input.fileName},${input.mimeType},${input.fileSize},${input.fileDataBase64})
+      insert into payment_proofs(payment_id,booking_id,payment_attempt_id,claimed_amount,file_name,mime_type,file_size,storage_provider,storage_key,file_data_base64)
+      values(${found.paymentId}::uuid,${bookingId}::uuid,${attempt.id}::uuid,${input.claimedAmount},${input.fileName},${input.mimeType},${input.fileSize},${stored.provider},${stored.key},${stored.inlineDataBase64})
       returning id,created_at::text as "createdAt"
     `))[0]!;
     await tx.execute(sql`update payments set status='PENDING',updated_at=now() where id=${found.paymentId}::uuid`);
@@ -103,13 +116,13 @@ export async function listPaymentProofs(
   `));
 }
 
-export async function getPaymentProofFile(id: string, database: BookingDatabase = getDb()) {
-  const proof = rows<{ fileName: string; mimeType: string; fileDataBase64: string }>(await database.execute(sql`
-    select file_name as "fileName",mime_type as "mimeType",file_data_base64 as "fileDataBase64"
+export async function getPaymentProofFile(id: string, database: BookingDatabase = getDb(), storage: PaymentProofStorageAdapter = databasePaymentProofStorage) {
+  const proof = rows<{ fileName: string; mimeType: string; storageProvider: "DATABASE" | "R2"; storageKey: string; fileDataBase64: string | null }>(await database.execute(sql`
+    select file_name as "fileName",mime_type as "mimeType",storage_provider as "storageProvider",storage_key as "storageKey",file_data_base64 as "fileDataBase64"
     from payment_proofs where id=${id}::uuid limit 1
   `))[0];
   if (!proof) throw new DomainError("PAYMENT_PROOF_NOT_FOUND", "Payment proof was not found.", 404);
-  return proof;
+  return { fileName: proof.fileName, mimeType: proof.mimeType, bytes: await storage.read({ provider: proof.storageProvider, key: proof.storageKey, inlineDataBase64: proof.fileDataBase64 }) };
 }
 
 export async function approveManualPaymentProof(
