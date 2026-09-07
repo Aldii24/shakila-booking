@@ -2,6 +2,8 @@
 
 Ingestion date: 2026-09-06 (Asia/Jakarta)
 
+Jeep package reinspection: 2026-09-07 (Asia/Jakarta). Both pages of the primary PDF and the complete Jeep PNG were re-read for the customer-facing package update.
+
 Scope: client-data ingestion only. This document does not change the application, database, booking logic, or existing milestone requirements.
 
 ## Data labels
@@ -36,12 +38,12 @@ Scope: client-data ingestion only. This document does not change the application
 
 Primary catalog source: `C:\Downloads\SHAKILAGRUP\GLAMPING\glamping.png`.
 
-The supplied confirmation overrides older demo catalog assumptions: only Deluxe and Twin Bed are real Glamping room types.
+The supplied confirmation establishes Deluxe and Twin Bed as the Glamping room types and provides their nightly prices.
 
 | Type | Physical rooms | Breakfast | Price | Guest capacity |
 | --- | ---: | --- | --- | --- |
-| Deluxe | 2 — `CONFIRMED_CLIENT_DATA` | Included for 2 pax — `CONFIRMED_CLIENT_DATA` | Not supplied — `MISSING_OR_UNCERTAIN_DATA` | Not supplied; bed type and breakfast count are not treated as capacity — `MISSING_OR_UNCERTAIN_DATA` |
-| Twin Bed | 4 — `CONFIRMED_CLIENT_DATA` | Included for 2 pax — `CONFIRMED_CLIENT_DATA` | Not supplied — `MISSING_OR_UNCERTAIN_DATA` | Not supplied; bed type and breakfast count are not treated as capacity — `MISSING_OR_UNCERTAIN_DATA` |
+| Deluxe | 2 — `CONFIRMED_CLIENT_DATA` | Included for 2 pax — `CONFIRMED_CLIENT_DATA` | Rp550.000/malam — `CONFIRMED_CLIENT_DATA` | Not supplied; bed type and breakfast count are not treated as capacity — `MISSING_OR_UNCERTAIN_DATA` |
+| Twin Bed | 4 — `CONFIRMED_CLIENT_DATA` | Included for 2 pax — `CONFIRMED_CLIENT_DATA` | Rp600.000/malam — `CONFIRMED_CLIENT_DATA` | Not supplied; bed type and breakfast count are not treated as capacity — `MISSING_OR_UNCERTAIN_DATA` |
 
 ### Deluxe
 
@@ -184,11 +186,14 @@ Primary source: `C:\Downloads\SHAKILAGRUP\Price_List_Paket_Tour_Shakila_Untuk_Ta
 
 Cross-reference source: `C:\Downloads\SHAKILAGRUP\JEEP\pricelist.png`.
 
+Customer website brochure copy: `apps/jeep/public/brosur/price-list-paket-tour-shakila.pdf`. This is a byte-identical temporary web copy of the primary PDF, exposed at `/brosur/price-list-paket-tour-shakila.pdf`; the runtime does not reference `C:\Downloads`.
+
 ### Physical inventory
 
-- Physical Jeep count: 8 — `TEMP_DEMO_DATA`.
-- The client has not supplied real Jeep stock — `MISSING_OR_UNCERTAIN_DATA`.
-- Replace the single `physicalInventory.physicalUnitCount` value in `data/client-catalog.json` when confirmed stock arrives; no individual unit identities are invented here.
+- Physical Jeep count: 12 — `CONFIRMED_CLIENT_DATA`.
+- Jeep does not have a vehicle type or class. Products are differentiated by tour package, not by vehicle category — `CONFIRMED_CLIENT_DATA`.
+- All tour packages draw from the same shared pool of 12 physical Jeep units — `CONFIRMED_CLIENT_DATA`.
+- Individual unit identities were not supplied; demo unit codes are operational identifiers only and do not create Jeep types or classes.
 
 ### Primary Tour & Stay bundles
 
@@ -216,6 +221,10 @@ Group Adventure - Twin Bed capacity and composition — `SOURCE_DERIVED_DATA`:
 | Group Adventure - Twin Bed | Long 2 | `COMPLETE EXPEROENCE` in source | Rp2.649.000 | Rp662.250/orang* |
 
 All table values are `SOURCE_DERIVED_DATA`. The asterisk attached to per-person equivalents is not explained in the PDF — `MISSING_OR_UNCERTAIN_DATA`.
+
+All eight bundle combinations are direct bookable products on the accommodation website under **Paket Menginap + Jeep** and may also appear as cross-sell choices on the Jeep website. The PDF remains a supplementary brochure and is not the booking flow. Each bundle creates one booking and atomically reserves its source-defined room and Jeep resources. For the supplied packages, one package consumes one room of the mapped type and one Jeep from the shared pool of 12. Bundle availability is the lower of room availability and all-day Jeep availability for the selected date.
+
+Client-confirmed stay extension rule (7 September 2026) — `CONFIRMED_CLIENT_DATA`: the package price includes one night and one Jeep tour. Customers may choose a later check-out date. The Jeep is reserved only once on the check-in/tour date, while every additional night is charged at the mapped room's nightly price: Rp550.000 for Deluxe or Rp600.000 for Twin Bed, per room per additional night. Room inventory must remain available for the complete `[check-in, check-out)` range.
 
 Shared inclusions — `SOURCE_DERIVED_DATA`:
 
@@ -269,6 +278,14 @@ These are preserved separately from the PDF bundles because the PNG states stand
 
 All standalone package values are `SOURCE_DERIVED_DATA`. The exact per-unit price basis is not stated — `MISSING_OR_UNCERTAIN_DATA`. The PNG states that destination admission tickets are not included.
 
+Customer-facing details shared by all six standalone packages:
+
+- Included: sewa Jeep wisata according to the selected package route — `SOURCE_DERIVED_DATA` from the PNG heading and package presentation.
+- Excluded: destination admission tickets — `SOURCE_DERIVED_DATA`, explicitly stated by the PNG.
+- Duration, departure time, and passenger capacity are not stated — `MISSING_OR_UNCERTAIN_DATA`.
+- All packages use the same shared pool of 12 Jeep units; there is no Jeep type/class — `CONFIRMED_CLIENT_DATA`.
+- For capacity details or additional-unit needs, the customer-facing instruction is `Hubungi Admin` — `CONFIRMED_CLIENT_DATA`.
+
 Each of the six standalone package items maps to:
 
 - Catalog image: `C:\Downloads\SHAKILAGRUP\JEEP\pricelist.png`
@@ -286,11 +303,10 @@ Each of the six standalone package items maps to:
 
 ## Known missing or uncertain data
 
-- Glamping nightly prices.
 - Glamping guest capacities.
 - Homestay Twin Bed guest capacity.
 - Meaning/unit of Homestay poster text `Sarapan/kamar 2`.
-- Real Jeep physical stock and individual unit identities.
+- Individual Jeep unit identities.
 - Jeep departure slots and Jeep passenger capacity for standalone packages.
 - Whether `Air Terjun / Hutan Pinus` denotes a choice or a combined stop.
 - Current authoritative contact number where the Jeep PDF and PNG disagree.

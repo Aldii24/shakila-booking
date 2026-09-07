@@ -286,12 +286,12 @@ function LoginContent({
               <ShieldCheck size={17} />
               <div>
                 <strong>{t("login.demoCredentials")}</strong>
-                <span>admin@shakilagroup.demo · demo12345</span>
+                <span>Gunakan akun Admin yang telah dikonfigurasi.</span>
               </div>
             </aside>
           ) : null}
           <small className="login-security">
-            MODE DEMO · SESI AMAN · DATA POSTGRESQL LANGSUNG
+            SESI AMAN · DATA POSTGRESQL LANGSUNG
           </small>
         </form>
       </section>
@@ -500,8 +500,8 @@ function AdminSidebar() {
       <SidebarFooter className="sidebar-profile">
           <span className="avatar">DA</span>
           <div>
-            <strong>Demo Admin</strong>
-            <small>Pemilik · Mode Demo</small>
+            <strong>Administrator</strong>
+            <small>Pemilik</small>
           </div>
           <Button
             title={t("common.logout")}
@@ -2246,7 +2246,7 @@ function CatalogManager({
         <Card className="fleet-card">
           <div className="card-title">
             <div>
-              <p className="section-kicker">ARMADA FISIK · STOK 8 UNIT DATA DEMO</p>
+              <p className="section-kicker">ARMADA FISIK · {units.filter((item) => item.isActive).length} JEEP AKTIF · DATA CLIENT TERKONFIRMASI</p>
               <h2>{t("catalog.fleet")}</h2>
             </div>
             <Button
@@ -2690,7 +2690,7 @@ function SettingsView({
                 : "Shakila Jeep Tour"}
             </h2>
             <div className="mode-status">
-              <strong>PRODUCT DEMO MODE</strong>
+              <strong>MODE OPERASIONAL</strong>
               <span>Inline jobs · direct PDF · email preview</span>
             </div>
             <Field

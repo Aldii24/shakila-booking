@@ -40,6 +40,19 @@ export function calculateJeepPrice(unitPrice: number, quantity: number) {
   return { unitPrice, quantity, subtotalAmount: unitPrice * quantity, additionalAmount: 0, totalAmount: unitPrice * quantity };
 }
 
+export function calculateBundlePrice(unitPrice: number, additionalNightPrice: number, weekendSurcharge: number, quantity: number, checkInDate: string, checkOutDate: string) {
+  if (!Number.isSafeInteger(unitPrice) || unitPrice < 0 || !Number.isSafeInteger(additionalNightPrice) || additionalNightPrice < 0 || !Number.isSafeInteger(weekendSurcharge) || weekendSurcharge < 0 || !Number.isInteger(quantity) || quantity < 1) {
+    throw new DomainError("INVALID_QUANTITY", "Quantity and bundle price must be valid.");
+  }
+  const nightCount = calculateNightCount(checkInDate, checkOutDate);
+  const additionalNightCount = nightCount - 1;
+  const day = new Date(`${checkInDate}T00:00:00Z`).getUTCDay();
+  const accommodationExtensionAmount = additionalNightPrice * additionalNightCount * quantity;
+  const weekendAmount = (day === 0 || day === 6 ? weekendSurcharge : 0) * quantity;
+  const subtotalAmount = unitPrice * quantity + accommodationExtensionAmount;
+  return { unitPrice, additionalNightPrice, quantity, nightCount, additionalNightCount, subtotalAmount, additionalAmount: weekendAmount, totalAmount: subtotalAmount + weekendAmount };
+}
+
 const transitions: Record<BookingStatus, readonly BookingStatus[]> = {
   PENDING: ["WAITING_PAYMENT"], WAITING_PAYMENT: ["CONFIRMED", "EXPIRED", "CANCELLED"],
   CONFIRMED: ["CHECKED_IN", "CANCELLED"], CHECKED_IN: ["CHECKED_OUT"], CHECKED_OUT: ["COMPLETED"],

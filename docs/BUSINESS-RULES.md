@@ -3765,6 +3765,12 @@ Sistem demo ini dibangun berdasarkan lima aturan fundamental:
 
 > **Glamping dan Jeep memiliki workflow berbeda di customer side, tetapi seluruh operasional tetap berada dalam satu centralized booking system.**
 
+## Paket bundling akomodasi + Jeep
+
+Paket Tour & Stay dari katalog klien adalah produk bundling, bukan paket Jeep mandiri. Satu booking bundle memiliki satu customer, satu total, satu DP, dan satu timeline. Pembuatan booking harus mengalokasikan seluruh kamar dan Jeep yang dibutuhkan dalam satu transaksi PostgreSQL. Jika salah satu resource tidak tersedia, transaksi dibatalkan seluruhnya. Ketersediaan paket dihitung sebagai nilai minimum dari jumlah paket yang dapat dipenuhi oleh stok kamar dan stok Jeep. Jeep bundle berasal dari pool fisik 12 unit yang sama dan dianggap terpakai sepanjang tanggal tour agar tidak berbenturan dengan slot Jeep mandiri.
+
+Harga dasar bundle mencakup satu malam dan satu kali tour Jeep. Customer memilih tanggal check-in dan check-out. Jeep hanya dialokasikan sekali pada tanggal check-in/tour, sedangkan kamar dialokasikan untuk seluruh rentang `[check-in, check-out)`. Setiap malam setelah malam pertama dikenakan tarif kamar per malam: Deluxe Rp550.000 dan Twin Bed Rp600.000. Seluruh malam kamar dan satu Jeep tetap dialokasikan secara atomik.
+
 ---
 
 # 196. Next Document

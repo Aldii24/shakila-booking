@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "2026-09-06-client-ingestion-1",
+  "catalogVersion": "2026-09-07-atomic-accommodation-jeep-bundles-4",
   "ingestedAt": "2026-09-06",
   "timezone": "Asia/Jakarta",
   "scope": "CLIENT_DATA_INGESTION_ONLY",
@@ -125,10 +125,10 @@
           "status": "CONFIRMED_CLIENT_DATA"
         },
         "price": {
-          "amountIdr": null,
+          "amountIdr": 550000,
           "basis": "per-night",
-          "status": "MISSING_OR_UNCERTAIN_DATA",
-          "note": "No Glamping price appears in the supplied sources."
+          "status": "CONFIRMED_CLIENT_DATA",
+          "note": "Confirmed directly by the client on 7 September 2026."
         },
         "guestCapacity": {
           "value": null,
@@ -230,10 +230,10 @@
           "status": "CONFIRMED_CLIENT_DATA"
         },
         "price": {
-          "amountIdr": null,
+          "amountIdr": 600000,
           "basis": "per-night",
-          "status": "MISSING_OR_UNCERTAIN_DATA",
-          "note": "No Glamping price appears in the supplied sources."
+          "status": "CONFIRMED_CLIENT_DATA",
+          "note": "Confirmed directly by the client on 7 September 2026."
         },
         "guestCapacity": {
           "value": null,
@@ -548,13 +548,23 @@
   "jeep": {
     "primarySourcePath": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
     "crossReferenceSourcePath": "C:\\Downloads\\SHAKILAGRUP\\JEEP\\pricelist.png",
+    "sourceReinspectionDate": "2026-09-07",
+    "customerWebsiteBrochure": {
+      "publicPath": "/brosur/price-list-paket-tour-shakila.pdf",
+      "repositoryPath": "apps/jeep/public/brosur/price-list-paket-tour-shakila.pdf",
+      "sourcePath": "C:\\Downloads\\SHAKILAGRUP\\Price_List_Paket_Tour_Shakila_Untuk_Tamu.pdf",
+      "copyMode": "BYTE_IDENTICAL",
+      "status": "SOURCE_DERIVED_DATA"
+    },
     "physicalInventory": {
-      "physicalUnitCount": 8,
-      "status": "TEMP_DEMO_DATA",
-      "realStockStatus": "MISSING_OR_UNCERTAIN_DATA",
-      "replacementRequired": true,
-      "replacementField": "jeep.physicalInventory.physicalUnitCount",
-      "note": "Replace this one count when the client supplies real Jeep stock. Individual unit identities are intentionally not invented."
+      "physicalUnitCount": 12,
+      "status": "CONFIRMED_CLIENT_DATA",
+      "realStockStatus": "CONFIRMED_CLIENT_DATA",
+      "replacementRequired": false,
+      "vehicleTypes": [],
+      "productDifferentiator": "TOUR_PACKAGE",
+      "sharedFleetAcrossPackages": true,
+      "note": "All tour packages use the same pool of 12 physical Jeeps. Jeep types/classes and individual unit identities are intentionally not invented."
     },
     "routes": [
       {
@@ -631,6 +641,22 @@
     },
     "tourStay": {
       "status": "SOURCE_DERIVED_DATA",
+      "customerWebsite": {
+        "catalogMode": "DIRECT_PACKAGE_CHOICES",
+        "itemCount": 8,
+        "detailPagesEnabled": true,
+        "bookingMode": "DIRECT_ATOMIC_BOOKING",
+        "inventoryRule": "MIN_AVAILABLE_ACCOMMODATION_AND_JEEP",
+        "bookingResources": ["ACCOMMODATION_UNIT", "JEEP_UNIT"],
+        "accommodationQuantityPerPackage": 1,
+        "jeepQuantityPerPackage": 1,
+        "includedNightCount": 1,
+        "additionalNightRule": "Jeep is included once. Additional nights use the mapped room's confirmed nightly price: Deluxe Rp550.000 and Twin Bed Rp600.000 per room per night.",
+        "jeepFleetSize": 12,
+        "customerWebsiteLocations": ["glamping", "jeep-cross-sell"],
+        "brochureRole": "SUPPLEMENTARY_REFERENCE",
+        "status": "SOURCE_DERIVED_DATA"
+      },
       "sharedInclusions": {
         "common": [
           "1 unit Jeep according to route",
@@ -957,6 +983,36 @@
       "sourceNote": "Secondary cross-reference PNG; kept separate from the primary PDF bundles.",
       "ticketsIncluded": false,
       "ticketRuleSourceText": "Harga paket belum termasuk tiket masuk destinasi wisata.",
+      "customerFacingSharedDetails": {
+        "inclusions": [
+          "Sewa Jeep wisata sesuai rute paket"
+        ],
+        "exclusions": [
+          "Tiket masuk destinasi wisata"
+        ],
+        "duration": {
+          "value": null,
+          "status": "MISSING_OR_UNCERTAIN_DATA"
+        },
+        "departureTime": {
+          "value": null,
+          "status": "MISSING_OR_UNCERTAIN_DATA"
+        },
+        "passengerCapacity": {
+          "value": null,
+          "status": "MISSING_OR_UNCERTAIN_DATA"
+        },
+        "fleet": {
+          "physicalUnitCount": 12,
+          "sharedAcrossAllPackages": true,
+          "vehicleTypes": [],
+          "status": "CONFIRMED_CLIENT_DATA"
+        },
+        "additionalUnitInstruction": {
+          "value": "Hubungi Admin",
+          "status": "CONFIRMED_CLIENT_DATA"
+        }
+      },
       "priceBasis": {
         "value": null,
         "status": "MISSING_OR_UNCERTAIN_DATA",
@@ -1112,11 +1168,10 @@
     "sourceFilesModified": false
   },
   "knownMissingOrUncertain": [
-    "Glamping nightly prices",
     "Glamping guest capacities",
     "Homestay Twin Bed guest capacity",
     "Meaning or unit of Homestay source text Sarapan/kamar 2",
-    "Real Jeep physical stock and individual unit identities",
+    "Individual Jeep unit identities",
     "Jeep departure slots",
     "Standalone Jeep passenger capacity",
     "Meaning of Air Terjun / Hutan Pinus slash notation",

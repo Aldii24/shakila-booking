@@ -31,6 +31,10 @@ type Product = {
   kind: "GLAMPING" | "HOMESTAY";
   breakfastIncludedPax: number | null;
   isDemoData: boolean;
+  pricePerPackage?: number;
+  additionalNightPrice?: number;
+  accommodationName?: string;
+  nightCount?: number;
 };
 type Availability = {
   slug: string;
@@ -45,6 +49,8 @@ type Quote = {
   totalAmount: number;
   dpPercentage: number;
   requiredDpAmount: number;
+  additionalNightPrice?: number;
+  additionalNightCount?: number;
 };
 type Booking = {
   bookingId: string;
@@ -236,7 +242,7 @@ export function Availability({
                 <h3>{p.name}</h3>
                 <p>{p.description}</p>
                 <p className="price">
-                  {rupiah(p.basePrice)} / unit / malam · kapasitas {p.capacityPerUnit} tamu{p.isDemoData ? " · data demo" : ""}
+                  {rupiah(p.basePrice)} / unit / malam · kapasitas {p.capacityPerUnit} tamu
                 </p>
               </div>
               {item.availableQuantity > 0 ? (
@@ -269,6 +275,7 @@ export function BookingForm({
 }: {
   selection: {
     productSlug: string;
+    bundleSlug: string;
     checkInDate: string;
     checkOutDate: string;
     guestCount: string;
@@ -293,21 +300,24 @@ export function BookingForm({
     [error, setError] = useState(""),
     [turnstileToken, setTurnstileToken] = useState("");
   const submissionLocked = useRef(false);
+  const isBundle = Boolean(selection.bundleSlug);
   const quantity = watch("quantity"),
     guestCount = watch("guestCount");
   useEffect(() => {
-    if (!selection.productSlug) return;
-    void api<Product>(`/public/glamping/types/${selection.productSlug}`)
+    const slug = isBundle ? selection.bundleSlug : selection.productSlug;
+    if (!slug) return;
+    void api<Product>(isBundle ? `/public/glamping/bundles/${slug}` : `/public/glamping/types/${slug}`)
       .then(setProduct)
       .catch(() => setError(message("NETWORK_ERROR")));
-  }, [selection.productSlug]);
+  }, [isBundle, selection.bundleSlug, selection.productSlug]);
   useEffect(() => {
-    if (!selection.productSlug || !quantity || !guestCount) return;
+    const slug = isBundle ? selection.bundleSlug : selection.productSlug;
+    if (!slug || !quantity || !guestCount) return;
     void api<Quote>("/public/bookings/quote", {
       method: "POST",
       body: JSON.stringify({
-        business: "glamping",
-        productSlug: selection.productSlug,
+        business: isBundle ? "bundle" : "glamping",
+        ...(isBundle ? { bundleSlug: selection.bundleSlug } : { productSlug: selection.productSlug }),
         checkInDate: selection.checkInDate,
         checkOutDate: selection.checkOutDate,
         quantity: Number(quantity),
@@ -318,7 +328,7 @@ export function BookingForm({
       .catch((e) =>
         setError(message(e instanceof Error ? e.message : "NETWORK_ERROR")),
       );
-  }, [selection, quantity, guestCount]);
+  }, [isBundle, selection, quantity, guestCount]);
   const submit = handleSubmit(async (values) => {
     if (submissionLocked.current) return;
     submissionLocked.current = true;
@@ -329,8 +339,14 @@ export function BookingForm({
         method: "POST",
         headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
-          business: "glamping",
-          reservation: {
+          business: isBundle ? "bundle" : "glamping",
+          reservation: isBundle ? {
+            bundleSlug: selection.bundleSlug,
+            checkInDate: selection.checkInDate,
+            checkOutDate: selection.checkOutDate,
+            quantity: Number(values.quantity),
+            guestCount: Number(values.guestCount),
+          } : {
             productSlug: selection.productSlug,
             checkInDate: selection.checkInDate,
             checkOutDate: selection.checkOutDate,
@@ -403,21 +419,26 @@ export function BookingForm({
       </form>
       <aside className="summary">
         <p className="eyebrow">Ringkasan reservasi</p>
+        {product ? <span className={`accommodation-booking-kind ${isBundle ? "bundle" : product.kind?.toLowerCase()}`}>{isBundle ? "Akomodasi + Jeep" : product.kind === "HOMESTAY" ? "Homestay" : "Glamping"}</span> : null}
         <h3>{product?.name ?? "Memuat akomodasi..."}</h3>
         <div>
           <span>Tanggal</span>
           <strong>
-            {selection.checkInDate} — {selection.checkOutDate}
+            {selection.checkInDate} — {selection.checkOutDate}{isBundle ? " · 1 kali tour Jeep" : ""}
           </strong>
         </div>
         <div>
-          <span>Harga unit</span>
+          <span>{isBundle ? "Harga paket" : "Harga unit"}</span>
           <strong>{quote ? rupiah(quote.unitPrice) : "—"}</strong>
         </div>
         <div>
           <span>Malam</span>
           <strong>{quote?.nightCount ?? "—"}</strong>
         </div>
+        {isBundle && quote && quote.additionalNightCount ? <div>
+          <span>Tambahan {quote.additionalNightCount} malam × {quantity} paket</span>
+          <strong>{rupiah((quote.additionalNightPrice ?? 0) * quote.additionalNightCount * Number(quantity))}</strong>
+        </div> : null}
         <div>
           <span>Jumlah</span>
           <strong>{quantity || "—"}</strong>
@@ -541,7 +562,7 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
       {approved ? <p className="status-note"><CheckCircle2/> DP Terverifikasi</p> : expired ? <p className="status-note error-note"><AlertCircle/> Kedaluwarsa — inventori telah dilepas.</p> : pending || submitted ? <p className="status-note"><Clock3/> Bukti pembayaran sedang menunggu verifikasi Admin.</p> : status.latestProofStatus === "REJECTED" ? <p className="status-note error-note"><AlertCircle/> Bukti Pembayaran Ditolak. {status.latestProofRejectionReason || "Silakan unggah bukti yang benar."}</p> : <p className="status-note"><Clock3/> Menunggu Pembayaran</p>}
       {!approved && !expired ? <>
         <div className="countdown"><Clock3/> {hours}:{minutes}:{secs}</div>
-        <div className="bank-instructions"><p className="eyebrow">Instruksi transfer</p><h3>{process.env.NEXT_PUBLIC_BANK_NAME ?? "Rekening demo Shakila Group"}</h3><p>{process.env.NEXT_PUBLIC_BANK_ACCOUNT ?? "Nomor rekening akan dikonfigurasi setelah data resmi klien diterima."}</p><strong>{process.env.NEXT_PUBLIC_BANK_HOLDER ?? "Shakila Group"}</strong><small>Transfer minimal sebesar DP dan gunakan kode booking sebagai berita transfer.</small></div>
+        <div className="bank-instructions"><p className="eyebrow">Instruksi transfer</p><h3>{process.env.NEXT_PUBLIC_BANK_NAME ?? "Rekening Shakila Group"}</h3><p>{process.env.NEXT_PUBLIC_BANK_ACCOUNT ?? "Nomor rekening belum dikonfigurasi."}</p><strong>{process.env.NEXT_PUBLIC_BANK_HOLDER ?? "Shakila Group"}</strong><small>Transfer minimal sebesar DP dan gunakan kode booking sebagai berita transfer.</small></div>
         {!pending ? <div className="proof-upload">
           <Label>Nominal yang ditransfer<Input type="number" min={status.requiredDpAmount} max={status.totalAmount} value={effectiveAmount} onChange={(event) => setClaimedAmount(Number(event.target.value))}/></Label>
           <div className="proof-field"><span>Bukti pembayaran</span><ProofFilePicker file={file} onFileChange={selectProof}/></div>
@@ -649,7 +670,7 @@ export function SuccessPage({ bookingCode }: { bookingCode: string }) {
             <div><span>DP terverifikasi</span><strong>{rupiah(status.verifiedPaidAmount)}</strong></div>
             <div><span>Sisa pembayaran</span><strong>{rupiah(status.remainingAmount)}</strong></div>
           </div>
-          {status.bookingType === "ACCOMMODATION" ? (
+          {status.bookingType === "ACCOMMODATION" || status.bookingType === "BUNDLE" ? (
             <p className="status-note">Check-in mulai pukul 13.00 WIB. Check-out maksimal pukul 12.00 WIB.</p>
           ) : null}
           {status.verifiedPaidAmount > 0 ? (

@@ -10,14 +10,16 @@ const createdIds:string[]=[];
 async function cleanupTestBookings(){
   if(!testUrl)return;
   const {getDb}=await import("@booking/database");const db=getDb();
-  const target=sql`select id from bookings where customer_email in ('idempotency@example.test','concurrency-1@example.test','concurrency-2@example.test','cancel@example.test','expire@example.test','jeep-one@example.test','jeep-two@example.test','jeep-other@example.test','boundary-one@example.test','boundary-two@example.test')`;
+  const target=sql`select id from bookings where customer_email in ('idempotency@example.test','concurrency-1@example.test','concurrency-2@example.test','cancel@example.test','expire@example.test','jeep-one@example.test','jeep-two@example.test','jeep-other@example.test','boundary-one@example.test','boundary-two@example.test','bundle-stock@example.test','bundle-overbook-1@example.test','bundle-overbook-2@example.test','bundle-jeep-fill@example.test','bundle-rollback@example.test')`;
   await db.execute(sql`delete from booking_events where booking_id in (${target})`);
   await db.execute(sql`delete from accommodation_unit_reservations where booking_id in (${target})`);
   await db.execute(sql`delete from jeep_unit_reservations where booking_id in (${target})`);
   await db.execute(sql`delete from payments where booking_id in (${target})`);
   await db.execute(sql`delete from glamping_booking_details where booking_id in (${target})`);
   await db.execute(sql`delete from jeep_booking_details where booking_id in (${target})`);
+  await db.execute(sql`delete from bundle_booking_details where booking_id in (${target})`);
   await db.execute(sql`delete from bookings where id in (${target})`);
+  await db.execute(sql`delete from inventory_blocks where note='bundle rollback integration test'`);
 }
 
 beforeAll(cleanupTestBookings);
@@ -59,6 +61,25 @@ integration("transactional booking allocation (requires migrated and seeded TEST
     const expected:Record<string,number>={"glamping-deluxe":2,"glamping-twin-bed":4,"homestay-standard":1,"homestay-superior":3,"homestay-twin-bed":1};
     for(const product of products) expect(await calculateAccommodationAvailability({accommodationTypeId:product.id,checkInDate:"2099-06-02",checkOutDate:"2099-06-03"})).toBe(expected[product.slug]);
     expect(products).toHaveLength(5);
+  });
+  it("bundle mengurangi stok kamar dan Jeep dalam satu booking",async()=>{
+    const {calculateBundleAvailability}=await import("./availability.js");const {createBundleBooking}=await import("./creation.js");const {getDb}=await import("@booking/database");const db=getDb();
+    const before=await calculateBundleAvailability({bundleSlug:"family-deluxe-medium-2",checkInDate:"2099-07-02",checkOutDate:"2099-07-05"});
+    const booking=await createBundleBooking({business:"bundle",reservation:{bundleSlug:"family-deluxe-medium-2",checkInDate:"2099-07-02",checkOutDate:"2099-07-05",quantity:1,guestCount:4},customer:{fullName:"Bundle Stock",email:"bundle-stock@example.test",whatsapp:"081200007001"}},randomUUID());createdIds.push(booking.bookingId);
+    const counts=await db.execute(sql`select (select count(*)::int from accommodation_unit_reservations where booking_id=${booking.bookingId}::uuid) rooms,(select count(distinct jeep_unit_id)::int from jeep_unit_reservations where booking_id=${booking.bookingId}::uuid) jeeps,(select night_count::int from glamping_booking_details where booking_id=${booking.bookingId}::uuid) nights`) as unknown as {rooms:number;jeeps:number;nights:number}[];
+    expect(counts[0]).toEqual({rooms:1,jeeps:1,nights:3});expect(await calculateBundleAvailability({bundleSlug:"family-deluxe-medium-2",checkInDate:"2099-07-02",checkOutDate:"2099-07-05"})).toBe(before-1);
+  });
+  it("bundle tidak dapat overbook resource terakhir",async()=>{
+    const {createBundleBooking}=await import("./creation.js");
+    const make=(suffix:string)=>createBundleBooking({business:"bundle",reservation:{bundleSlug:"group-twin-bed-medium-1",checkInDate:"2099-07-05",checkOutDate:"2099-07-07",quantity:4,guestCount:16},customer:{fullName:`Bundle Overbook ${suffix}`,email:`bundle-overbook-${suffix}@example.test`,whatsapp:`08120000710${suffix}`}},randomUUID());
+    const results=await Promise.allSettled([make("1"),make("2")]);for(const item of results)if(item.status==="fulfilled")createdIds.push(item.value.bookingId);expect(results.filter(item=>item.status==="fulfilled")).toHaveLength(1);
+  });
+  it("kegagalan resource Jeep me-rollback reservasi kamar bundle",async()=>{
+    const {createBundleBooking}=await import("./creation.js");const {getDb}=await import("@booking/database");const db=getDb();
+    await db.execute(sql`insert into inventory_blocks (business_id,resource_type,jeep_unit_id,start_date,reason,note) select business_id,'JEEP_UNIT',id,'2099-07-08','MAINTENANCE','bundle rollback integration test' from jeep_units where is_active`);
+    await expect(createBundleBooking({business:"bundle",reservation:{bundleSlug:"family-deluxe-medium-2",checkInDate:"2099-07-08",checkOutDate:"2099-07-10",quantity:1,guestCount:4},customer:{fullName:"Bundle Rollback",email:"bundle-rollback@example.test",whatsapp:"081200007202"}},randomUUID())).rejects.toMatchObject({code:"INVENTORY_NOT_AVAILABLE"});
+    const partial=await db.execute(sql`select (select count(*)::int from bookings where customer_email='bundle-rollback@example.test') bookings,(select count(*)::int from accommodation_unit_reservations r join bookings b on b.id=r.booking_id where b.customer_email='bundle-rollback@example.test') rooms,(select count(*)::int from jeep_unit_reservations r join bookings b on b.id=r.booking_id where b.customer_email='bundle-rollback@example.test') jeeps`) as unknown as {bookings:number;rooms:number;jeeps:number}[];
+    expect(partial[0]).toEqual({bookings:0,rooms:0,jeeps:0});
   });
 });
 

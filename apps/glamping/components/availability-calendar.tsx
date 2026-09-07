@@ -6,6 +6,10 @@ import { AlertCircle, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react
 import { api, message, rupiah } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { PositiveNumberInput } from "@/components/ui/positive-number-input";
+import {
+  accommodationKindFromSlug,
+  type AccommodationKind,
+} from "@/lib/accommodation-media";
 
 type Inventory = {
   productSlug: string;
@@ -39,6 +43,17 @@ function availabilityLabel(value: number) {
   if (value <= 0) return "Penuh";
   if (value === 1) return "Sisa 1";
   return `Sisa ${value}`;
+}
+
+const categoryMeta: Record<AccommodationKind, { label: string; hint: string }> = {
+  GLAMPING: { label: "Glamping", hint: "Deluxe · Twin Bed" },
+  HOMESTAY: { label: "Homestay", hint: "Standard · Superior · Twin Bed" },
+};
+
+function categoryAvailability(inventory: Inventory[], kind: AccommodationKind) {
+  return inventory
+    .filter((item) => accommodationKindFromSlug(item.productSlug) === kind)
+    .reduce((total, item) => total + item.availableUnits, 0);
 }
 
 export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDate?: string; checkOutDate?: string; guestCount?: string } }) {
@@ -116,7 +131,7 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
 
   const inRange = (date: string) => checkIn && checkOut && date >= checkIn && date <= checkOut;
   return (
-    <section className="availability-calendar glamping-calendar" aria-label="Kalender ketersediaan Shakila Glamping">
+    <section className="availability-calendar glamping-calendar" aria-label="Kalender ketersediaan Glamping dan Homestay Shakila">
       <div className="calendar-toolbar">
         <div><p className="eyebrow">Ketersediaan langsung</p><h2>{monthTitle(month)}</h2></div>
         <div className="month-actions">
@@ -128,6 +143,10 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
       {error ? <div className="calendar-error"><AlertCircle /><span>Tidak dapat memuat ketersediaan.</span><Button variant="ghost" onClick={() => void load()}>Coba lagi</Button></div> : null}
       <div className="calendar-layout">
         <div className="month-grid-wrap">
+          <div className="accommodation-calendar-legend">
+            <span><i className="glamping" />Glamping <small>Deluxe · Twin Bed</small></span>
+            <span><i className="homestay" />Homestay <small>Standard · Superior · Twin Bed</small></span>
+          </div>
           <div className="weekday-row">{["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"].map((day) => <span key={day}>{day}</span>)}</div>
           <div className="month-grid">
             {loading ? Array.from({ length: 42 }, (_, index) => <div className="calendar-day skeleton" key={index} />) : days.map((day) => {
@@ -136,14 +155,27 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
               const full = day.inventory.length > 0 && day.inventory.every((item) => item.availableUnits === 0);
               return <Button variant="ghost" key={day.date} disabled={past} onClick={() => selectDate(day.date)} className={`calendar-day ${currentMonth ? "" : "outside"} ${past ? "past" : ""} ${day.date === jakartaToday() ? "today" : ""} ${day.date === checkIn ? "check-in" : ""} ${day.date === checkOut ? "check-out" : ""} ${inRange(day.date) ? "in-range" : ""} ${full ? "sold-out" : ""}`}>
                 <span className="day-number">{Number(day.date.slice(-2))}</span>
-                <span className="day-inventory">{day.inventory.map((item) => <span key={item.productSlug} className={item.availableUnits ? "available" : "full"}><i /> <b>{item.productName.replace(" Dome", "")}</b><em>{availabilityLabel(item.availableUnits)}</em></span>)}</span>
+                <span className="day-inventory category-inventory">
+                  {(["GLAMPING", "HOMESTAY"] as const).map((kind) => {
+                    const available = categoryAvailability(day.inventory, kind);
+                    return <span key={kind} className={available ? "available" : "full"}><i /><b>{categoryMeta[kind].label}</b><em>{availabilityLabel(available)}</em></span>;
+                  })}
+                </span>
               </Button>;
             })}
           </div>
         </div>
         <aside className="day-panel">
           <div><p className="eyebrow">Pilihan Anda</p><h3>{checkIn ? new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${checkIn}T00:00:00Z`)) : "Pilih tanggal check-in"}</h3><p>{checkOut ? `Sampai ${new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${checkOut}T00:00:00Z`))}` : checkIn ? "Pilih tanggal check-out, atau lanjut untuk 1 malam." : "Jumlah unit tersedia terlihat langsung pada setiap tanggal."}</p></div>
-          <div className="availability-options">{(detail?.inventory ?? []).map((item) => <Button variant="outline" key={item.productSlug} disabled={!item.availableUnits} className={selectedType === item.productSlug ? "selected" : ""} onClick={() => { setSelectedType(item.productSlug); setQuantity(1); }}><span><b>{item.productName}</b><small>{rupiah(item.unitPrice)} / malam · {item.capacityPerUnit} tamu</small></span><strong>{item.availableUnits ? `${item.availableUnits} unit tersedia` : "Penuh"}</strong></Button>)}</div>
+          <div className="availability-options grouped-availability-options">
+            {(["GLAMPING", "HOMESTAY"] as const).map((kind) => {
+              const items = (detail?.inventory ?? []).filter((item) => accommodationKindFromSlug(item.productSlug) === kind);
+              return <section className="availability-type-group" key={kind}>
+                <header><span>{categoryMeta[kind].label}</span><small>{categoryMeta[kind].hint}</small></header>
+                {items.map((item) => <Button variant="outline" key={item.productSlug} disabled={!item.availableUnits} className={selectedType === item.productSlug ? "selected" : ""} onClick={() => { setSelectedType(item.productSlug); setQuantity(1); }}><span><b>{item.productName}</b><small>{rupiah(item.unitPrice)} / malam · {item.capacityPerUnit} tamu</small></span><strong>{item.availableUnits ? `${item.availableUnits} unit tersedia` : "Penuh"}</strong></Button>)}
+              </section>;
+            })}
+          </div>
           <div className="selection-controls"><label>Jumlah unit<PositiveNumberInput value={quantity} onValueChange={setQuantity} /></label><label>Jumlah tamu<PositiveNumberInput value={guests} onValueChange={setGuests} /></label></div>
           <Button className="button continue-button" disabled={!checkIn || !selectedType || continuing} onClick={() => void continueBooking()}>{continuing ? "Memvalidasi inventory…" : "Lanjut isi data tamu"}<ArrowRight /></Button>
         </aside>

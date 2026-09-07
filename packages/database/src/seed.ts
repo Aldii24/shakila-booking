@@ -24,7 +24,7 @@ const clientAccommodationUnits = [
   ...Array.from({ length: 3 }, (_, i) => [homestaySuperiorId, `HOMESTAY-SUPERIOR-${i + 1}`, `Homestay Superior ${i + 1}`]),
   [homestayTwinId, "HOMESTAY-TWIN-1", "Homestay Twin Bed 1"],
 ].map(([typeId, code, name]) => `insert into accommodation_units (id,accommodation_type_id,code,name) values (${uuid(`unit-${code}`)},${typeId},'${code}','${name}') on conflict(id) do update set accommodation_type_id=excluded.accommodation_type_id,code=excluded.code,name=excluded.name,is_active=true,updated_at=now();`).join("\n");
-const jeepUnits=[...Array(8)].map((_,i)=>`insert into jeep_units (id,business_id,code,name) values (${uuid(`jeep-unit-${i+1}`)},${jeepId},'JEEP-${String(i+1).padStart(2,"0")}','Jeep ${String(i+1).padStart(2,"0")}') on conflict(id) do update set is_active=true,updated_at=now();`).join("\n");
+const jeepUnits=[...Array(12)].map((_,i)=>`insert into jeep_units (id,business_id,code,name,is_demo_inventory) values (${uuid(`jeep-unit-${i+1}`)},${jeepId},'JEEP-${String(i+1).padStart(2,"0")}','Jeep ${String(i+1).padStart(2,"0")}',false) on conflict(id) do update set code=excluded.code,name=excluded.name,is_demo_inventory=false,is_active=true,updated_at=now();`).join("\n");
 const clientJeepPackages = [
   { slug: "short-1", name: "Paket Pendek 1", price: 400000, routes: ["Nepal van Java", "Jalan Viral Sukoyoso", "Negeri Sayur Sukomakmur"] },
   { slug: "short-2", name: "Paket Pendek 2", price: 500000, routes: ["Nepal van Java", "Jalan Viral Sukoyoso", "Air Terjun / Hutan Pinus"] },
@@ -39,6 +39,37 @@ const clientJeepSql = clientJeepPackages.map((item, index) => {
   return `insert into jeep_packages (id,business_id,slug,name,description,price_per_unit,capacity_per_unit,routes,facilities,media_key,is_demo_data,sort_order) values (${packageId},${jeepId},'${item.slug}','${item.name}','${description}',${item.price},1,'${JSON.stringify(item.routes)}'::jsonb,'["Jeep wisata","Pengemudi lokal"]'::jsonb,'jeep/katalog-jeep.jpg',true,${index + 1}) on conflict(id) do update set slug=excluded.slug,name=excluded.name,description=excluded.description,price_per_unit=excluded.price_per_unit,capacity_per_unit=excluded.capacity_per_unit,routes=excluded.routes,facilities=excluded.facilities,media_key=excluded.media_key,is_demo_data=excluded.is_demo_data,is_active=true,sort_order=excluded.sort_order,updated_at=now();
 insert into jeep_departure_slots (id,business_id,jeep_package_id,name,departure_time,is_demo_data) values (${uuid(`client-jeep-${item.slug}-slot-0300`)},${jeepId},${packageId},'Slot demo pagi','03:00',true),(${uuid(`client-jeep-${item.slug}-slot-0800`)},${jeepId},${packageId},'Slot demo siang','08:00',true) on conflict(id) do update set name=excluded.name,departure_time=excluded.departure_time,is_demo_data=true,is_active=true,updated_at=now();`;
 }).join("\n");
+const bundleInclusions = [
+  "1 unit Jeep sesuai rute paket",
+  "1 malam penginapan sesuai tipe kamar",
+  "Sarapan untuk 4 tamu",
+  "1 kali makan untuk 4 tamu",
+  "Tiket wisata sesuai jumlah titik pada rute paket",
+  "Ojek wisata pulang-pergi jika rute membutuhkan ojek",
+];
+const bundleConditions = [
+  "Harga berlaku untuk 1 booking paket dan kapasitas maksimal sesuai tipe kamar",
+  "Paket mencakup 1 malam dan 1 kali tour Jeep; malam tambahan mengikuti tarif kamar",
+  "Harga dapat disesuaikan jika tarif resmi destinasi berubah",
+  "Tambahan akhir pekan atau hari libur Rp50.000 per paket",
+  "Ketersediaan kamar dan Jeep mengikuti tanggal booking",
+];
+const bundleRoutes = {
+  "medium-2": ["Nepal Van Java", "Silancur Highland", "Wanamukti"],
+  "medium-1": ["Nepal Van Java", "Jalan Viral Sukoyoso", "Negeri Sayur Sukomakmur", "Air Terjun / Hutan Pinus"],
+  "long-1": ["Nepal Van Java", "Jalan Viral Sukoyoso", "Negeri Sayur Sukomakmur", "Air Terjun", "Hutan Pinus"],
+  "long-2": ["Nepal Van Java", "Silancur Highland", "Air Terjun / Hutan Pinus", "Jalan Viral Sukoyoso", "Negeri Sayur Sukomakmur"],
+} as const;
+const bundleFamilies = [
+  { key: "family-deluxe", name: "Family Adventure - Deluxe", typeId: clientDeluxeId, capacity: 4, prices: { "medium-2": 1799000, "medium-1": 1999000, "long-1": 2349000, "long-2": 2549000 } },
+  { key: "group-twin-bed", name: "Group Adventure - Twin Bed", typeId: clientTwinId, capacity: 4, prices: { "medium-2": 1899000, "medium-1": 2099000, "long-1": 2449000, "long-2": 2649000 } },
+] as const;
+const bundleSql = bundleFamilies.flatMap((family) => Object.entries(family.prices).map(([route, price], routeIndex) => {
+  const slug = `${family.key}-${route}`;
+  const routeLabel = route.split("-").map((part, index) => index === 0 ? part[0]!.toUpperCase() + part.slice(1) : part).join(" ");
+  const inclusions = route.startsWith("long") ? [...bundleInclusions, "Tambahan makan siang untuk 4 tamu"] : bundleInclusions;
+  return `insert into bundle_packages (id,business_id,slug,name,description,accommodation_type_id,jeep_package_id,accommodation_quantity,jeep_quantity,night_count,price_per_package,capacity_per_package,routes,inclusions,conditions,weekend_surcharge,sort_order) values (${uuid(`bundle-${slug}`)},${glampingId},'${slug}','${family.name} - ${routeLabel}','Paket bundling akomodasi dan satu kali tour Jeep sesuai rute ${routeLabel}. Harga dasar mencakup satu malam; malam tambahan mengikuti tarif kamar.',${family.typeId},${uuid(`client-jeep-${route}`)},1,1,1,${price},${family.capacity},'${JSON.stringify(bundleRoutes[route as keyof typeof bundleRoutes])}'::jsonb,'${JSON.stringify(inclusions)}'::jsonb,'${JSON.stringify(bundleConditions)}'::jsonb,50000,${(family.key === "family-deluxe" ? 0 : 4) + routeIndex + 1}) on conflict(id) do update set name=excluded.name,description=excluded.description,accommodation_type_id=excluded.accommodation_type_id,jeep_package_id=excluded.jeep_package_id,accommodation_quantity=excluded.accommodation_quantity,jeep_quantity=excluded.jeep_quantity,night_count=excluded.night_count,price_per_package=excluded.price_per_package,capacity_per_package=excluded.capacity_per_package,routes=excluded.routes,inclusions=excluded.inclusions,conditions=excluded.conditions,weekend_surcharge=excluded.weekend_surcharge,is_active=true,sort_order=excluded.sort_order,updated_at=now();`;
+})).join("\n");
 
 const seedSql=`
 set local timezone='Asia/Jakarta';
@@ -54,11 +85,11 @@ delete from bookings where booking_code like 'GLP-%-9%' or booking_code like 'JE
 delete from inventory_blocks where note='FAST-1 deterministic demo seed';
 
 insert into businesses (id,code,slug,name,type,email,phone,address) values
-(${glampingId},'GLP','glamping','Shakila Glamping','ACCOMMODATION','reservasi@shakilagroup.demo','+6281230001000','Nepal van Java'),
-(${jeepId},'JEP','jeep','Shakila Jeep Tour','ACTIVITY','tour@shakilagroup.demo','+6281230002000','Nepal van Java')
+(${glampingId},'GLP','glamping','Shakila Glamping','ACCOMMODATION','reservasi@shakilagroup.com','+6281230001000','Nepal van Java'),
+(${jeepId},'JEP','jeep','Shakila Jeep Tour','ACTIVITY','tour@shakilagroup.com','+6281230002000','Nepal van Java')
 on conflict(id) do update set name=excluded.name,address=excluded.address,is_active=true,updated_at=now();
 insert into business_settings (business_id,dp_percentage,booking_hold_minutes,default_check_in_time,default_check_out_time,contact_email,contact_phone) values
-(${glampingId},50,720,'13:00','12:00','reservasi@shakilagroup.demo','+6281230001000'),(${jeepId},50,720,null,null,'tour@shakilagroup.demo','+6281230002000')
+(${glampingId},50,720,'13:00','12:00','reservasi@shakilagroup.com','+6281230001000'),(${jeepId},50,720,null,null,'tour@shakilagroup.com','+6281230002000')
 on conflict(business_id) do update set dp_percentage=50,booking_hold_minutes=720,default_check_in_time=excluded.default_check_in_time,default_check_out_time=excluded.default_check_out_time,updated_at=now();
 insert into accommodation_types (id,business_id,slug,name,description,base_price,capacity_per_unit,sort_order) values
 (${deluxeId},${glampingId},'deluxe-dome','Deluxe Dome','Dome hangat untuk dua tamu dengan pemandangan pegunungan.',850000,2,1),
@@ -66,8 +97,8 @@ insert into accommodation_types (id,business_id,slug,name,description,base_price
 on conflict(id) do update set base_price=excluded.base_price,is_active=false,updated_at=now();
 ${accommodationUnits}
 insert into accommodation_types (id,business_id,slug,name,kind,description,base_price,capacity_per_unit,breakfast_included_pax,facilities,media_key,is_demo_data,sort_order) values
-(${clientDeluxeId},${glampingId},'glamping-deluxe','Deluxe','GLAMPING','Kamar Glamping dengan tempat tidur Queen Size, kamar mandi dalam, air panas, Smart TV, Wi-Fi, perlengkapan mandi, kopi dan teh, serta teras pribadi.',850000,2,2,'["Tempat tidur Queen Size","Kamar mandi dalam","Air panas","Smart TV","Wi-Fi gratis","Perlengkapan mandi","Kopi dan teh","Teras pribadi"]'::jsonb,'akomodasi/glamping-deluxe.jpg',true,10),
-(${clientTwinId},${glampingId},'glamping-twin-bed','Twin Bed','GLAMPING','Kamar Glamping dengan tempat tidur Double, kamar mandi dalam, air panas, Smart TV, Wi-Fi, perlengkapan mandi, kopi dan teh, serta teras pribadi.',1250000,4,2,'["Tempat tidur Double","Kamar mandi dalam","Air panas","Smart TV","Wi-Fi gratis","Perlengkapan mandi","Kopi dan teh","Teras pribadi"]'::jsonb,'akomodasi/glamping-twin-bed.jpg',true,20),
+(${clientDeluxeId},${glampingId},'glamping-deluxe','Deluxe','GLAMPING','Kamar Glamping dengan tempat tidur Queen Size, kamar mandi dalam, air panas, Smart TV, Wi-Fi, perlengkapan mandi, kopi dan teh, serta teras pribadi.',550000,2,2,'["Tempat tidur Queen Size","Kamar mandi dalam","Air panas","Smart TV","Wi-Fi gratis","Perlengkapan mandi","Kopi dan teh","Teras pribadi"]'::jsonb,'akomodasi/glamping-deluxe.jpg',false,10),
+(${clientTwinId},${glampingId},'glamping-twin-bed','Twin Bed','GLAMPING','Kamar Glamping dengan tempat tidur Double, kamar mandi dalam, air panas, Smart TV, Wi-Fi, perlengkapan mandi, kopi dan teh, serta teras pribadi.',600000,4,2,'["Tempat tidur Double","Kamar mandi dalam","Air panas","Smart TV","Wi-Fi gratis","Perlengkapan mandi","Kopi dan teh","Teras pribadi"]'::jsonb,'akomodasi/glamping-twin-bed.jpg',false,20),
 (${homestayStandardId},${glampingId},'homestay-standard','Standard','HOMESTAY','Kamar Homestay Standard di kawasan Nepal van Java.',250000,2,null,'["Kamar mandi dalam","Air hangat","TV","Wi-Fi gratis","Minuman selamat datang","Peralatan mandi","Menu makan","Teras atap"]'::jsonb,'akomodasi/homestay-standard.jpg',false,30),
 (${homestaySuperiorId},${glampingId},'homestay-superior','Superior','HOMESTAY','Kamar Homestay Superior di kawasan Nepal van Java.',300000,2,null,'["Kamar mandi dalam","Air hangat","TV","Wi-Fi gratis","Minuman selamat datang","Peralatan mandi","Menu makan","Teras atap"]'::jsonb,'akomodasi/homestay-superior.jpg',false,40),
 (${homestayTwinId},${glampingId},'homestay-twin-bed','Twin Bed','HOMESTAY','Kamar Homestay Twin Bed di kawasan Nepal van Java. Kapasitas tamu menunggu konfirmasi klien.',400000,1,null,'["Kamar mandi dalam","Air hangat","TV","Wi-Fi gratis","Minuman selamat datang","Peralatan mandi","Menu makan","Teras atap"]'::jsonb,'akomodasi/homestay-twin-bed.jpg',true,50)
@@ -83,8 +114,8 @@ insert into jeep_departure_slots (id,business_id,jeep_package_id,name,departure_
 (${uuid("slot-morning")},${jeepId},${fullId},'Morning','08:00')
 on conflict(id) do update set is_active=true,updated_at=now();
 ${jeepUnits}
-update jeep_units set is_demo_inventory=true where business_id=${jeepId};
 ${clientJeepSql}
+${bundleSql}
 ${customerSql}
 
 insert into bookings (id,booking_code,business_id,customer_id,booking_type,status,payment_status,customer_name,customer_email,customer_whatsapp,customer_email_normalized,customer_whatsapp_normalized,guest_count,quantity,subtotal_amount,total_amount,dp_percentage,required_dp_amount,verified_paid_amount,remaining_amount,expires_at,confirmed_at,cancelled_at,checked_in_at,checked_out_at,completed_at,created_at,updated_at)
@@ -115,7 +146,7 @@ await client.begin(async transaction => {
     insert into bookings (id,booking_code,business_id,customer_id,booking_type,status,payment_status,customer_name,customer_email,customer_whatsapp,customer_email_normalized,customer_whatsapp_normalized,guest_count,quantity,subtotal_amount,total_amount,dp_percentage,required_dp_amount,verified_paid_amount,remaining_amount,expires_at,confirmed_at,cancelled_at,checked_in_at,checked_out_at,completed_at,created_at,updated_at)
     select md5('jeep-booking-'||i)::uuid,'JEP-'||to_char(current_date,'YYMMDD')||'-9'||lpad(i::text,5,'0'),${jeepId},c.id,'JEEP',case when i<=6 then 'COMPLETED'::booking_status when i=7 then 'CHECKED_OUT' when i=8 then 'CHECKED_IN' when i<=15 then 'CONFIRMED' when i<=17 then 'WAITING_PAYMENT' when i=18 then 'EXPIRED' else 'CANCELLED' end,case when i<=15 then case when i%3=0 then 'PAID'::payment_status else 'PARTIALLY_PAID' end else 'UNPAID' end,c.full_name,c.email,c.whatsapp,c.email_normalized,c.whatsapp_normalized,2,1,case when i%2=0 then 950000 else 750000 end,case when i%2=0 then 950000 else 750000 end,50,case when i%2=0 then 475000 else 375000 end,case when i<=15 then case when i%3=0 then case when i%2=0 then 950000 else 750000 end else case when i%2=0 then 475000 else 375000 end end else 0 end,case when i<=15 and i%3=0 then 0 when i<=15 then case when i%2=0 then 475000 else 375000 end else case when i%2=0 then 950000 else 750000 end end,case when i between 16 and 17 then now()+interval '12 hours' else null end,case when i<=15 then now()-interval '2 days' else null end,case when i=19 then now()-interval '1 day' else null end,case when i<=8 then now()-interval '4 hours' else null end,case when i<=7 then now()-interval '1 hour' else null end,case when i<=6 then now() else null end,now()-interval '8 days',now() from generate_series(1,19)i join customers c on c.id=md5('customer-'||(1+(i+10)%30))::uuid;
     insert into jeep_booking_details (booking_id,jeep_package_id,departure_slot_id,tour_date,package_name_snapshot,unit_price_snapshot,capacity_snapshot,departure_time_snapshot) select b.id,case when n%2=0 then ${fullId} else ${sunriseId} end,case when n%2=0 then ${uuid("slot-morning")} else ${uuid("slot-sunrise")} end,case when n<=6 then current_date-n when n=7 then current_date-1 when n=8 then current_date else current_date+n-8 end,case when n%2=0 then 'Full Adventure Experience' else 'Sunrise Adventure' end,case when n%2=0 then 950000 else 750000 end,6,case when n%2=0 then '08:00'::time else '03:00'::time end from bookings b cross join lateral(select right(b.booking_code,5)::int n)x where b.booking_code like 'JEP-%-9%';
-    insert into jeep_unit_reservations (booking_id,jeep_unit_id,departure_slot_id,tour_date,state,released_at) select b.id,md5('jeep-unit-'||(1+(n-1)%8))::uuid,j.departure_slot_id,j.tour_date,case when b.status='CHECKED_IN' then 'IN_USE'::reservation_state when b.status in('CONFIRMED','WAITING_PAYMENT') then case when b.status='CONFIRMED' then 'CONFIRMED'::reservation_state else 'HELD' end else 'RELEASED' end,case when b.status in('COMPLETED','CHECKED_OUT','EXPIRED','CANCELLED') then now() else null end from bookings b join jeep_booking_details j on j.booking_id=b.id cross join lateral(select right(b.booking_code,5)::int n)x where b.booking_code like 'JEP-%-9%';
+    insert into jeep_unit_reservations (booking_id,jeep_unit_id,departure_slot_id,tour_date,state,released_at) select b.id,md5('jeep-unit-'||(1+(n-1)%12))::uuid,j.departure_slot_id,j.tour_date,case when b.status='CHECKED_IN' then 'IN_USE'::reservation_state when b.status in('CONFIRMED','WAITING_PAYMENT') then case when b.status='CONFIRMED' then 'CONFIRMED'::reservation_state else 'HELD' end else 'RELEASED' end,case when b.status in('COMPLETED','CHECKED_OUT','EXPIRED','CANCELLED') then now() else null end from bookings b join jeep_booking_details j on j.booking_id=b.id cross join lateral(select right(b.booking_code,5)::int n)x where b.booking_code like 'JEP-%-9%';
 
     insert into payments (booking_id,expected_amount,verified_amount,status,verified_at) select id,required_dp_amount,verified_paid_amount,payment_status,case when verified_paid_amount>0 then confirmed_at else null end from bookings where booking_code like 'GLP-%-9%' or booking_code like 'JEP-%-9%';
     insert into payment_attempts (payment_id,booking_id,provider,provider_order_id,provider_transaction_id,requested_amount,verified_amount,status,payment_method,verified_at) select p.id,b.id,'MANUAL_TRANSFER','TRANSFER-'||b.booking_code,case when p.verified_amount>0 then 'ADMIN-'||b.booking_code else null end,p.expected_amount,p.verified_amount,case when p.verified_amount>0 then 'SUCCESS'::payment_attempt_status else 'CREATED' end,case when p.verified_amount>0 then 'BANK_TRANSFER' else null end,p.verified_at from payments p join bookings b on b.id=p.booking_id where b.booking_code like 'GLP-%-9%' or b.booking_code like 'JEP-%-9%';

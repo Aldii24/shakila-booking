@@ -183,14 +183,14 @@ export async function handleAdmin(
       if (!verifyDemoAdminCredentials(input.email, input.password))
         throw new DomainError(
           "UNAUTHORIZED",
-          "Email atau password demo tidak valid.",
+          "Email atau password tidak valid.",
           401,
         );
       const response = ok({
         email: input.email.trim().toLowerCase(),
-        name: "Demo Administrator",
+        name: "Administrator",
         role: "OWNER",
-        mode: "DEMO",
+        mode: "OPERASIONAL",
       });
       response.cookies.set(
         DEMO_ADMIN_COOKIE,
@@ -223,7 +223,7 @@ export async function handleAdmin(
     if (path === "me" && request.method === "GET")
       return ok({
         ...session,
-        mode: "DEMO",
+        mode: "OPERASIONAL",
         integrations: getIntegrationMode(),
       });
     if (

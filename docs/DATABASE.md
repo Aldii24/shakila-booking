@@ -3077,6 +3077,8 @@ Example:
 createGlampingBooking()
 createJeepBooking()
 
+Bundle products are stored in `bundle_packages`, including their accommodation type, Jeep route package, resource quantities, fixed package price, inclusions, and conditions. `bundle_booking_details` stores the historical product snapshot. A `BUNDLE` booking owns rows in both `accommodation_unit_reservations` and `jeep_unit_reservations`; both sets are inserted in the same database transaction.
+
 confirmPayment()
 
 expireBooking()

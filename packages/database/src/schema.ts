@@ -26,7 +26,7 @@ const money = (name: string) => bigint(name, { mode: "number" });
 
 export const businessTypeEnum = pgEnum("business_type", ["ACCOMMODATION", "ACTIVITY"]);
 export const accommodationKindEnum = pgEnum("accommodation_kind", ["GLAMPING", "HOMESTAY"]);
-export const bookingTypeEnum = pgEnum("booking_type", ["ACCOMMODATION", "JEEP"]);
+export const bookingTypeEnum = pgEnum("booking_type", ["ACCOMMODATION", "JEEP", "BUNDLE"]);
 export const bookingStatusEnum = pgEnum("booking_status", [
   "PENDING", "WAITING_PAYMENT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "COMPLETED", "CANCELLED", "EXPIRED",
 ]);
@@ -172,6 +172,35 @@ export const jeepUnits = pgTable("jeep_units", {
   ...timestamps,
 }, (table) => [unique("jeep_units_business_code_unique").on(table.businessId, table.code), index("jeep_units_business_idx").on(table.businessId)]);
 
+export const bundlePackages = pgTable("bundle_packages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  businessId: uuid("business_id").notNull().references(() => businesses.id),
+  slug: varchar("slug", { length: 120 }).notNull(),
+  name: varchar("name", { length: 180 }).notNull(),
+  description: text("description").notNull(),
+  accommodationTypeId: uuid("accommodation_type_id").notNull().references(() => accommodationTypes.id),
+  jeepPackageId: uuid("jeep_package_id").notNull().references(() => jeepPackages.id),
+  accommodationQuantity: integer("accommodation_quantity").notNull().default(1),
+  jeepQuantity: integer("jeep_quantity").notNull().default(1),
+  nightCount: integer("night_count").notNull().default(1),
+  pricePerPackage: money("price_per_package").notNull(),
+  capacityPerPackage: integer("capacity_per_package").notNull(),
+  routes: jsonb("routes").notNull().default(sql`'[]'::jsonb`),
+  inclusions: jsonb("inclusions").notNull().default(sql`'[]'::jsonb`),
+  conditions: jsonb("conditions").notNull().default(sql`'[]'::jsonb`),
+  weekendSurcharge: money("weekend_surcharge").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...timestamps,
+}, (table) => [
+  unique("bundle_packages_business_slug_unique").on(table.businessId, table.slug),
+  index("bundle_packages_business_idx").on(table.businessId),
+  check("bundle_packages_resource_quantity_check", sql`${table.accommodationQuantity} > 0 and ${table.jeepQuantity} > 0`),
+  check("bundle_packages_night_count_check", sql`${table.nightCount} > 0`),
+  check("bundle_packages_price_check", sql`${table.pricePerPackage} >= 0 and ${table.weekendSurcharge} >= 0`),
+  check("bundle_packages_capacity_check", sql`${table.capacityPerPackage} > 0`),
+]);
+
 export const bookings = pgTable("bookings", {
   id: uuid("id").primaryKey().defaultRandom(),
   bookingCode: varchar("booking_code", { length: 40 }).notNull().unique(),
@@ -248,6 +277,27 @@ export const jeepBookingDetails = pgTable("jeep_booking_details", {
   departureTimeSnapshot: time("departure_time_snapshot").notNull(),
   ...timestamps,
 }, (table) => [index("jeep_details_date_idx").on(table.tourDate), index("jeep_details_slot_idx").on(table.departureSlotId), index("jeep_details_package_idx").on(table.jeepPackageId)]);
+
+export const bundleBookingDetails = pgTable("bundle_booking_details", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bookingId: uuid("booking_id").notNull().references(() => bookings.id).unique(),
+  bundlePackageId: uuid("bundle_package_id").notNull().references(() => bundlePackages.id),
+  checkInDate: date("check_in_date", { mode: "string" }).notNull(),
+  checkOutDate: date("check_out_date", { mode: "string" }).notNull(),
+  tourDate: date("tour_date", { mode: "string" }).notNull(),
+  productNameSnapshot: varchar("product_name_snapshot", { length: 180 }).notNull(),
+  unitPriceSnapshot: money("unit_price_snapshot").notNull(),
+  capacitySnapshot: integer("capacity_snapshot").notNull(),
+  accommodationQuantitySnapshot: integer("accommodation_quantity_snapshot").notNull(),
+  jeepQuantitySnapshot: integer("jeep_quantity_snapshot").notNull(),
+  routesSnapshot: jsonb("routes_snapshot").notNull().default(sql`'[]'::jsonb`),
+  inclusionsSnapshot: jsonb("inclusions_snapshot").notNull().default(sql`'[]'::jsonb`),
+  ...timestamps,
+}, (table) => [
+  index("bundle_details_package_idx").on(table.bundlePackageId),
+  index("bundle_details_check_in_idx").on(table.checkInDate),
+  check("bundle_details_date_check", sql`${table.checkOutDate} > ${table.checkInDate}`),
+]);
 
 export const accommodationUnitReservations = pgTable("accommodation_unit_reservations", {
   id: uuid("id").primaryKey().defaultRandom(),

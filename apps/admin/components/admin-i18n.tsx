@@ -115,7 +115,7 @@ const copy = {
   "login.password": ["Kata sandi", "Password"],
   "login.submit": ["Masuk ke dashboard", "Sign in to dashboard"],
   "login.verifying": ["Memverifikasi…", "Verifying…"],
-  "login.demoCredentials": ["Kredensial demo", "Demo credentials"],
+  "login.demoCredentials": ["Kredensial Admin", "Admin credentials"],
   "error.generic": ["Data tidak dapat dimuat. Silakan coba lagi.", "Data could not be loaded. Please try again."],
 } as const satisfies Record<string, readonly [string, string]>;
 

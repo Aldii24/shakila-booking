@@ -663,6 +663,10 @@ Final availability dicek ulang pada create booking.
 
 # 29. Public Jeep Packages
 
+## Public accommodation + Jeep bundles
+
+`GET /api/v1/public/glamping/bundles` lists the eight source-derived Tour & Stay products. `GET /api/v1/public/glamping/bundles/:slug` returns one product. `POST /api/v1/public/glamping/bundles` accepts `bundleSlug`, `checkInDate`, and `checkOutDate` and returns atomic bundle availability across the full stay. Quote and booking requests use `business: "bundle"` with both dates; the server prices the included first night plus additional room nights, reserves the Jeep once on the tour date, and creates no partial reservation when either the room or shared Jeep resource is unavailable.
+
 ## GET `/public/jeep/packages`
 
 Response:

@@ -46,6 +46,14 @@ export const jeepAvailabilityRequestSchema = z.object({
   guestCount: positiveIntegerSchema,
 });
 
+export const bundleAvailabilityRequestSchema = z.object({
+  bundleSlug: z.string().trim().min(1),
+  checkInDate: localDateSchema,
+  checkOutDate: localDateSchema,
+}).refine((value) => value.checkInDate < value.checkOutDate, {
+  message: "Check-out date must be after check-in date.", path: ["checkOutDate"],
+});
+
 export const availabilityCalendarRequestSchema = z.object({
   startDate: z.iso.date(),
   endDate: z.iso.date(),
@@ -67,6 +75,16 @@ const jeepReservationSchema = z.object({
   guestCount: positiveIntegerSchema,
 });
 
+const bundleReservationSchema = z.object({
+  bundleSlug: z.string().trim().min(1),
+  checkInDate: localDateSchema,
+  checkOutDate: localDateSchema,
+  quantity: positiveIntegerSchema,
+  guestCount: positiveIntegerSchema,
+}).refine((value) => value.checkInDate < value.checkOutDate, {
+  message: "Check-out date must be after check-in date.", path: ["checkOutDate"],
+});
+
 export const glampingQuoteRequestSchema = z.object({
   business: z.literal("glamping"),
   productSlug: z.string().trim().min(1),
@@ -85,9 +103,21 @@ export const jeepQuoteRequestSchema = z.object({
   guestCount: positiveIntegerSchema,
 });
 
+export const bundleQuoteRequestSchema = z.object({
+  business: z.literal("bundle"),
+  bundleSlug: z.string().trim().min(1),
+  checkInDate: localDateSchema,
+  checkOutDate: localDateSchema,
+  quantity: positiveIntegerSchema,
+  guestCount: positiveIntegerSchema,
+}).refine((value) => value.checkInDate < value.checkOutDate, {
+  message: "Check-out date must be after check-in date.", path: ["checkOutDate"],
+});
+
 export const quoteRequestSchema = z.discriminatedUnion("business", [
   glampingQuoteRequestSchema,
   jeepQuoteRequestSchema,
+  bundleQuoteRequestSchema,
 ]);
 
 export const createBookingRequestSchema = z.discriminatedUnion("business", [
@@ -98,6 +128,11 @@ export const createBookingRequestSchema = z.discriminatedUnion("business", [
   }),
   z.object({
     business: z.literal("jeep"), reservation: jeepReservationSchema,
+    customer: customerSchema, specialRequest: z.string().trim().max(1000).nullable().optional(),
+    turnstileToken: z.string().min(1).optional(),
+  }),
+  z.object({
+    business: z.literal("bundle"), reservation: bundleReservationSchema,
     customer: customerSchema, specialRequest: z.string().trim().max(1000).nullable().optional(),
     turnstileToken: z.string().min(1).optional(),
   }),
@@ -112,7 +147,7 @@ export const bookingLookupRequestSchema = z.object({
   message: "Provide exactly one of email or WhatsApp.",
 });
 
-export const bookingStatusResponseSchema=z.object({bookingCode:bookingCodeSchema,bookingType:z.enum(["ACCOMMODATION","JEEP"]),status:z.enum(bookingStatuses),paymentStatus:z.enum(paymentStatuses),customerName:z.string(),quantity:z.number().int(),guestCount:z.number().int(),subtotalAmount:z.number().int(),totalAmount:z.number().int(),dpPercentage:z.number().int(),requiredDpAmount:z.number().int(),verifiedPaidAmount:z.number().int(),remainingAmount:z.number().int(),expiresAt:z.coerce.string().nullable(),requiresReview:z.boolean(),bookingSource:z.enum(["ONLINE","ADMIN_MANUAL","WALK_IN"]),productName:z.string(),unitPrice:z.number().int(),nightCount:z.number().int().nullable(),startDate:z.string(),endDate:z.string().nullable(),departureTime:z.string().nullable(),invoiceStatus:z.enum(["PENDING","GENERATED","FAILED"]).nullable(),invoiceNumber:z.string().nullable(),latestProofStatus:z.enum(["PENDING","APPROVED","REJECTED"]).nullable(),latestProofRejectionReason:z.string().nullable(),latestProofCreatedAt:z.coerce.string().nullable()});
+export const bookingStatusResponseSchema=z.object({bookingCode:bookingCodeSchema,bookingType:z.enum(["ACCOMMODATION","JEEP","BUNDLE"]),status:z.enum(bookingStatuses),paymentStatus:z.enum(paymentStatuses),customerName:z.string(),quantity:z.number().int(),guestCount:z.number().int(),subtotalAmount:z.number().int(),totalAmount:z.number().int(),dpPercentage:z.number().int(),requiredDpAmount:z.number().int(),verifiedPaidAmount:z.number().int(),remainingAmount:z.number().int(),expiresAt:z.coerce.string().nullable(),requiresReview:z.boolean(),bookingSource:z.enum(["ONLINE","ADMIN_MANUAL","WALK_IN"]),productName:z.string(),unitPrice:z.number().int(),nightCount:z.number().int().nullable(),startDate:z.string(),endDate:z.string().nullable(),departureTime:z.string().nullable(),invoiceStatus:z.enum(["PENDING","GENERATED","FAILED"]).nullable(),invoiceNumber:z.string().nullable(),latestProofStatus:z.enum(["PENDING","APPROVED","REJECTED"]).nullable(),latestProofRejectionReason:z.string().nullable(),latestProofCreatedAt:z.coerce.string().nullable()});
 
 export type CreateBookingRequest = z.infer<typeof createBookingRequestSchema>;
 export type QuoteRequest = z.infer<typeof quoteRequestSchema>;
