@@ -150,7 +150,7 @@ services:
       PORT: "3003"
       NODE_OPTIONS: --max-old-space-size=384
       NODE_ENV: production
-      ALLOWED_ORIGINS: https://glamping.shakilagrup.com,https://jeep.shakilagrup.com,https://admin.shakilagrup.com
+      ALLOWED_ORIGINS: https://shakilagrup.com,https://glamping.shakilagrup.com,https://jeep.shakilagrup.com,https://admin.shakilagrup.com
     mem_limit: 512m
     cpus: 0.65
     healthcheck:
