@@ -2928,4 +2928,9 @@ This profile keeps PostgreSQL, booking allocation, lifecycle rules, payment reco
 
 Every adapter selection remains a named environment choice. Demo payment and disabled Turnstile operations reject use outside `APP_MODE=demo`; production adapters for Pakasir, Resend, private R2, Inngest, and Cloudflare Turnstile remain present and are not silently replaced.
 
-Admin authentication in this profile uses a short-lived signed HttpOnly demo session. Its deterministic credentials are supplied by `DEMO_ADMIN_EMAIL` and `DEMO_ADMIN_PASSWORD`. It is deliberately not a production authentication substitute and is rejected outside demo mode.
+Admin authentication uses an expiring signed HttpOnly session. Demo credentials
+must be supplied explicitly through `DEMO_ADMIN_EMAIL` and
+`DEMO_ADMIN_PASSWORD`; no built-in credential is rendered or accepted as a
+fallback. Production requires separate `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and
+`ADMIN_SESSION_SECRET` values, sets a Secure cookie, and rate-limits failed
+login attempts.

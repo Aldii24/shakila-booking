@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CreateBookingRequest, QuoteRequest } from "@booking/contracts";
 import { getDb, type BookingDatabase } from "@booking/database";
 import { normalizeEmail, normalizeWhatsApp } from "@booking/validation";
-import { assertCapacity, assertReservationDate, getAccommodationProduct, getBundleProduct, getJeepProduct } from "./availability";
+import { assertCapacity, assertPositiveGuestCount, assertReservationDate, getAccommodationProduct, getBundleProduct, getJeepProduct } from "./availability";
 import { assertJeepDepartureOpen, bookingExpiration, businessDate, calculateBundlePrice, calculateDp, calculateGlampingPrice, calculateJeepPrice } from "./core";
 import { DomainError, isIdempotencyConstraintError, isInventoryConstraintError } from "./errors";
 
@@ -72,7 +72,7 @@ export async function quoteBooking(input: QuoteRequest, database: BookingDatabas
   const config = await settings("jeep", database);
   const row = await getJeepProduct(input.packageSlug, input.departureSlotId, database);
   assertJeepDepartureOpen(input.tourDate, row.slot.departureTime, config.timezone);
-  assertCapacity(input.guestCount, input.quantity, row.package.capacityPerUnit);
+  assertPositiveGuestCount(input.guestCount);
   const price = calculateJeepPrice(row.package.pricePerUnit, input.quantity);
   return { ...price, dpPercentage: config.dp_percentage, requiredDpAmount: calculateDp(price.totalAmount, config.dp_percentage), currency: "IDR" as const };
 }
@@ -175,9 +175,9 @@ export async function createJeepBooking(input: Extract<CreateBookingRequest, { b
       const prior = await existing(tx, idempotencyKey, requestFingerprint); if (prior) return prior;
       const config = await settings("jeep", tx as BookingDatabase);
       const row = await getJeepProduct(input.reservation.packageSlug, input.reservation.departureSlotId, tx as BookingDatabase);
-      assertJeepDepartureOpen(input.reservation.tourDate, row.slot.departureTime, config.timezone); assertCapacity(input.reservation.guestCount, input.reservation.quantity, row.package.capacityPerUnit);
+      assertJeepDepartureOpen(input.reservation.tourDate, row.slot.departureTime, config.timezone); assertPositiveGuestCount(input.reservation.guestCount);
       const price = calculateJeepPrice(row.package.pricePerUnit, input.reservation.quantity);
-      const units = await tx.execute(sql<{ id: string }>`select ju.id from jeep_units ju where ju.business_id=${config.id}::uuid and ju.is_active and not exists (select 1 from jeep_unit_reservations r where r.jeep_unit_id=ju.id and r.tour_date=${input.reservation.tourDate}::date and r.departure_slot_id=${row.slot.id}::uuid and r.state in ('HELD','CONFIRMED','IN_USE')) and not exists (select 1 from inventory_blocks b where b.jeep_unit_id=ju.id and b.removed_at is null and b.start_date=${input.reservation.tourDate}::date and (b.departure_slot_id is null or b.departure_slot_id=${row.slot.id}::uuid)) order by ju.code for update of ju skip locked limit ${input.reservation.quantity}`) as unknown as {id:string}[];
+      const units = await tx.execute(sql<{ id: string }>`select ju.id from jeep_units ju where ju.business_id=${config.id}::uuid and ju.is_active and not exists (select 1 from jeep_unit_reservations r join jeep_departure_slots reserved_slot on reserved_slot.id=r.departure_slot_id where r.jeep_unit_id=ju.id and r.tour_date=${input.reservation.tourDate}::date and reserved_slot.departure_time=${row.slot.departureTime}::time and r.state in ('HELD','CONFIRMED','IN_USE')) and not exists (select 1 from inventory_blocks b left join jeep_departure_slots blocked_slot on blocked_slot.id=b.departure_slot_id where b.jeep_unit_id=ju.id and b.removed_at is null and b.start_date=${input.reservation.tourDate}::date and (b.departure_slot_id is null or blocked_slot.departure_time=${row.slot.departureTime}::time)) order by ju.code for update of ju skip locked limit ${input.reservation.quantity}`) as unknown as {id:string}[];
       if (units.length !== input.reservation.quantity) throw new DomainError("INVENTORY_NOT_AVAILABLE", "Requested Jeep inventory is not available.", 409);
       const owner = await customer(tx, input.customer); const code = await bookingCode(tx, config.code, config.timezone); const dp = calculateDp(price.totalAmount, config.dp_percentage); const expiresAt = bookingExpiration(new Date(), config.booking_hold_minutes);
       const created = await tx.execute(sql<{ id: string }>`insert into bookings (booking_code,business_id,customer_id,booking_type,status,payment_status,customer_name,customer_email,customer_whatsapp,customer_email_normalized,customer_whatsapp_normalized,guest_count,quantity,subtotal_amount,total_amount,dp_percentage,required_dp_amount,remaining_amount,special_request,client_idempotency_key,idempotency_fingerprint,expires_at) values (${code},${config.id}::uuid,${owner.id}::uuid,'JEEP','WAITING_PAYMENT','UNPAID',${input.customer.fullName},${input.customer.email},${input.customer.whatsapp},${owner.email},${owner.whatsapp},${input.reservation.guestCount},${input.reservation.quantity},${price.subtotalAmount},${price.totalAmount},${config.dp_percentage},${dp},${price.totalAmount},${input.specialRequest ?? null},${idempotencyKey}::uuid,${requestFingerprint},${expiresAt.toISOString()}::timestamptz) returning id`) as unknown as {id:string}[];

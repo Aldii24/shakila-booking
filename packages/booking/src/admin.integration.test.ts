@@ -168,7 +168,8 @@ integration("admin operations against PostgreSQL", () => {
     );
     await db.execute(sql`update bookings set status='CONFIRMED',payment_status='PARTIALLY_PAID',verified_paid_amount=required_dp_amount,remaining_amount=total_amount-required_dp_amount where id=${booking.bookingId}::uuid`);
     await db.execute(sql`update accommodation_unit_reservations set state='CONFIRMED' where booking_id=${booking.bookingId}::uuid`);
-    await adminBookingCommand(booking.bookingCode, "check-in");
+    await db.execute(sql`update bookings set status='CHECKED_IN',checked_in_at=now() where id=${booking.bookingId}::uuid`);
+    await db.execute(sql`update accommodation_unit_reservations set state='IN_USE' where booking_id=${booking.bookingId}::uuid`);
     await expect(adminBookingCommand(booking.bookingCode, "check-out")).rejects.toMatchObject({ code: "CHECK_OUT_NOT_ALLOWED" });
     await expect(adminBookingCommand(booking.bookingCode, "check-out", { confirmEarlyCheckout: true })).resolves.toMatchObject({ status: "CHECKED_OUT" });
   });

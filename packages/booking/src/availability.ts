@@ -40,15 +40,19 @@ export async function calculateJeepAvailability(input: {
     where ju.business_id = ${input.businessId}::uuid and ju.is_active = true
       and not exists (
         select 1 from jeep_unit_reservations r
+        join jeep_departure_slots reserved_slot on reserved_slot.id = r.departure_slot_id
+        join jeep_departure_slots requested_slot on requested_slot.id = ${input.departureSlotId}::uuid
         where r.jeep_unit_id = ju.id and r.tour_date = ${input.tourDate}::date
-          and r.departure_slot_id = ${input.departureSlotId}::uuid
+          and reserved_slot.departure_time = requested_slot.departure_time
           and r.state in ('HELD', 'CONFIRMED', 'IN_USE')
       )
       and not exists (
         select 1 from inventory_blocks b
+        left join jeep_departure_slots blocked_slot on blocked_slot.id = b.departure_slot_id
+        join jeep_departure_slots requested_slot on requested_slot.id = ${input.departureSlotId}::uuid
         where b.jeep_unit_id = ju.id and b.removed_at is null
           and b.start_date = ${input.tourDate}::date
-          and (b.departure_slot_id is null or b.departure_slot_id = ${input.departureSlotId}::uuid)
+          and (b.departure_slot_id is null or blocked_slot.departure_time = requested_slot.departure_time)
       )
   `);
   return Number(rows[0]?.available_quantity ?? 0);
@@ -148,6 +152,12 @@ export function assertCapacity(guestCount: number, quantity: number, capacityPer
   if (!Number.isInteger(quantity) || quantity < 1) throw new DomainError("INVALID_QUANTITY", "Quantity must be a positive integer.");
   if (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > quantity * capacityPerUnit) {
     throw new DomainError("INVALID_GUEST_COUNT", "Guest count exceeds the selected inventory capacity.");
+  }
+}
+
+export function assertPositiveGuestCount(guestCount: number): void {
+  if (!Number.isInteger(guestCount) || guestCount < 1) {
+    throw new DomainError("INVALID_GUEST_COUNT", "Guest count must be a positive integer.");
   }
 }
 

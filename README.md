@@ -27,18 +27,12 @@ invoice delivery, email preview, inline background jobs, and explicitly disabled
 Turnstile. No live Pakasir, Resend, R2, hosted Inngest, or Turnstile credential is
 required for this mode.
 
-## Product Demo Login
+## Local Admin Login
 
-Admin URL: http://localhost:3002/login
-
-```text
-Email: admin@shakilagroup.demo
-Password: demo12345
-```
-
-These fallback credentials are available only when `APP_MODE=demo`. Explicit
-`DEMO_ADMIN_EMAIL` and `DEMO_ADMIN_PASSWORD` values override them. Non-demo modes
-do not silently enable the fallback.
+Admin URL: http://localhost:3002/login. Configure `DEMO_ADMIN_EMAIL` and
+`DEMO_ADMIN_PASSWORD` locally; credentials are intentionally not displayed by
+the application or committed to this repository. Production uses the separate
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET` variables.
 
 ## Quality commands
 

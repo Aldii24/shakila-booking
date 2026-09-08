@@ -1956,15 +1956,8 @@ from environment.
 
 Seed script creates/updates admin from environment.
 
-In `APP_MODE=demo`, the local operator fallback is:
-
-```text
-DEMO_ADMIN_EMAIL=admin@shakilagroup.demo
-DEMO_ADMIN_PASSWORD=demo12345
-```
-
-These values are public demo credentials, not production secrets. Outside demo
-mode the fallback is disabled and missing explicit credentials must fail closed.
+There is no built-in credential fallback. Missing explicit credentials fail
+closed in every mode, and the login page never displays credential values.
 
 `.env.example` only shows variable names.
 
@@ -1979,8 +1972,8 @@ DEMO_ADMIN_EMAIL=
 DEMO_ADMIN_PASSWORD=
 ```
 
-The standard local demo fallback above is intentionally documented for the demo
-operator. Do not reuse it for production or non-demo environments.
+Populate local values only in an ignored environment file. Production uses the
+separate `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET` variables.
 
 ---
 

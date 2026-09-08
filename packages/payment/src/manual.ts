@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { DomainError } from "@booking/booking";
 import { getDb, type BookingDatabase } from "@booking/database";
 import {
-  databasePaymentProofStorage,
+  getPaymentProofStorage,
   type PaymentProofStorageAdapter,
 } from "./proof-storage";
 
@@ -51,32 +51,46 @@ function validateProof(input: PaymentProofInput) {
     throw new DomainError("INVALID_PAYMENT_PROOF", "Proof file signature does not match its image type.", 400);
 }
 
+type PaymentState = { paymentId: string; status: string; expiresAt: string | null; requiredDp: number; verifiedPaid: number; totalAmount: number };
+
+function validatePaymentState(found: PaymentState | undefined, input: PaymentProofInput): asserts found is PaymentState {
+  if (!found) throw new DomainError("BOOKING_NOT_FOUND", "Booking was not found.", 404);
+  if (found.status !== "WAITING_PAYMENT" || !found.expiresAt || Date.parse(found.expiresAt) <= Date.now())
+    throw new DomainError("BOOKING_EXPIRED", "Booking payment deadline has expired.", 409);
+  const minimumOutstandingDp = Math.max(found.requiredDp - found.verifiedPaid, 0);
+  if (input.claimedAmount < minimumOutstandingDp || input.claimedAmount > found.totalAmount - found.verifiedPaid)
+    throw new DomainError("PAYMENT_AMOUNT_MISMATCH", "Nominal bukti harus memenuhi sisa minimum DP dan tidak melebihi sisa booking.", 409);
+}
+
 export async function submitManualPaymentProof(
   bookingCode: string,
   bookingId: string,
   input: PaymentProofInput,
   database: BookingDatabase = getDb(),
-  storage: PaymentProofStorageAdapter = databasePaymentProofStorage,
+  storage: PaymentProofStorageAdapter = getPaymentProofStorage(),
 ) {
   validateProof(input);
+  const preflight = rows<PaymentState>(await database.execute(sql`
+    select p.id as "paymentId",b.status,b.expires_at::text as "expiresAt",b.required_dp_amount::int as "requiredDp",b.verified_paid_amount::int as "verifiedPaid",b.total_amount::int as "totalAmount"
+    from bookings b join payments p on p.booking_id=b.id
+    where b.id=${bookingId}::uuid and b.booking_code=${bookingCode}
+    limit 1
+  `))[0];
+  validatePaymentState(preflight, input);
   const stored = await storage.store({
     bookingCode,
     mimeType: input.mimeType as "image/jpeg" | "image/png",
     fileDataBase64: input.fileDataBase64,
   });
-  return database.transaction(async (tx) => {
-    const found = rows<{ paymentId: string; status: string; expiresAt: string | null; requiredDp: number; verifiedPaid: number; totalAmount: number }>(await tx.execute(sql`
+  try {
+    return await database.transaction(async (tx) => {
+    const found = rows<PaymentState>(await tx.execute(sql`
       select p.id as "paymentId",b.status,b.expires_at::text as "expiresAt",b.required_dp_amount::int as "requiredDp",b.verified_paid_amount::int as "verifiedPaid",b.total_amount::int as "totalAmount"
       from bookings b join payments p on p.booking_id=b.id
       where b.id=${bookingId}::uuid and b.booking_code=${bookingCode}
       for update of b,p
     `))[0];
-    if (!found) throw new DomainError("BOOKING_NOT_FOUND", "Booking was not found.", 404);
-    if (found.status !== "WAITING_PAYMENT" || !found.expiresAt || Date.parse(found.expiresAt) <= Date.now())
-      throw new DomainError("BOOKING_EXPIRED", "Booking payment deadline has expired.", 409);
-    const minimumOutstandingDp = Math.max(found.requiredDp - found.verifiedPaid, 0);
-    if (input.claimedAmount < minimumOutstandingDp || input.claimedAmount > found.totalAmount - found.verifiedPaid)
-      throw new DomainError("PAYMENT_AMOUNT_MISMATCH", "Nominal bukti harus memenuhi sisa minimum DP dan tidak melebihi sisa booking.", 409);
+    validatePaymentState(found, input);
 
     const orderId = `TRANSFER-${bookingCode}-${randomUUID().slice(0, 8).toUpperCase()}`;
     const attempt = rows<{ id: string }>(await tx.execute(sql`
@@ -96,7 +110,12 @@ export async function submitManualPaymentProof(
       values(${bookingId}::uuid,'PAYMENT_PROOF_SUBMITTED','CUSTOMER','Bukti transfer diunggah',${JSON.stringify({ proofId: proof.id, claimedAmount: input.claimedAmount })}::jsonb)
     `);
     return { id: proof.id, status: "PENDING" as const, claimedAmount: input.claimedAmount, createdAt: proof.createdAt };
-  });
+    });
+  } catch (error) {
+    try { await storage.remove?.(stored); }
+    catch (cleanupError) { console.error("Failed to remove orphaned payment proof", cleanupError instanceof Error ? cleanupError.message : "Unknown error"); }
+    throw error;
+  }
 }
 
 export async function listPaymentProofs(
@@ -116,7 +135,7 @@ export async function listPaymentProofs(
   `));
 }
 
-export async function getPaymentProofFile(id: string, database: BookingDatabase = getDb(), storage: PaymentProofStorageAdapter = databasePaymentProofStorage) {
+export async function getPaymentProofFile(id: string, database: BookingDatabase = getDb(), storage: PaymentProofStorageAdapter = getPaymentProofStorage()) {
   const proof = rows<{ fileName: string; mimeType: string; storageProvider: "DATABASE" | "R2"; storageKey: string; fileDataBase64: string | null }>(await database.execute(sql`
     select file_name as "fileName",mime_type as "mimeType",storage_provider as "storageProvider",storage_key as "storageKey",file_data_base64 as "fileDataBase64"
     from payment_proofs where id=${id}::uuid limit 1

@@ -1,6 +1,6 @@
 import { describe,expect,it } from "vitest";
 import { assertCapacity } from "./availability.js";
-import { assertJeepDepartureOpen,bookingExpiration,calculateBundlePrice,calculateDp,calculateGlampingPrice,calculateJeepPrice,calculateNightCount,validateBookingTransition } from "./core.js";
+import { assertJeepDepartureOpen,bookingExpiration,calculateBundlePrice,calculateDp,calculateGlampingPrice,calculateJeepPrice,calculateNightCount,isAccommodationCheckInOpen,validateBookingTransition } from "./core.js";
 import { normalizeEmail,normalizeWhatsApp } from "@booking/validation";
 
 describe("booking calculations",()=>{
@@ -13,6 +13,10 @@ describe("booking calculations",()=>{
   it("accepts the checkout boundary as a new range",()=>{expect(calculateNightCount("2026-08-29","2026-08-30")).toBe(1);expect(calculateNightCount("2026-08-30","2026-08-31")).toBe(1);});
   it("enforces aggregate guest capacity",()=>expect(()=>assertCapacity(5,2,2)).toThrow(/capacity/));
   it("rejects an invalid lifecycle transition",()=>expect(()=>validateBookingTransition("EXPIRED","CONFIRMED")).toThrow(/not allowed/));
+  it("opens accommodation check-in at 13:00 Asia/Jakarta",()=>{
+    expect(isAccommodationCheckInOpen("2026-09-08","Asia/Jakarta",new Date("2026-09-08T05:59:59Z"))).toBe(false);
+    expect(isAccommodationCheckInOpen("2026-09-08","Asia/Jakarta",new Date("2026-09-08T06:00:00Z"))).toBe(true);
+  });
   it("rejects a same-day Jeep departure that has already passed in Jakarta",()=>{
     const now=new Date("2026-08-27T00:30:00.000Z"); // 07:30 WIB
     expect(()=>assertJeepDepartureOpen("2026-08-27","03:00:00","Asia/Jakarta",now)).toThrow(/already passed/);

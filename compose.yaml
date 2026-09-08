@@ -1,0 +1,205 @@
+name: booking-demo
+
+x-app-defaults: &app-defaults
+  restart: unless-stopped
+  init: true
+  networks:
+    - booking
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+x-frontend-build: &frontend-build
+  context: .
+  dockerfile: Dockerfile
+  args:
+    APP_MODE: ${APP_MODE:-production}
+    TURNSTILE_MODE: ${TURNSTILE_MODE:-cloudflare}
+    NEXT_PUBLIC_API_URL: https://api.shakilagrup.com/api/v1
+    NEXT_PUBLIC_GLAMPING_URL: https://glamping.shakilagrup.com
+    NEXT_PUBLIC_GLAMPING_BANK_NAME: ${NEXT_PUBLIC_GLAMPING_BANK_NAME:-BCA}
+    NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT: ${NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT:-394-075-8211}
+    NEXT_PUBLIC_GLAMPING_BANK_HOLDER: ${NEXT_PUBLIC_GLAMPING_BANK_HOLDER:-Siti Anisah}
+    NEXT_PUBLIC_HOMESTAY_BANK_NAME: ${NEXT_PUBLIC_HOMESTAY_BANK_NAME:-BRI}
+    NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT: ${NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT:-6772-0101-3427-537}
+    NEXT_PUBLIC_HOMESTAY_BANK_HOLDER: ${NEXT_PUBLIC_HOMESTAY_BANK_HOLDER:-Afandi}
+    NEXT_PUBLIC_JEEP_BANK_NAME: ${NEXT_PUBLIC_JEEP_BANK_NAME:-BRI}
+    NEXT_PUBLIC_JEEP_BANK_ACCOUNT: ${NEXT_PUBLIC_JEEP_BANK_ACCOUNT:-6772-0101-3427-537}
+    NEXT_PUBLIC_JEEP_BANK_HOLDER: ${NEXT_PUBLIC_JEEP_BANK_HOLDER:-Afandi}
+    NEXT_PUBLIC_ADMIN_WHATSAPP: ${NEXT_PUBLIC_ADMIN_WHATSAPP:-085148357152}
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+
+services:
+  glamping:
+    <<: *app-defaults
+    build:
+      <<: *frontend-build
+      args:
+        APP: glamping
+        APP_MODE: ${APP_MODE:-production}
+        TURNSTILE_MODE: ${TURNSTILE_MODE:-cloudflare}
+        NEXT_PUBLIC_API_URL: https://api.shakilagrup.com/api/v1
+        NEXT_PUBLIC_GLAMPING_URL: https://glamping.shakilagrup.com
+        NEXT_PUBLIC_GLAMPING_BANK_NAME: ${NEXT_PUBLIC_GLAMPING_BANK_NAME:-BCA}
+        NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT: ${NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT:-394-075-8211}
+        NEXT_PUBLIC_GLAMPING_BANK_HOLDER: ${NEXT_PUBLIC_GLAMPING_BANK_HOLDER:-Siti Anisah}
+        NEXT_PUBLIC_HOMESTAY_BANK_NAME: ${NEXT_PUBLIC_HOMESTAY_BANK_NAME:-BRI}
+        NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT: ${NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT:-6772-0101-3427-537}
+        NEXT_PUBLIC_HOMESTAY_BANK_HOLDER: ${NEXT_PUBLIC_HOMESTAY_BANK_HOLDER:-Afandi}
+        NEXT_PUBLIC_JEEP_BANK_NAME: ${NEXT_PUBLIC_JEEP_BANK_NAME:-BRI}
+        NEXT_PUBLIC_JEEP_BANK_ACCOUNT: ${NEXT_PUBLIC_JEEP_BANK_ACCOUNT:-6772-0101-3427-537}
+        NEXT_PUBLIC_JEEP_BANK_HOLDER: ${NEXT_PUBLIC_JEEP_BANK_HOLDER:-Afandi}
+        NEXT_PUBLIC_ADMIN_WHATSAPP: ${NEXT_PUBLIC_ADMIN_WHATSAPP:-085148357152}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+    environment:
+      PORT: "3000"
+      NODE_OPTIONS: --max-old-space-size=224
+    mem_limit: 320m
+    cpus: 0.45
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  jeep:
+    <<: *app-defaults
+    build:
+      <<: *frontend-build
+      args:
+        APP: jeep
+        APP_MODE: ${APP_MODE:-production}
+        TURNSTILE_MODE: ${TURNSTILE_MODE:-cloudflare}
+        NEXT_PUBLIC_API_URL: https://api.shakilagrup.com/api/v1
+        NEXT_PUBLIC_GLAMPING_URL: https://glamping.shakilagrup.com
+        NEXT_PUBLIC_GLAMPING_BANK_NAME: ${NEXT_PUBLIC_GLAMPING_BANK_NAME:-BCA}
+        NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT: ${NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT:-394-075-8211}
+        NEXT_PUBLIC_GLAMPING_BANK_HOLDER: ${NEXT_PUBLIC_GLAMPING_BANK_HOLDER:-Siti Anisah}
+        NEXT_PUBLIC_HOMESTAY_BANK_NAME: ${NEXT_PUBLIC_HOMESTAY_BANK_NAME:-BRI}
+        NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT: ${NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT:-6772-0101-3427-537}
+        NEXT_PUBLIC_HOMESTAY_BANK_HOLDER: ${NEXT_PUBLIC_HOMESTAY_BANK_HOLDER:-Afandi}
+        NEXT_PUBLIC_JEEP_BANK_NAME: ${NEXT_PUBLIC_JEEP_BANK_NAME:-BRI}
+        NEXT_PUBLIC_JEEP_BANK_ACCOUNT: ${NEXT_PUBLIC_JEEP_BANK_ACCOUNT:-6772-0101-3427-537}
+        NEXT_PUBLIC_JEEP_BANK_HOLDER: ${NEXT_PUBLIC_JEEP_BANK_HOLDER:-Afandi}
+        NEXT_PUBLIC_ADMIN_WHATSAPP: ${NEXT_PUBLIC_ADMIN_WHATSAPP:-085148357152}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+    environment:
+      PORT: "3001"
+      NODE_OPTIONS: --max-old-space-size=224
+    mem_limit: 320m
+    cpus: 0.45
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  admin:
+    <<: *app-defaults
+    build:
+      <<: *frontend-build
+      args:
+        APP: admin
+        APP_MODE: ${APP_MODE:-production}
+        TURNSTILE_MODE: ${TURNSTILE_MODE:-cloudflare}
+        NEXT_PUBLIC_API_URL: https://api.shakilagrup.com/api/v1
+        NEXT_PUBLIC_GLAMPING_URL: https://glamping.shakilagrup.com
+        NEXT_PUBLIC_GLAMPING_BANK_NAME: ${NEXT_PUBLIC_GLAMPING_BANK_NAME:-BCA}
+        NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT: ${NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT:-394-075-8211}
+        NEXT_PUBLIC_GLAMPING_BANK_HOLDER: ${NEXT_PUBLIC_GLAMPING_BANK_HOLDER:-Siti Anisah}
+        NEXT_PUBLIC_HOMESTAY_BANK_NAME: ${NEXT_PUBLIC_HOMESTAY_BANK_NAME:-BRI}
+        NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT: ${NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT:-6772-0101-3427-537}
+        NEXT_PUBLIC_HOMESTAY_BANK_HOLDER: ${NEXT_PUBLIC_HOMESTAY_BANK_HOLDER:-Afandi}
+        NEXT_PUBLIC_JEEP_BANK_NAME: ${NEXT_PUBLIC_JEEP_BANK_NAME:-BRI}
+        NEXT_PUBLIC_JEEP_BANK_ACCOUNT: ${NEXT_PUBLIC_JEEP_BANK_ACCOUNT:-6772-0101-3427-537}
+        NEXT_PUBLIC_JEEP_BANK_HOLDER: ${NEXT_PUBLIC_JEEP_BANK_HOLDER:-Afandi}
+        NEXT_PUBLIC_ADMIN_WHATSAPP: ${NEXT_PUBLIC_ADMIN_WHATSAPP:-085148357152}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+    environment:
+      PORT: "3002"
+      NODE_OPTIONS: --max-old-space-size=224
+    mem_limit: 320m
+    cpus: 0.45
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  api:
+    <<: *app-defaults
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: api
+    env_file:
+      - .env.production
+    environment:
+      PORT: "3003"
+      NODE_OPTIONS: --max-old-space-size=384
+      NODE_ENV: production
+      ALLOWED_ORIGINS: https://glamping.shakilagrup.com,https://jeep.shakilagrup.com,https://admin.shakilagrup.com
+    mem_limit: 512m
+    cpus: 0.65
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  migrate:
+    profiles: ["operations"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tools
+    env_file:
+      - .env.production
+    networks:
+      - booking
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 0.65
+
+  cloudflared:
+    <<: *app-defaults
+    image: cloudflare/cloudflared:latest
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token-file
+      - /run/secrets/cloudflare_tunnel_token
+    volumes:
+      - ./secrets/cloudflare_tunnel_token:/run/secrets/cloudflare_tunnel_token:ro
+    depends_on:
+      glamping:
+        condition: service_healthy
+      jeep:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "localhost:20241", "ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  booking:
+    driver: bridge

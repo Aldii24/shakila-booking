@@ -67,6 +67,23 @@ export function businessDate(timezone = "Asia/Jakarta", instant = new Date()): s
   return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(instant);
 }
 
+export function isAccommodationCheckInOpen(
+  reservationDate: string,
+  timezone = "Asia/Jakarta",
+  instant = new Date(),
+): boolean {
+  if (reservationDate !== businessDate(timezone, instant)) return false;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return value("hour") * 60 + value("minute") >= 13 * 60;
+}
+
 export function assertNotPast(date: string, timezone = "Asia/Jakarta", now = new Date()): void {
   if (date < businessDate(timezone, now)) throw new DomainError("INVALID_DATE_RANGE", "Reservation date cannot be in the past.");
 }

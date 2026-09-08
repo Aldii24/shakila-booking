@@ -65,6 +65,7 @@ type Booking = {
 type Status = {
   bookingCode: string;
   bookingType: string;
+  accommodationKind: "GLAMPING" | "HOMESTAY" | null;
   status: string;
   paymentStatus: string;
   customerName: string;
@@ -410,7 +411,7 @@ export function BookingForm({
           <Textarea {...register("specialRequest")} />
         </Label>
         <div className="full">
-          <Turnstile onToken={setTurnstileToken} />
+          <Turnstile action="booking" onToken={setTurnstileToken} />
         </div>
         {error ? <p className="status-note error-note full">{error}</p> : null}
         <Button className="button full" type="submit" disabled={busy || !quote}>
@@ -503,6 +504,8 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
   const [preview, setPreview] = useState("");
   const [claimedAmount, setClaimedAmount] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [proofHuman, setProofHuman] = useState("");
+  const [proofChallenge, setProofChallenge] = useState(0);
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
     let saved = 0;
@@ -540,14 +543,19 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
     if (!["image/jpeg", "image/png"].includes(file.type) || file.size > 5 * 1024 * 1024) { setError("INVALID_PAYMENT_PROOF"); return; }
     setBusy(true); setError("");
     try {
-      await api(`/public/bookings/${bookingCode}/payments`, { method: "POST", headers: { Authorization: `Booking ${token}` }, body: JSON.stringify({ claimedAmount: claimedAmount || status?.requiredDpAmount, fileName: file.name, mimeType: file.type, fileSize: file.size, fileDataBase64: await proofToBase64(file) }) });
+      await api(`/public/bookings/${bookingCode}/payments`, { method: "POST", headers: { Authorization: `Booking ${token}` }, body: JSON.stringify({ claimedAmount: claimedAmount || status?.requiredDpAmount, fileName: file.name, mimeType: file.type, fileSize: file.size, fileDataBase64: await proofToBase64(file), turnstileToken: proofHuman || undefined }) });
       setSubmitted(true); setFile(null); setPreview(""); try { localStorage.removeItem(paymentDraftKey(bookingCode)); } catch { /* optional draft only */ } await refresh();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "NETWORK_ERROR"); }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "NETWORK_ERROR"); setProofHuman(""); setProofChallenge((value) => value + 1); }
     finally { setBusy(false); }
   }
   if (error === "ACCESS_TOKEN_MISSING") return <div className="panel center-card"><h2>Akses reservasi diperlukan</h2><p>Buka kembali booking melalui kode dan kontak Anda.</p><Link className="button" href="/booking/check">Cek booking</Link></div>;
   if (!status) return <div className="panel center-card"><div className="loader"/><p>Memuat reservasi...</p></div>;
   const effectiveAmount = claimedAmount || status.requiredDpAmount;
+  const homestay = status.accommodationKind === "HOMESTAY";
+  const bankName = homestay ? process.env.NEXT_PUBLIC_HOMESTAY_BANK_NAME : process.env.NEXT_PUBLIC_GLAMPING_BANK_NAME;
+  const bankAccount = homestay ? process.env.NEXT_PUBLIC_HOMESTAY_BANK_ACCOUNT : process.env.NEXT_PUBLIC_GLAMPING_BANK_ACCOUNT;
+  const bankHolder = homestay ? process.env.NEXT_PUBLIC_HOMESTAY_BANK_HOLDER : process.env.NEXT_PUBLIC_GLAMPING_BANK_HOLDER;
+  const adminWhatsapp = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP ?? "085148357152";
   const expired = status.status === "EXPIRED" || seconds === 0;
   const pending = status.latestProofStatus === "PENDING";
   const approved = status.latestProofStatus === "APPROVED" || status.status === "CONFIRMED";
@@ -562,11 +570,12 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
       {approved ? <p className="status-note"><CheckCircle2/> DP Terverifikasi</p> : expired ? <p className="status-note error-note"><AlertCircle/> Kedaluwarsa — inventori telah dilepas.</p> : pending || submitted ? <p className="status-note"><Clock3/> Bukti pembayaran sedang menunggu verifikasi Admin.</p> : status.latestProofStatus === "REJECTED" ? <p className="status-note error-note"><AlertCircle/> Bukti Pembayaran Ditolak. {status.latestProofRejectionReason || "Silakan unggah bukti yang benar."}</p> : <p className="status-note"><Clock3/> Menunggu Pembayaran</p>}
       {!approved && !expired ? <>
         <div className="countdown"><Clock3/> {hours}:{minutes}:{secs}</div>
-        <div className="bank-instructions"><p className="eyebrow">Instruksi transfer</p><h3>{process.env.NEXT_PUBLIC_BANK_NAME ?? "Rekening Shakila Group"}</h3><p>{process.env.NEXT_PUBLIC_BANK_ACCOUNT ?? "Nomor rekening belum dikonfigurasi."}</p><strong>{process.env.NEXT_PUBLIC_BANK_HOLDER ?? "Shakila Group"}</strong><small>Transfer minimal sebesar DP dan gunakan kode booking sebagai berita transfer.</small></div>
+        <div className="bank-instructions"><p className="eyebrow">Instruksi transfer</p><h3>{bankName ?? (homestay ? "BRI" : "BCA")}</h3><p>{bankAccount ?? (homestay ? "6772-0101-3427-537" : "394-075-8211")}</p><strong>a.n. {bankHolder ?? (homestay ? "Afandi" : "Siti Anisah")}</strong><small>Transfer minimal sebesar DP dan gunakan kode booking sebagai berita transfer.</small><a href={`https://wa.me/62${adminWhatsapp.replace(/\D/g, "").replace(/^0/, "")}`} target="_blank" rel="noreferrer">Bantuan Admin: {adminWhatsapp}</a></div>
         {!pending ? <div className="proof-upload">
           <Label>Nominal yang ditransfer<Input type="number" min={status.requiredDpAmount} max={status.totalAmount} value={effectiveAmount} onChange={(event) => setClaimedAmount(Number(event.target.value))}/></Label>
           <div className="proof-field"><span>Bukti pembayaran</span><ProofFilePicker file={file} onFileChange={selectProof}/></div>
           {preview ? <div className="proof-preview" role="img" aria-label="Pratinjau bukti pembayaran" style={{backgroundImage:`url(${preview})`}}/> : null}
+          <Turnstile key={proofChallenge} action="payment_proof" onToken={setProofHuman} />
           <Button className="button" disabled={busy || !file || effectiveAmount < status.requiredDpAmount} onClick={() => void submitProof()}>{busy ? "Mengunggah bukti..." : "Kirim bukti pembayaran"}</Button>
         </div> : null}
       </> : null}
@@ -853,7 +862,7 @@ export function BookingLookup() {
           ) : null}
         </Label>
       )}
-      <Turnstile onToken={setToken} />
+      <Turnstile action="lookup" onToken={setToken} />
       {error ? <p className="status-note error-note full">{error}</p> : null}
       <Button type="submit" className="button full" disabled={busy}>
         {busy ? (

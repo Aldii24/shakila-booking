@@ -6,6 +6,7 @@ const testUrl = process.env.TEST_DATABASE_URL;
 if (testUrl) process.env.DATABASE_URL = testUrl;
 const integration = describe.skipIf(!testUrl);
 const email = "manual-proof-flow@example.test";
+const cancelledEmail = "manual-proof-cancelled@example.test";
 
 async function cleanup() {
   if (!testUrl) return;
@@ -13,7 +14,7 @@ async function cleanup() {
   const db = getDb();
   const target = sql`select b.id from bookings b
     left join glamping_booking_details g on g.booking_id=b.id
-    where b.customer_email=${email}
+    where (b.customer_email=${email} or b.customer_email=${cancelledEmail})
       or b.admin_notes='manual-overbook-test'
       or (b.customer_email like 'manual-%@shakila.invalid' and g.check_in_date='2099-10-10'::date)`;
   await db.execute(sql`delete from payment_proofs where booking_id in (${target})`);
@@ -74,6 +75,18 @@ integration("manual transfer and Admin booking revision", () => {
     });
     expect(results.filter((result) => result.status === "fulfilled"), failures.join(" | ")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+  });
+
+  it("closes a pending proof when its booking is cancelled", async () => {
+    const { cancelBooking, createGlampingBooking } = await import("@booking/booking");
+    const { getDb } = await import("@booking/database");
+    const { submitManualPaymentProof } = await import("./manual.js");
+    const db = getDb();
+    const booking = await createGlampingBooking({ business: "glamping", reservation: { productSlug: "glamping-deluxe", checkInDate: "2099-10-04", checkOutDate: "2099-10-05", quantity: 1, guestCount: 2 }, customer: { fullName: "Cancelled Manual Proof", email: cancelledEmail, whatsapp: "081288881112" } }, randomUUID(), db);
+    const proof = await submitManualPaymentProof(booking.bookingCode, booking.bookingId, { claimedAmount: booking.requiredDpAmount, fileName: "cancelled.png", mimeType: "image/png", fileSize: 8, fileDataBase64: Buffer.from("89504e470d0a1a0a", "hex").toString("base64") }, db);
+    await cancelBooking(booking.bookingId, db);
+    const state = (await db.execute(sql`select b.payment_status as "paymentStatus",pr.status as "proofStatus",a.status as "attemptStatus" from bookings b join payment_proofs pr on pr.booking_id=b.id join payment_attempts a on a.id=pr.payment_attempt_id where pr.id=${proof.id}::uuid`)) as unknown as { paymentStatus: string; proofStatus: string; attemptStatus: string }[];
+    expect(state[0]).toMatchObject({ paymentStatus: "UNPAID", proofStatus: "REJECTED", attemptStatus: "CANCELLED" });
   });
 });
 

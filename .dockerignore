@@ -1,0 +1,13 @@
+.git
+.turbo
+**/.next
+**/node_modules
+.env
+.env.*
+!.env.example
+coverage
+dist
+output
+tmp
+npm-debug.log*
+*.pem

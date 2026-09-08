@@ -10,7 +10,7 @@ const createdIds:string[]=[];
 async function cleanupTestBookings(){
   if(!testUrl)return;
   const {getDb}=await import("@booking/database");const db=getDb();
-  const target=sql`select id from bookings where customer_email in ('idempotency@example.test','concurrency-1@example.test','concurrency-2@example.test','cancel@example.test','expire@example.test','jeep-one@example.test','jeep-two@example.test','jeep-other@example.test','boundary-one@example.test','boundary-two@example.test','bundle-stock@example.test','bundle-overbook-1@example.test','bundle-overbook-2@example.test','bundle-jeep-fill@example.test','bundle-rollback@example.test')`;
+  const target=sql`select id from bookings where customer_email in ('idempotency@example.test','concurrency-1@example.test','concurrency-2@example.test','cancel@example.test','expire@example.test','jeep-one@example.test','jeep-two@example.test','jeep-other@example.test','jeep-shared-one@example.test','jeep-shared-two@example.test','jeep-shared-other-slot@example.test','boundary-one@example.test','boundary-two@example.test','bundle-stock@example.test','bundle-overbook-1@example.test','bundle-overbook-2@example.test','bundle-jeep-fill@example.test','bundle-rollback@example.test')`;
   await db.execute(sql`delete from booking_events where booking_id in (${target})`);
   await db.execute(sql`delete from accommodation_unit_reservations where booking_id in (${target})`);
   await db.execute(sql`delete from jeep_unit_reservations where booking_id in (${target})`);
@@ -54,6 +54,16 @@ integration("transactional booking allocation (requires migrated and seeded TEST
     const {createJeepBooking}=await import("./creation.js");const {getDb}=await import("@booking/database");const db=getDb();const slots=await db.execute(sql`select id,departure_time from jeep_departure_slots where jeep_package_id=(select id from jeep_packages where slug='medium-1') order by departure_time`) as unknown as {id:string;departure_time:string}[];
     const make=(slot:string,email:string)=>createJeepBooking({business:"jeep",reservation:{packageSlug:"medium-1",tourDate:"2099-04-02",departureSlotId:slot,quantity:8,guestCount:1},customer:{fullName:"Jeep Collision",email,whatsapp:email.includes("one")?"081200004001":email.includes("two")?"081200004002":"081200004003"}},randomUUID());
     const collision=await Promise.allSettled([make(slots[0]!.id,"jeep-one@example.test"),make(slots[0]!.id,"jeep-two@example.test")]);for(const item of collision)if(item.status==="fulfilled")createdIds.push(item.value.bookingId);expect(collision.filter(item=>item.status==="fulfilled")).toHaveLength(1);const other=await make(slots[1]!.id,"jeep-other@example.test");createdIds.push(other.bookingId);expect(other.bookingId).toBeTruthy();
+  });
+  it("shares the 12-Jeep fleet across packages at the same departure time",async()=>{
+    const {calculateJeepAvailability}=await import("./availability.js");const {createJeepBooking}=await import("./creation.js");const {getDb}=await import("@booking/database");const db=getDb();
+    const slots=await db.execute(sql`select p.slug,s.id,s.departure_time::text as "departureTime",p.business_id as "businessId" from jeep_packages p join jeep_departure_slots s on s.jeep_package_id=p.id where p.slug in ('short-1','long-2') order by p.slug,s.departure_time`) as unknown as {slug:string;id:string;departureTime:string;businessId:string}[];
+    const shortMorning=slots.find(slot=>slot.slug==="short-1"&&slot.departureTime.startsWith("03:00"))!;const shortOther=slots.find(slot=>slot.slug==="short-1"&&slot.departureTime.startsWith("08:00"))!;const longMorning=slots.find(slot=>slot.slug==="long-2"&&slot.departureTime.startsWith("03:00"))!;
+    const make=(packageSlug:string,slot:string,quantity:number,email:string,whatsapp:string)=>createJeepBooking({business:"jeep",reservation:{packageSlug,tourDate:"2099-04-03",departureSlotId:slot,quantity,guestCount:quantity},customer:{fullName:"Shared Fleet Test",email,whatsapp}},randomUUID());
+    const first=await make("short-1",shortMorning.id,12,"jeep-shared-one@example.test","081200004011");createdIds.push(first.bookingId);
+    expect(await calculateJeepAvailability({businessId:longMorning.businessId,tourDate:"2099-04-03",departureSlotId:longMorning.id})).toBe(0);
+    await expect(make("long-2",longMorning.id,1,"jeep-shared-two@example.test","081200004012")).rejects.toMatchObject({code:"INVENTORY_NOT_AVAILABLE"});
+    const other=await make("short-1",shortOther.id,12,"jeep-shared-other-slot@example.test","081200004013");createdIds.push(other.bookingId);expect(other.bookingId).toBeTruthy();
   });
   it("menghitung inventori fisik Glamping dan Homestay sesuai katalog client",async()=>{
     const {calculateAccommodationAvailability}=await import("./availability.js");const {getDb}=await import("@booking/database");const db=getDb();

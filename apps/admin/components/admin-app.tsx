@@ -33,7 +33,6 @@ import {
   Search,
   X,
   Settings,
-  ShieldCheck,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -203,23 +202,15 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function LoginPage({
-  showDemoCredentials = false,
-}: {
-  showDemoCredentials?: boolean;
-}) {
+export function LoginPage() {
   return (
     <AdminLanguageProvider>
-      <LoginContent showDemoCredentials={showDemoCredentials} />
+      <LoginContent />
     </AdminLanguageProvider>
   );
 }
 
-function LoginContent({
-  showDemoCredentials,
-}: {
-  showDemoCredentials: boolean;
-}) {
+function LoginContent() {
   const { t } = useAdminLanguage();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -281,15 +272,6 @@ function LoginContent({
           <Button disabled={busy}>
             {busy ? t("login.verifying") : t("login.submit")}
           </Button>
-          {showDemoCredentials ? (
-            <aside className="demo-credentials">
-              <ShieldCheck size={17} />
-              <div>
-                <strong>{t("login.demoCredentials")}</strong>
-                <span>Gunakan akun Admin yang telah dikonfigurasi.</span>
-              </div>
-            </aside>
-          ) : null}
           <small className="login-security">
             SESI AMAN · DATA POSTGRESQL LANGSUNG
           </small>
@@ -2691,7 +2673,7 @@ function SettingsView({
             </h2>
             <div className="mode-status">
               <strong>MODE OPERASIONAL</strong>
-              <span>Inline jobs · direct PDF · email preview</span>
+              <span>Proses langsung · PDF langsung · pratinjau surel</span>
             </div>
             <Field
               label={
@@ -2701,7 +2683,7 @@ function SettingsView({
               <Input disabled readOnly value={text(row.timezone)} />
             </Field>
             <div className="split">
-              <Field label="DP percentage">
+              <Field label="Persentase DP">
                 <Input
                   type="number"
                   min="50"
@@ -2727,14 +2709,14 @@ function SettingsView({
               </Field>
             </div>
             <div className="payment-terms"><strong>Kebijakan pembayaran aktif</strong><span>DP minimal 50% · pembayaran maksimal 12 jam · DP tidak dapat dikembalikan bila booking dibatalkan.</span></div>
-            <Field label="Contact email">
+            <Field label="Surel kontak">
               <Input
                 type="email"
                 name="contactEmail"
                 defaultValue={text(row.contactEmail)}
               />
             </Field>
-            <Field label="Contact phone">
+            <Field label="Nomor kontak">
               <Input
                 name="contactPhone"
                 defaultValue={text(row.contactPhone)}

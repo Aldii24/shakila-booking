@@ -168,7 +168,6 @@ export function Availability({
       setLoading(false);
     }
   };
-  const minimum = pack ? Math.ceil(guests / pack.capacityPerUnit) : 1;
   return (
     <>
       <div className="panel form-grid">
@@ -244,23 +243,23 @@ export function Availability({
             <p className="kicker">INVENTORI FISIK LANGSUNG</p>
             <h3>{pack.name}</h3>
             <p>
-              {result.availableQuantity} Jeep tersedia pada slot ini · kapasitas {pack.capacityPerUnit} tamu/Jeep
+              {result.availableQuantity} Jeep tersedia pada slot ini · reservasi web untuk 1 Jeep
             </p>
             <strong>{rupiah(pack.pricePerUnit)} / Jeep</strong>
             <p>
-              Jumlah minimum untuk {guests} tamu: <b>{minimum} Jeep</b>
+              Kapasitas penumpang dan tambahan unit dikonfirmasi oleh Admin.
             </p>
           </div>
-          {result.availableQuantity >= minimum ? (
+          {result.availableQuantity >= 1 ? (
             <Button
               className="button"
               onClick={() =>
                 router.push(
-                  `/booking?${new URLSearchParams({ packageSlug, tourDate, departureSlotId: slotId, guestCount: String(guests), quantity: String(minimum) })}`,
+                  `/booking?${new URLSearchParams({ packageSlug, tourDate, departureSlotId: slotId, guestCount: String(guests), quantity: "1" })}`,
                 )
               }
             >
-              Pilih {minimum} Jeep <ArrowRight />
+              Pilih 1 Jeep <ArrowRight />
             </Button>
           ) : (
             <span className="status-note error-note">
@@ -277,7 +276,6 @@ type Form = {
   email: string;
   whatsapp: string;
   guestCount: number;
-  quantity: number;
   specialRequest: string;
 };
 export function BookingForm({
@@ -295,7 +293,6 @@ export function BookingForm({
     { register, handleSubmit, watch } = useForm<Form>({
       defaultValues: {
         guestCount: Number(selection.guestCount || 4),
-        quantity: Number(selection.quantity || 1),
       },
     }),
     [pack, setPack] = useState<Pack | null>(null),
@@ -304,15 +301,14 @@ export function BookingForm({
     [error, setError] = useState(""),
     [human, setHuman] = useState("");
   const submissionLocked = useRef(false);
-  const qty = watch("quantity"),
-    guests = watch("guestCount");
+  const guests = watch("guestCount");
   useEffect(() => {
     void api<Pack>(`/public/jeep/packages/${selection.packageSlug}`).then(
       setPack,
     );
   }, [selection.packageSlug]);
   useEffect(() => {
-    if (!qty || !guests) return;
+    if (!guests) return;
     void api<Quote>("/public/bookings/quote", {
       method: "POST",
       body: JSON.stringify({
@@ -320,7 +316,7 @@ export function BookingForm({
         packageSlug: selection.packageSlug,
         tourDate: selection.tourDate,
         departureSlotId: selection.departureSlotId,
-        quantity: Number(qty),
+        quantity: 1,
         guestCount: Number(guests),
       }),
     })
@@ -328,7 +324,7 @@ export function BookingForm({
       .catch((e) =>
         setError(message(e instanceof Error ? e.message : "NETWORK_ERROR")),
       );
-  }, [selection, qty, guests]);
+  }, [selection, guests]);
   const submit = handleSubmit(async (v) => {
     if (submissionLocked.current) return;
     submissionLocked.current = true;
@@ -344,7 +340,7 @@ export function BookingForm({
             packageSlug: selection.packageSlug,
             tourDate: selection.tourDate,
             departureSlotId: selection.departureSlotId,
-            quantity: Number(v.quantity),
+            quantity: 1,
             guestCount: Number(v.guestCount),
           },
           customer: {
@@ -390,20 +386,12 @@ export function BookingForm({
             {...register("guestCount", { valueAsNumber: true })}
           />
         </Label>
-        <Label>
-          Jumlah Jeep
-          <Input
-            type="number"
-            min="1"
-            {...register("quantity", { valueAsNumber: true })}
-          />
-        </Label>
-        <p className="jeep-admin-contact full">Jika membutuhkan tambahan unit Jeep atau kebutuhan khusus, silakan konfirmasi langsung ke Admin. <strong>Hubungi Admin</strong></p>
+        <p className="jeep-admin-contact full">Reservasi web ini mengunci 1 Jeep. Kapasitas penumpang, tambahan unit, atau kebutuhan khusus dikonfirmasi langsung oleh Admin. <strong>Hubungi Admin</strong></p>
         <Label className="full">
           Permintaan khusus
           <Textarea {...register("specialRequest")} />
         </Label>
-        <Turnstile onToken={setHuman} />
+        <Turnstile action="booking" onToken={setHuman} />
         {error ? <p className="status-note error-note full">{error}</p> : null}
         <Button className="button full" disabled={busy || !quote}>
           {busy ? "Mengunci armada..." : "Lanjut ke pembayaran"}
@@ -421,9 +409,9 @@ export function BookingForm({
           <b>{slot ? formatDepartureTime(slot.departureTime) : "—"}</b>
         </div>
         <div>
-          <span>Tamu / Jeep</span>
+          <span>Tamu / jumlah Jeep</span>
           <b>
-            {guests} / {qty}
+            {guests} / 1
           </b>
         </div>
         <div>
@@ -480,7 +468,7 @@ const proofToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
 
 export function PaymentPage({ bookingCode }: { bookingCode: string }) {
   const { status, error, setError, refresh } = useStatus(bookingCode);
-  const [seconds, setSeconds] = useState(0), [busy, setBusy] = useState(false), [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState(""), [claimedAmount, setClaimedAmount] = useState(0), [submitted, setSubmitted] = useState(false);
+  const [seconds, setSeconds] = useState(0), [busy, setBusy] = useState(false), [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState(""), [claimedAmount, setClaimedAmount] = useState(0), [submitted, setSubmitted] = useState(false), [proofHuman, setProofHuman] = useState(""), [proofChallenge, setProofChallenge] = useState(0);
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => { let saved=0;try{saved=Number(localStorage.getItem(paymentDraftKey(bookingCode))??0)}catch{return}if(!Number.isFinite(saved)||saved<=0)return;const frame=window.requestAnimationFrame(()=>setClaimedAmount(saved));return()=>window.cancelAnimationFrame(frame); },[bookingCode]);
   useEffect(() => { if(claimedAmount>0)try{localStorage.setItem(paymentDraftKey(bookingCode),String(claimedAmount))}catch{/* optional draft only */} },[bookingCode,claimedAmount]);
@@ -488,15 +476,16 @@ export function PaymentPage({ bookingCode }: { bookingCode: string }) {
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   useEffect(()=>{if(!file||submitted)return;const warnBeforeLeaving=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue=""};window.addEventListener("beforeunload",warnBeforeLeaving);return()=>window.removeEventListener("beforeunload",warnBeforeLeaving)},[file,submitted]);
   function selectProof(selected: File | null){if(preview)URL.revokeObjectURL(preview);setFile(selected);setPreview(selected?URL.createObjectURL(selected):"")}
-  async function submitProof(){const token=getBookingAccess(bookingCode);if(!token||!file)return;if(!["image/jpeg","image/png"].includes(file.type)||file.size>5*1024*1024){setError("INVALID_PAYMENT_PROOF");return}setBusy(true);setError("");try{await api(`/public/bookings/${bookingCode}/payments`,{method:"POST",headers:{Authorization:`Booking ${token}`},body:JSON.stringify({claimedAmount:claimedAmount||status?.requiredDpAmount,fileName:file.name,mimeType:file.type,fileSize:file.size,fileDataBase64:await proofToBase64(file)})});setSubmitted(true);setFile(null);setPreview("");try{localStorage.removeItem(paymentDraftKey(bookingCode))}catch{/* optional draft only */}await refresh()}catch(caught){setError(caught instanceof Error?caught.message:"NETWORK_ERROR")}finally{setBusy(false)}}
+  async function submitProof(){const token=getBookingAccess(bookingCode);if(!token||!file)return;if(!["image/jpeg","image/png"].includes(file.type)||file.size>5*1024*1024){setError("INVALID_PAYMENT_PROOF");return}setBusy(true);setError("");try{await api(`/public/bookings/${bookingCode}/payments`,{method:"POST",headers:{Authorization:`Booking ${token}`},body:JSON.stringify({claimedAmount:claimedAmount||status?.requiredDpAmount,fileName:file.name,mimeType:file.type,fileSize:file.size,fileDataBase64:await proofToBase64(file),turnstileToken:proofHuman||undefined})});setSubmitted(true);setFile(null);setPreview("");try{localStorage.removeItem(paymentDraftKey(bookingCode))}catch{/* optional draft only */}await refresh()}catch(caught){setError(caught instanceof Error?caught.message:"NETWORK_ERROR");setProofHuman("");setProofChallenge((value)=>value+1)}finally{setBusy(false)}}
   if(error==="ACCESS_TOKEN_MISSING")return <div className="panel center-card"><h2>Akses reservasi diperlukan</h2><p>Buka booking dengan kode dan kontak Anda.</p><Link className="button" href="/booking/check">Cek booking</Link></div>;
   if(!status)return <div className="panel center-card"><div className="loader"/><p>Memuat perjalanan...</p></div>;
   const effectiveAmount=claimedAmount||status.requiredDpAmount;
+  const adminWhatsapp=process.env.NEXT_PUBLIC_ADMIN_WHATSAPP??"085148357152";
   const expired=status.status==="EXPIRED"||seconds===0,pending=status.latestProofStatus==="PENDING",approved=status.latestProofStatus==="APPROVED"||status.status==="CONFIRMED";
   const countdown=`${String(Math.floor(seconds/3600)).padStart(2,"0")}:${String(Math.floor((seconds%3600)/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
   return <div className="flow-grid manual-transfer-flow"><div className="panel"><p className="kicker">TRANSFER BANK MANUAL</p><h2>{status.bookingCode}</h2><p>{status.productName} · {status.startDate} · {status.departureTime?formatDepartureTime(status.departureTime):"—"}</p><p className="payment-recovery-note"><ShieldCheck aria-hidden="true"/> Halaman ini aman untuk di-refresh. Akses booking dan nominal transfer disimpan selama maksimal 24 jam di perangkat ini. Demi privasi, foto bukti yang belum dikirim harus dipilih kembali.</p>
     {approved?<p className="status-note"><CheckCircle2/> DP Terverifikasi</p>:expired?<p className="status-note error-note"><AlertTriangle/> Kedaluwarsa — armada telah dilepas.</p>:pending||submitted?<p className="status-note"><Clock3/> Bukti pembayaran sedang menunggu verifikasi Admin.</p>:status.latestProofStatus==="REJECTED"?<p className="status-note error-note"><AlertTriangle/> Bukti Pembayaran Ditolak. {status.latestProofRejectionReason||"Silakan unggah bukti baru."}</p>:<p className="status-note"><Clock3/> Menunggu Pembayaran</p>}
-    {!approved&&!expired?<><div className="countdown"><Clock3/> {countdown}</div><div className="bank-instructions"><p className="kicker">INSTRUKSI TRANSFER</p><h3>{process.env.NEXT_PUBLIC_BANK_NAME??"Rekening Shakila Group"}</h3><p>{process.env.NEXT_PUBLIC_BANK_ACCOUNT??"Nomor rekening belum dikonfigurasi."}</p><strong>{process.env.NEXT_PUBLIC_BANK_HOLDER??"Shakila Group"}</strong><small>Gunakan kode booking sebagai berita transfer.</small></div>{!pending?<div className="proof-upload"><Label>Nominal yang ditransfer<Input type="number" min={status.requiredDpAmount} max={status.totalAmount} value={effectiveAmount} onChange={(event)=>setClaimedAmount(Number(event.target.value))}/></Label><div className="proof-field"><span>Bukti pembayaran</span><ProofFilePicker file={file} onFileChange={selectProof}/></div>{preview?<div className="proof-preview" role="img" aria-label="Pratinjau bukti pembayaran" style={{backgroundImage:`url(${preview})`}}/>:null}<Button className="button" disabled={busy||!file||effectiveAmount<status.requiredDpAmount} onClick={()=>void submitProof()}>{busy?"Mengunggah bukti...":"Kirim bukti pembayaran"}</Button></div>:null}</>:null}
+    {!approved&&!expired?<><div className="countdown"><Clock3/> {countdown}</div><div className="bank-instructions"><p className="kicker">INSTRUKSI TRANSFER</p><h3>{process.env.NEXT_PUBLIC_JEEP_BANK_NAME??"BRI"}</h3><p>{process.env.NEXT_PUBLIC_JEEP_BANK_ACCOUNT??"6772-0101-3427-537"}</p><strong>a.n. {process.env.NEXT_PUBLIC_JEEP_BANK_HOLDER??"Afandi"}</strong><small>Gunakan kode booking sebagai berita transfer.</small><a href={`https://wa.me/62${adminWhatsapp.replace(/\D/g,"").replace(/^0/,"")}`} target="_blank" rel="noreferrer">Bantuan Admin: {adminWhatsapp}</a></div>{!pending?<div className="proof-upload"><Label>Nominal yang ditransfer<Input type="number" min={status.requiredDpAmount} max={status.totalAmount} value={effectiveAmount} onChange={(event)=>setClaimedAmount(Number(event.target.value))}/></Label><div className="proof-field"><span>Bukti pembayaran</span><ProofFilePicker file={file} onFileChange={selectProof}/></div>{preview?<div className="proof-preview" role="img" aria-label="Pratinjau bukti pembayaran" style={{backgroundImage:`url(${preview})`}}/>:null}<Turnstile key={proofChallenge} action="payment_proof" onToken={setProofHuman}/><Button className="button" disabled={busy||!file||effectiveAmount<status.requiredDpAmount} onClick={()=>void submitProof()}>{busy?"Mengunggah bukti...":"Kirim bukti pembayaran"}</Button></div>:null}</>:null}
     {error&&error!=="ACCESS_TOKEN_MISSING"?<p className="status-note error-note">Bukti belum dapat dikirim. Periksa format dan ukuran file.</p>:null}<Button variant="ghost" className="text-button" onClick={()=>void refresh()}>Periksa status</Button></div>
     <aside className="summary"><h3>Ringkasan pembayaran</h3><div><span>Total</span><b>{rupiah(status.totalAmount)}</b></div><div><span>Minimum DP ({status.dpPercentage}%)</span><b>{rupiah(status.requiredDpAmount)}</b></div><div><span>Jumlah transfer</span><b>{rupiah(status.requiredDpAmount)}</b></div><div className="total"><span>Sisa</span><b>{rupiah(status.remainingAmount)}</b></div><p>DP minimal 50% dari total booking.</p><p>Pembayaran DP maksimal 12 jam setelah booking dibuat.</p><p>DP yang telah dibayarkan tidak dapat dikembalikan apabila booking dibatalkan.</p></aside></div>;
 }
@@ -651,7 +640,7 @@ export function BookingLookup() {
           <Input {...register("whatsapp", { required: true })} />
         </Label>
       )}
-      <Turnstile onToken={setHuman} />
+      <Turnstile action="lookup" onToken={setHuman} />
       {error ? <p className="status-note error-note full">{error}</p> : null}
       <Button className="button full" disabled={busy}>
         <Search /> {busy ? "SEARCHING..." : "OPEN BOOKING"}

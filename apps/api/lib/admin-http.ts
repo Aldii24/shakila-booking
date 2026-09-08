@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import {
-  createDemoAdminSession,
-  DEMO_ADMIN_COOKIE,
-  verifyDemoAdminCredentials,
-  verifyDemoAdminSession,
+  ADMIN_SESSION_COOKIE,
+  createAdminSession,
+  verifyAdminCredentials,
+  verifyAdminSession,
 } from "@booking/auth";
 import {
   adminBookingCommand,
@@ -42,9 +42,16 @@ import {
 import { renderBookingConfirmationPreview } from "@booking/email";
 import { getDirectInvoicePdf, getInvoiceDownload } from "@booking/invoice";
 import { getIntegrationMode } from "@booking/validation";
+import { databaseUuidSchema } from "@booking/contracts";
 import { z } from "zod";
 import { body, failure, ok } from "./http";
 import { completePostPayment } from "./post-payment";
+import {
+  clearLoginFailures,
+  inspectLoginRateLimit,
+  loginRateLimitKey,
+  recordLoginFailure,
+} from "./login-rate-limit";
 
 const loginSchema = z.object({
   email: z.email(),
@@ -55,10 +62,10 @@ const checkoutSchema = z.object({
 });
 const blockSchema = z.object({
   resourceType: z.enum(["ACCOMMODATION_UNIT", "JEEP_UNIT"]),
-  unitId: z.uuid(),
+  unitId: databaseUuidSchema,
   startDate: z.iso.date(),
   endDate: z.iso.date().optional(),
-  departureSlotId: z.uuid().optional(),
+  departureSlotId: databaseUuidSchema.optional(),
   reason: z.string().min(2).max(80),
   note: z.string().max(2000).optional(),
 });
@@ -132,7 +139,7 @@ const manualBookingSchema = z.discriminatedUnion("business", [
   manualBaseSchema.extend({
     business: z.literal("jeep"),
     reservation: z.object({
-      packageSlug: z.string().min(1), tourDate: z.iso.date(), departureSlotId: z.uuid(),
+      packageSlug: z.string().min(1), tourDate: z.iso.date(), departureSlotId: databaseUuidSchema,
       quantity: z.number().int().positive(), guestCount: z.number().int().positive(),
     }),
   }),
@@ -149,7 +156,7 @@ function cookie(request: Request, name: string) {
     ?.slice(name.length + 1);
 }
 function requireAdmin(request: Request) {
-  const session = verifyDemoAdminSession(cookie(request, DEMO_ADMIN_COOKIE));
+  const session = verifyAdminSession(cookie(request, ADMIN_SESSION_COOKIE));
   if (!session)
     throw new DomainError("UNAUTHORIZED", "Admin session is required.", 401);
   if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
@@ -180,12 +187,24 @@ export async function handleAdmin(
   try {
     if (segments.join("/") === "auth/login" && request.method === "POST") {
       const input = loginSchema.parse(await body(request));
-      if (!verifyDemoAdminCredentials(input.email, input.password))
+      const rateLimitKey = loginRateLimitKey(request, input.email);
+      const limit = inspectLoginRateLimit(rateLimitKey);
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { data: null, error: { code: "RATE_LIMITED", message: "Terlalu banyak percobaan login. Coba kembali nanti." }, meta: null },
+          { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+        );
+      }
+      if (!verifyAdminCredentials(input.email, input.password)) {
+        recordLoginFailure(rateLimitKey);
         throw new DomainError(
           "UNAUTHORIZED",
           "Email atau password tidak valid.",
           401,
         );
+      }
+      clearLoginFailures(rateLimitKey);
+      const production = getIntegrationMode().appMode === "production";
       const response = ok({
         email: input.email.trim().toLowerCase(),
         name: "Administrator",
@@ -193,12 +212,12 @@ export async function handleAdmin(
         mode: "OPERASIONAL",
       });
       response.cookies.set(
-        DEMO_ADMIN_COOKIE,
-        createDemoAdminSession(input.email),
+        ADMIN_SESSION_COOKIE,
+        createAdminSession(input.email),
         {
           httpOnly: true,
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-          secure: process.env.NODE_ENV === "production",
+          sameSite: production ? "none" : "lax",
+          secure: production,
           path: "/",
           maxAge: 8 * 60 * 60,
         },
@@ -207,11 +226,12 @@ export async function handleAdmin(
     }
     if (segments.join("/") === "auth/logout" && request.method === "POST") {
       requireAdmin(request);
+      const production = getIntegrationMode().appMode === "production";
       const response = ok({ signedOut: true });
-      response.cookies.set(DEMO_ADMIN_COOKIE, "", {
+      response.cookies.set(ADMIN_SESSION_COOKIE, "", {
         httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+        sameSite: production ? "none" : "lax",
+        secure: production,
         path: "/",
         maxAge: 0,
       });

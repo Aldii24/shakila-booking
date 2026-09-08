@@ -108,31 +108,34 @@ export async function getPublicJeepCalendar(
          s.departure_time <= (now() at time zone 'Asia/Jakarta')::time)) as "bookingClosed",
       count(u.id)::int as "totalUnits",
       count(u.id) filter(where exists(
-        select 1 from jeep_unit_reservations r where r.jeep_unit_id=u.id
-          and r.departure_slot_id=s.id and r.tour_date=d.business_date and r.state='HELD'
+        select 1 from jeep_unit_reservations r join jeep_departure_slots rs on rs.id=r.departure_slot_id
+        where r.jeep_unit_id=u.id and rs.departure_time=s.departure_time
+          and r.tour_date=d.business_date and r.state='HELD'
       ))::int as "heldUnits",
       count(u.id) filter(where exists(
-        select 1 from jeep_unit_reservations r where r.jeep_unit_id=u.id
-          and r.departure_slot_id=s.id and r.tour_date=d.business_date
+        select 1 from jeep_unit_reservations r join jeep_departure_slots rs on rs.id=r.departure_slot_id
+        where r.jeep_unit_id=u.id and rs.departure_time=s.departure_time and r.tour_date=d.business_date
           and r.state in ('CONFIRMED','IN_USE')
       ))::int as "confirmedUnits",
       count(u.id) filter(where exists(
-        select 1 from inventory_blocks ib where ib.jeep_unit_id=u.id
+        select 1 from inventory_blocks ib left join jeep_departure_slots blocked_slot on blocked_slot.id=ib.departure_slot_id
+        where ib.jeep_unit_id=u.id
           and ib.removed_at is null and ib.start_date=d.business_date
-          and (ib.departure_slot_id is null or ib.departure_slot_id=s.id)
+          and (ib.departure_slot_id is null or blocked_slot.departure_time=s.departure_time)
       ))::int as "blockedUnits",
       count(u.id) filter(where
         (d.business_date > (now() at time zone 'Asia/Jakarta')::date or
           (d.business_date = (now() at time zone 'Asia/Jakarta')::date and
            s.departure_time > (now() at time zone 'Asia/Jakarta')::time)) and
         not exists(
-          select 1 from jeep_unit_reservations r where r.jeep_unit_id=u.id
-            and r.departure_slot_id=s.id and r.tour_date=d.business_date
+          select 1 from jeep_unit_reservations r join jeep_departure_slots rs on rs.id=r.departure_slot_id
+          where r.jeep_unit_id=u.id and rs.departure_time=s.departure_time and r.tour_date=d.business_date
             and r.state in ('HELD','CONFIRMED','IN_USE')
         ) and not exists(
-          select 1 from inventory_blocks ib where ib.jeep_unit_id=u.id
+          select 1 from inventory_blocks ib left join jeep_departure_slots blocked_slot on blocked_slot.id=ib.departure_slot_id
+          where ib.jeep_unit_id=u.id
             and ib.removed_at is null and ib.start_date=d.business_date
-            and (ib.departure_slot_id is null or ib.departure_slot_id=s.id)
+            and (ib.departure_slot_id is null or blocked_slot.departure_time=s.departure_time)
         )
       )::int as "availableUnits"
     from dates d

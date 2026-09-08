@@ -2,9 +2,9 @@ import { DomainError } from "@booking/booking";
 import { getIntegrationMode } from "@booking/validation";
 import { z } from "zod";
 
-const responseSchema=z.object({success:z.boolean(),"error-codes":z.array(z.string()).optional()});
+const responseSchema=z.object({success:z.boolean(),action:z.string().optional(),hostname:z.string().optional(),"error-codes":z.array(z.string()).optional()});
 
-export async function verifyHuman(token:string|undefined,request:Request){
+export async function verifyHuman(token:string|undefined,request:Request,expectedAction:string){
   const mode=getIntegrationMode();
   if(mode.turnstileMode==="disabled"){
     if(mode.appMode!=="demo")throw new DomainError("HUMAN_VERIFICATION_REQUIRED","Turnstile can only be disabled in demo mode.",503);
@@ -19,6 +19,6 @@ export async function verifyHuman(token:string|undefined,request:Request){
   const remoteIp=request.headers.get("cf-connecting-ip");if(remoteIp)form.set("remoteip",remoteIp);
   const response=await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify",{method:"POST",body:form,cache:"no-store"});
   if(!response.ok)throw new DomainError("HUMAN_VERIFICATION_FAILED","Human verification could not be completed.",502);
-  const result=responseSchema.parse(await response.json());if(!result.success)throw new DomainError("HUMAN_VERIFICATION_FAILED","Human verification failed. Please try again.",400);
+  const result=responseSchema.parse(await response.json());if(!result.success||result.action!==expectedAction)throw new DomainError("HUMAN_VERIFICATION_FAILED","Human verification failed. Please try again.",400);
   return {verified:true as const,bypassed:false as const};
 }

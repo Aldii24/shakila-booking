@@ -265,10 +265,10 @@ export async function getAdminCalendar(
       from dates d cross join accommodation_units u where u.is_active group by d.business_date
     ), jeep as (
       select d.business_date::text as "date",'jeep' business,s.id::text as "departureSlotId",s.name as "slotName",count(u.id)::int total,
-        count(u.id) filter(where exists(select 1 from jeep_unit_reservations r where r.jeep_unit_id=u.id and r.departure_slot_id=s.id and r.tour_date=d.business_date and r.state='HELD'))::int held,
-        count(u.id) filter(where exists(select 1 from jeep_unit_reservations r where r.jeep_unit_id=u.id and r.departure_slot_id=s.id and r.tour_date=d.business_date and r.state in ('CONFIRMED','IN_USE')))::int confirmed,
-        count(u.id) filter(where exists(select 1 from inventory_blocks ib where ib.jeep_unit_id=u.id and ib.removed_at is null and ib.start_date=d.business_date and (ib.departure_slot_id is null or ib.departure_slot_id=s.id)))::int blocked,
-        count(u.id) filter(where not exists(select 1 from jeep_unit_reservations r where r.jeep_unit_id=u.id and r.departure_slot_id=s.id and r.tour_date=d.business_date and r.state in ('HELD','CONFIRMED','IN_USE')) and not exists(select 1 from inventory_blocks ib where ib.jeep_unit_id=u.id and ib.removed_at is null and ib.start_date=d.business_date and (ib.departure_slot_id is null or ib.departure_slot_id=s.id)))::int available
+        count(u.id) filter(where exists(select 1 from jeep_unit_reservations r join jeep_departure_slots rs on rs.id=r.departure_slot_id where r.jeep_unit_id=u.id and rs.departure_time=s.departure_time and r.tour_date=d.business_date and r.state='HELD'))::int held,
+        count(u.id) filter(where exists(select 1 from jeep_unit_reservations r join jeep_departure_slots rs on rs.id=r.departure_slot_id where r.jeep_unit_id=u.id and rs.departure_time=s.departure_time and r.tour_date=d.business_date and r.state in ('CONFIRMED','IN_USE')))::int confirmed,
+        count(u.id) filter(where exists(select 1 from inventory_blocks ib left join jeep_departure_slots blocked_slot on blocked_slot.id=ib.departure_slot_id where ib.jeep_unit_id=u.id and ib.removed_at is null and ib.start_date=d.business_date and (ib.departure_slot_id is null or blocked_slot.departure_time=s.departure_time)))::int blocked,
+        count(u.id) filter(where not exists(select 1 from jeep_unit_reservations r join jeep_departure_slots rs on rs.id=r.departure_slot_id where r.jeep_unit_id=u.id and rs.departure_time=s.departure_time and r.tour_date=d.business_date and r.state in ('HELD','CONFIRMED','IN_USE')) and not exists(select 1 from inventory_blocks ib left join jeep_departure_slots blocked_slot on blocked_slot.id=ib.departure_slot_id where ib.jeep_unit_id=u.id and ib.removed_at is null and ib.start_date=d.business_date and (ib.departure_slot_id is null or blocked_slot.departure_time=s.departure_time)))::int available
       from dates d cross join jeep_units u cross join jeep_departure_slots s where u.is_active and s.is_active group by d.business_date,s.id,s.name
     ) select * from glamping where (${business}::text is null or ${business}='glamping') union all select * from jeep where (${business}::text is null or ${business}='jeep') order by "date",business,"slotName"
   `),
@@ -339,7 +339,7 @@ export async function createInventoryBlock(
       );
     const conflict = rows<{ exists: boolean }>(
       await tx.execute(
-        sql`select exists(select 1 from jeep_unit_reservations where jeep_unit_id=${input.unitId}::uuid and tour_date=${input.startDate}::date and departure_slot_id=${input.departureSlotId}::uuid and state in ('HELD','CONFIRMED','IN_USE')) exists`,
+        sql`select exists(select 1 from jeep_unit_reservations r join jeep_departure_slots reserved_slot on reserved_slot.id=r.departure_slot_id join jeep_departure_slots requested_slot on requested_slot.id=${input.departureSlotId}::uuid where r.jeep_unit_id=${input.unitId}::uuid and r.tour_date=${input.startDate}::date and reserved_slot.departure_time=requested_slot.departure_time and r.state in ('HELD','CONFIRMED','IN_USE')) exists`,
       ),
     )[0];
     if (conflict?.exists)

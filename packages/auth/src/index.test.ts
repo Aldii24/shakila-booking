@@ -1,38 +1,34 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  createDemoAdminSession,
-  demoAdminCredentials,
-  verifyDemoAdminCredentials,
-  verifyDemoAdminSession,
-} from "./index.js";
+import { adminCredentials, createAdminSession, verifyAdminCredentials, verifyAdminSession } from "./index.js";
 
-describe("explicit demo admin auth", () => {
+describe("admin authentication", () => {
   beforeEach(() => {
-    process.env.APP_MODE = "demo";
-    process.env.BOOKING_ACCESS_TOKEN_SECRET = "test-secret-at-least-local";
-    process.env.DEMO_ADMIN_EMAIL = "demo@example.test";
-    process.env.DEMO_ADMIN_PASSWORD = "correct-password";
-  });
-
-  it("accepts configured credentials and rejects incorrect passwords", () => {
-    expect(verifyDemoAdminCredentials("DEMO@example.test", "correct-password")).toBe(true);
-    expect(verifyDemoAdminCredentials("demo@example.test", "wrong-password")).toBe(false);
-  });
-
-  it("uses the documented fallback only in demo mode", () => {
-    delete process.env.DEMO_ADMIN_EMAIL;
-    delete process.env.DEMO_ADMIN_PASSWORD;
-    expect(demoAdminCredentials()).toEqual({
-      email: "admin@shakilagroup.demo",
-      password: "demo12345",
-    });
     process.env.APP_MODE = "production";
-    expect(() => demoAdminCredentials()).toThrow(/APP_MODE=demo/);
+    process.env.ADMIN_EMAIL = "owner@example.test";
+    process.env.ADMIN_PASSWORD = "correct-production-password";
+    process.env.ADMIN_SESSION_SECRET = "test-admin-session-secret-at-least-32-characters";
+  });
+
+  it("accepts only production credentials supplied through the environment", () => {
+    expect(verifyAdminCredentials("OWNER@example.test", "correct-production-password")).toBe(true);
+    expect(verifyAdminCredentials("owner@example.test", "wrong-password")).toBe(false);
+  });
+
+  it("fails closed when production credentials are absent", () => {
+    delete process.env.ADMIN_EMAIL;
+    delete process.env.ADMIN_PASSWORD;
+    expect(() => adminCredentials()).toThrow(/required in production/);
+  });
+
+  it("does not accept demo credentials in production", () => {
+    process.env.DEMO_ADMIN_EMAIL = "demo@example.test";
+    process.env.DEMO_ADMIN_PASSWORD = "demo-password";
+    expect(verifyAdminCredentials("demo@example.test", "demo-password")).toBe(false);
   });
 
   it("signs and validates an expiring session", () => {
-    const token = createDemoAdminSession("demo@example.test", 60);
-    expect(verifyDemoAdminSession(token)?.role).toBe("OWNER");
-    expect(verifyDemoAdminSession(`${token}tampered`)).toBeNull();
+    const token = createAdminSession("owner@example.test", 60);
+    expect(verifyAdminSession(token)?.role).toBe("OWNER");
+    expect(verifyAdminSession(`${token}tampered`)).toBeNull();
   });
 });

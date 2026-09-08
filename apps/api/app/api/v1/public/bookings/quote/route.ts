@@ -1,2 +1,2 @@
-import { quoteBooking } from "@booking/booking"; import { quoteRequestSchema } from "@booking/contracts"; import { body,failure,ok } from "@/lib/http";
-export async function POST(request:Request){try{return ok(await quoteBooking(quoteRequestSchema.parse(await body(request))));}catch(e){return failure(e);}}
+import { DomainError,quoteBooking } from "@booking/booking"; import { quoteRequestSchema } from "@booking/contracts"; import { body,failure,ok } from "@/lib/http";
+export async function POST(request:Request){try{const input=quoteRequestSchema.parse(await body(request));if(input.business==="jeep"&&input.quantity!==1)throw new DomainError("INVALID_QUANTITY","Reservasi web hanya mendukung satu Jeep. Hubungi Admin untuk tambahan unit.",400);return ok(await quoteBooking(input));}catch(e){return failure(e);}}
