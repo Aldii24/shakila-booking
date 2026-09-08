@@ -241,7 +241,7 @@ Important conditions — `SOURCE_DERIVED_DATA`:
 - Price applies to one package booking and the maximum capacity of its room type.
 - Package price includes tickets according to the route; it may be adjusted if official destination tariffs change.
 - Included ojek follows the route and the points that require ojek.
-- Weekend/holiday surcharge: Rp50.000 per package.
+- No weekend or public-holiday surcharge — `CONFIRMED_CLIENT_DATA` (8 September 2026).
 - Room and Jeep availability follows the booking date.
 
 Each of the eight bundle items maps to these exact source files:

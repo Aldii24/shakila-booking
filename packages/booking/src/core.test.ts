@@ -8,7 +8,7 @@ describe("booking calculations",()=>{
   it("sets the payment deadline to 12 hours",()=>expect(bookingExpiration(new Date("2026-08-30T01:00:00Z")).toISOString()).toBe("2026-08-30T13:00:00.000Z"));
   it("calculates Glamping quantity times nights",()=>expect(calculateGlampingPrice(850000,2,"2026-08-29","2026-08-31").totalAmount).toBe(3_400_000));
   it("calculates Jeep price per physical Jeep",()=>expect(calculateJeepPrice(750000,3).totalAmount).toBe(2_250_000));
-  it("calculates one Jeep bundle plus additional room nights",()=>expect(calculateBundlePrice(1_799_000,550_000,50_000,2,"2099-07-04","2099-07-07")).toMatchObject({nightCount:3,additionalNightCount:2,totalAmount:5_898_000}));
+  it("calculates one Jeep bundle plus additional room nights without a weekend surcharge",()=>expect(calculateBundlePrice(1_799_000,550_000,0,2,"2099-07-04","2099-07-07")).toMatchObject({nightCount:3,additionalNightCount:2,additionalAmount:0,totalAmount:5_798_000}));
   it("rejects an invalid accommodation range",()=>expect(()=>calculateNightCount("2026-08-30","2026-08-30")).toThrow(/after/));
   it("accepts the checkout boundary as a new range",()=>{expect(calculateNightCount("2026-08-29","2026-08-30")).toBe(1);expect(calculateNightCount("2026-08-30","2026-08-31")).toBe(1);});
   it("enforces aggregate guest capacity",()=>expect(()=>assertCapacity(5,2,2)).toThrow(/capacity/));

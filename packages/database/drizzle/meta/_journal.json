@@ -71,6 +71,13 @@
       "when": 1788847991820,
       "tag": "0009_tearful_blonde_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788884981229,
+      "tag": "0010_no_weekend_surcharge",
+      "breakpoints": true
     }
   ]
 }

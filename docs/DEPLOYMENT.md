@@ -68,9 +68,9 @@ production frontend origins. Secrets are stored only in ignored files on the
 VPS.
 
 Payment proof objects are written only to the private R2 bucket configured by
-`R2_PAYMENT_PROOFS_BUCKET_NAME`. Invoice PDFs use `R2_BUCKET_NAME` when a
-separate private bucket is configured, and otherwise use the same private
-bucket under the `invoices/` prefix. Do not attach a public/custom domain to
-either bucket. Admin previews and downloads are streamed through authenticated
-API endpoints; legacy proof blobs already stored in PostgreSQL remain readable
-and are not deleted or migrated automatically.
+`R2_PAYMENT_PROOFS_BUCKET_NAME`. Invoice PDFs use that same verified private
+bucket under the `invoices/` prefix; `R2_BUCKET_NAME` remains a fallback for
+older environments. Do not attach a public/custom domain to the bucket. Admin
+previews and downloads are streamed through authenticated API endpoints;
+legacy proof blobs already stored in PostgreSQL remain readable and are not
+deleted or migrated automatically.

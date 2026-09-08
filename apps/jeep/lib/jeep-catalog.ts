@@ -49,7 +49,6 @@ const longRouteInclusion = "Tambahan makan siang untuk 4 tamu";
 const tourStayImportantInformation = [
   "Harga berlaku untuk 1 booking paket dan kapasitas maksimal sesuai tipe kamar",
   "Harga dapat disesuaikan jika tarif resmi destinasi berubah",
-  "Tambahan akhir pekan atau hari libur Rp50.000 per paket",
   "Ketersediaan kamar dan Jeep mengikuti tanggal booking",
 ] as const;
 
