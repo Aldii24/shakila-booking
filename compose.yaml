@@ -36,6 +36,7 @@ x-frontend-build: &frontend-build
 services:
   glamping:
     <<: *app-defaults
+    image: booking-demo-glamping:${IMAGE_TAG:-latest}
     build:
       <<: *frontend-build
       args:
@@ -69,6 +70,7 @@ services:
 
   jeep:
     <<: *app-defaults
+    image: booking-demo-jeep:${IMAGE_TAG:-latest}
     build:
       <<: *frontend-build
       args:
@@ -102,6 +104,7 @@ services:
 
   admin:
     <<: *app-defaults
+    image: booking-demo-admin:${IMAGE_TAG:-latest}
     build:
       <<: *frontend-build
       args:
@@ -135,6 +138,7 @@ services:
 
   api:
     <<: *app-defaults
+    image: booking-demo-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile
@@ -158,6 +162,7 @@ services:
 
   migrate:
     profiles: ["operations"]
+    image: booking-demo-migrate:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile

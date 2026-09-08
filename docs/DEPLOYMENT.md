@@ -32,11 +32,31 @@ network.
 4. Create a remotely managed Cloudflare Tunnel, configure the five public
    hostnames above, store its token in `secrets/cloudflare_tunnel_token`, and
    restrict that file with `chmod 600`.
-5. Run `deploy/deploy.sh` as root. Images are deliberately built sequentially to
-   avoid concurrent compiler memory spikes.
-6. Run migrations explicitly after checking the target Neon connection:
-   `docker compose --env-file .env.production --profile operations run --rm migrate`.
-   Do not seed or reset production automatically.
+5. Run `deploy/deploy.sh <40-character-git-sha>` as root. Migration and
+   application images are deliberately built sequentially to avoid concurrent
+   compiler memory spikes. The script applies committed Drizzle migrations,
+   never seeds or resets production, waits for container health, verifies all
+   public routes, and restores the previously running application images if
+   rollout or verification fails.
+
+## Continuous deployment
+
+`.github/workflows/production.yml` runs the complete lint, typecheck, test, and
+build gate for every push to `main`. Deployment starts only after that gate
+passes. The workflow synchronizes the tested commit to `/opt/booking-demo`
+while preserving `.env.production` and `secrets/`, then invokes the serial,
+rollback-aware deployment script.
+
+Configure these GitHub Actions repository secrets:
+
+- `VPS_HOST`
+- `VPS_USER`
+- `VPS_SSH_PRIVATE_KEY`
+- `VPS_KNOWN_HOSTS`
+
+Production environment values, Cloudflare credentials, database credentials,
+and R2 credentials remain only in ignored files on the VPS. They are not copied
+from CI or committed to the repository.
 
 ## Operations
 

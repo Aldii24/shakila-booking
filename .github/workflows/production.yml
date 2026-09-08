@@ -1,0 +1,98 @@
+name: Production
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm install
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  deploy:
+    name: Deploy production
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/booking-demo
+          chmod 600 ~/.ssh/booking-demo
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          ssh-keygen -F "$VPS_HOST" -f ~/.ssh/known_hosts >/dev/null
+
+      - name: Sync tested source without production secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          rsync --archive --delete \
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='secrets/' \
+            --exclude='node_modules/' \
+            --exclude='.next/' \
+            --exclude='.turbo/' \
+            --exclude='coverage/' \
+            --exclude='output/' \
+            --exclude='tmp/' \
+            -e 'ssh -i ~/.ssh/booking-demo' \
+            ./ "$VPS_USER@$VPS_HOST:/opt/booking-demo/"
+
+      - name: Deploy serially, migrate, and verify health
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/booking-demo "$VPS_USER@$VPS_HOST" \
+            "cd /opt/booking-demo && sudo bash deploy/deploy.sh '${GITHUB_SHA}'"
+
+      - name: Verify public production routes
+        run: |
+          for url in \
+            https://glamping.shakilagrup.com \
+            https://jeep.shakilagrup.com \
+            https://admin.shakilagrup.com \
+            https://api.shakilagrup.com/api/v1/health
+          do
+            curl --fail --silent --show-error --location \
+              --connect-timeout 10 --max-time 30 \
+              --retry 5 --retry-delay 5 --retry-all-errors \
+              --output /dev/null "$url"
+          done
