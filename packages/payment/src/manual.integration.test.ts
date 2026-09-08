@@ -36,6 +36,7 @@ integration("manual transfer and Admin booking revision", () => {
     const { createGlampingBooking } = await import("@booking/booking");
     const { getDb } = await import("@booking/database");
     const { approveManualPaymentProof, rejectManualPaymentProof, submitManualPaymentProof } = await import("./manual.js");
+    const { recordManualSettlement } = await import("./settlement.js");
     const db = getDb();
     const booking = await createGlampingBooking({ business: "glamping", reservation: { productSlug: "glamping-deluxe", checkInDate: "2099-10-02", checkOutDate: "2099-10-03", quantity: 1, guestCount: 2 }, customer: { fullName: "Manual Proof Flow", email, whatsapp: "081288881111" } }, randomUUID(), db);
     const base64 = Buffer.from("89504e470d0a1a0a", "hex").toString("base64");
@@ -53,6 +54,14 @@ integration("manual transfer and Admin booking revision", () => {
     expect(duplicate.duplicate).toBe(true);
     const effects = (await db.execute(sql`select verified_paid_amount::int as paid,(select count(*)::int from booking_events where booking_id=b.id and event_type='PAYMENT_PROOF_APPROVED') approvals from bookings b where id=${booking.bookingId}::uuid`)) as unknown as { paid: number; approvals: number }[];
     expect(effects[0]).toMatchObject({ paid: booking.requiredDpAmount, approvals: 1 });
+    const settlementKey = randomUUID();
+    const remaining = booking.totalAmount - booking.requiredDpAmount;
+    const settlement = await recordManualSettlement(booking.bookingCode, { amount: remaining, method: "TRANSFER", note: "Pelunasan sebelum check-in", idempotencyKey: settlementKey }, "admin@shakila.test", db);
+    const duplicateSettlement = await recordManualSettlement(booking.bookingCode, { amount: remaining, method: "TRANSFER", note: "Pelunasan sebelum check-in", idempotencyKey: settlementKey }, "admin@shakila.test", db);
+    expect(settlement).toMatchObject({ paymentStatus: "PAID", verifiedPaidAmount: booking.totalAmount, remainingAmount: 0, duplicate: false });
+    expect(duplicateSettlement).toMatchObject({ paymentStatus: "PAID", remainingAmount: 0, duplicate: true });
+    const paidState = (await db.execute(sql`select b.payment_status as "paymentStatus",b.remaining_amount::int as remaining,i.paid_amount::int as "invoicePaid",i.remaining_amount::int as "invoiceRemaining",(select count(*)::int from payment_attempts where booking_id=b.id and provider='MANUAL_ADMIN') as settlements,(select count(*)::int from booking_events where booking_id=b.id and title='Pelunasan dicatat') as events from bookings b join invoices i on i.booking_id=b.id where b.id=${booking.bookingId}::uuid`)) as unknown as { paymentStatus: string; remaining: number; invoicePaid: number; invoiceRemaining: number; settlements: number; events: number }[];
+    expect(paidState[0]).toMatchObject({ paymentStatus: "PAID", remaining: 0, invoicePaid: booking.totalAmount, invoiceRemaining: 0, settlements: 1, events: 1 });
   });
 
   it("manual Admin booking uses the shared allocator and cannot overbook", async () => {

@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD)
 
+> **Klarifikasi client — 8 September 2026 (otoritatif):** Setelah DP minimal 50% terverifikasi, sisa pembayaran dicatat manual oleh Admin saat akan Check-In. Check-In hanya tersedia mulai pukul 13.00 WIB, hanya untuk booking `CONFIRMED`, dan hanya setelah pembayaran `PAID` dengan sisa nol. Invoice diperbarui dari snapshot booking/payment tanpa mengubah invoice booking yang masih DP.
+
 > **Klarifikasi client — 6 September 2026 (otoritatif):** Produk aktif tidak memiliki payment gateway. Satu-satunya alur pembayaran customer adalah transfer bank manual, unggah bukti, lalu persetujuan atau penolakan manual oleh Admin. Tidak ada Pakasir, checkout provider, redirect pembayaran, webhook provider, atau verifikasi otomatis. DP minimal 50%, batas pembayaran 12 jam, dan DP hangus jika customer membatalkan. Katalog Homestay diambil dari `docs/CLIENT-CATALOG.md` dan `data/client-catalog.json`; hanya data yang benar-benar belum diberikan client yang ditandai sebagai data demo. Ketentuan ini menggantikan seluruh ketentuan lama yang bertentangan di dokumen ini.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System

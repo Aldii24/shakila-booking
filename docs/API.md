@@ -1,5 +1,7 @@
 # API Specification
 
+> **Klarifikasi client — 8 September 2026 (otoritatif):** `POST /admin/bookings/:bookingCode/settlement` mencatat pelunasan manual dengan `Idempotency-Key` UUID serta body `{ amount, method, note? }`; metode adalah `CASH`, `TRANSFER`, `MANUAL_QRIS`, atau `OTHER`. Endpoint invoice Admin mengalirkan `application/pdf` melalui sesi Admin dan tidak mengembalikan JSON signed-URL sebagai file.
+
 > **Klarifikasi client — 6 September 2026 (otoritatif):** Customer `POST /public/bookings/:bookingCode/payments` hanya mengirim bukti transfer JPG/JPEG/PNG dan nominal yang diklaim. Admin meninjau rekening lalu menyetujui atau menolak bukti secara manual. Tidak ada endpoint Pakasir, checkout provider, redirect pembayaran, webhook provider, maupun verifikasi otomatis. Seluruh bagian lama tentang payment gateway di bawah bersifat usang dan tidak boleh diimplementasikan.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System

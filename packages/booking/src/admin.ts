@@ -129,6 +129,7 @@ export async function adminBookingCommand(
   command: "check-in" | "check-out" | "cancel",
   details: { reason?: string; note?: string; confirmEarlyCheckout?: boolean } = {},
   database: BookingDatabase = getDb(),
+  instant?: Date,
 ) {
   const found = rows<{ id: string; status: string }>(
     await database.execute(
@@ -153,7 +154,7 @@ export async function adminBookingCommand(
     return { bookingId: found.id, status: desired, duplicate: true };
   const result =
     command === "check-in"
-      ? await checkInBooking(found.id, database)
+      ? await checkInBooking(found.id, database, { instant })
       : command === "check-out"
         ? await checkOutBooking(found.id, database, {
             confirmEarlyCheckout: details.confirmEarlyCheckout === true,

@@ -20,6 +20,9 @@ const pesanKesalahan: Record<string, string> = {
   PAYMENT_PROOF_STORAGE_UNAVAILABLE: "Bukti pembayaran belum dapat dibuka.",
   BOOKING_EXPIRED: "Booking sudah kedaluwarsa dan inventori telah dilepas.",
   INVALID_PAYMENT_AMOUNT: "Nominal pembayaran tidak memenuhi ketentuan booking.",
+  PAYMENT_BALANCE_REMAINING: "Booking harus LUNAS sebelum Check-In.",
+  BOOKING_ALREADY_PAID: "Booking ini sudah LUNAS. Tidak ada pembayaran yang ditambahkan.",
+  IDEMPOTENCY_CONFLICT: "Permintaan pembayaran ini sudah digunakan untuk booking lain.",
   VALIDATION_ERROR: "Data belum lengkap atau tidak valid.",
   REQUEST_FAILED: "Permintaan belum dapat diproses.",
 };

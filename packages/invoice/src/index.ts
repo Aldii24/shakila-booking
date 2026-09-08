@@ -8,8 +8,9 @@ import { getIntegrationMode } from "@booking/validation";
 const rows=<T>(value:unknown)=>value as T[];
 type InvoiceSnapshot={invoiceId:string;invoiceNumber:string;status:string;bookingCode:string;businessName:string;businessSlug:string;customerName:string;customerEmail:string;customerWhatsapp:string;bookingType:string;productName:string;startDate:string;endDate:string|null;departureTime:string|null;quantity:number;guestCount:number;unitPrice:number;subtotal:number;total:number;dpPercentage:number;paid:number;remaining:number;paymentStatus:string;issuedAt:string;r2ObjectKey:string|null;fileName:string|null};
 function r2Config(){const accountId=process.env.R2_ACCOUNT_ID,accessKeyId=process.env.R2_ACCESS_KEY_ID,secretAccessKey=process.env.R2_SECRET_ACCESS_KEY,bucket=process.env.R2_BUCKET_NAME;if(!accountId||!accessKeyId||!secretAccessKey||!bucket)throw new Error("R2 storage is not configured.");return {bucket,client:new S3Client({region:"auto",endpoint:`https://${accountId}.r2.cloudflarestorage.com`,credentials:{accessKeyId,secretAccessKey}})};}
-async function snapshot(bookingId:string,database:BookingDatabase){const item=rows<InvoiceSnapshot>(await database.execute(sql`select i.id as "invoiceId",i.invoice_number as "invoiceNumber",i.status,i.r2_object_key as "r2ObjectKey",i.file_name as "fileName",i.issued_at::text as "issuedAt",b.booking_code as "bookingCode",bu.name as "businessName",bu.slug as "businessSlug",b.customer_name as "customerName",b.customer_email as "customerEmail",b.customer_whatsapp as "customerWhatsapp",b.booking_type as "bookingType",coalesce(g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(g.check_in_date,j.tour_date)::text as "startDate",g.check_out_date::text as "endDate",j.departure_time_snapshot::text as "departureTime",b.quantity,b.guest_count as "guestCount",coalesce(g.unit_price_snapshot,j.unit_price_snapshot)::int as "unitPrice",b.subtotal_amount::int as subtotal,b.total_amount::int as total,b.dp_percentage as "dpPercentage",b.verified_paid_amount::int as paid,b.remaining_amount::int as remaining,b.payment_status as "paymentStatus" from invoices i join bookings b on b.id=i.booking_id join businesses bu on bu.id=b.business_id left join glamping_booking_details g on g.booking_id=b.id left join jeep_booking_details j on j.booking_id=b.id where b.id=${bookingId}::uuid and b.status in ('CONFIRMED','CHECKED_IN','CHECKED_OUT','COMPLETED') limit 1`))[0];if(!item)throw new Error("Confirmed booking invoice was not found.");return item;}
+async function snapshot(bookingId:string,database:BookingDatabase){const item=rows<InvoiceSnapshot>(await database.execute(sql`select i.id as "invoiceId",i.invoice_number as "invoiceNumber",i.status,i.r2_object_key as "r2ObjectKey",i.file_name as "fileName",i.issued_at::text as "issuedAt",b.booking_code as "bookingCode",bu.name as "businessName",bu.slug as "businessSlug",b.customer_name as "customerName",b.customer_email as "customerEmail",b.customer_whatsapp as "customerWhatsapp",b.booking_type as "bookingType",coalesce(bd.product_name_snapshot,g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(bd.check_in_date,g.check_in_date,j.tour_date)::text as "startDate",coalesce(bd.check_out_date,g.check_out_date)::text as "endDate",j.departure_time_snapshot::text as "departureTime",b.quantity,b.guest_count as "guestCount",coalesce(bd.unit_price_snapshot,g.unit_price_snapshot,j.unit_price_snapshot)::int as "unitPrice",b.subtotal_amount::int as subtotal,b.total_amount::int as total,b.dp_percentage as "dpPercentage",b.verified_paid_amount::int as paid,b.remaining_amount::int as remaining,b.payment_status as "paymentStatus" from invoices i join bookings b on b.id=i.booking_id join businesses bu on bu.id=b.business_id left join bundle_booking_details bd on bd.booking_id=b.id left join glamping_booking_details g on g.booking_id=b.id left join jeep_booking_details j on j.booking_id=b.id where b.id=${bookingId}::uuid and b.status in ('CONFIRMED','CHECKED_IN','CHECKED_OUT','COMPLETED') limit 1`))[0];if(!item)throw new Error("Confirmed booking invoice was not found.");return item;}
 const rupiah=(value:number)=>`Rp${new Intl.NumberFormat("id-ID").format(value)}`;
+export const invoicePaymentLabel = (remaining: number) => remaining > 0 ? "DP SUDAH DIBAYAR" : "LUNAS";
 export async function renderInvoicePdf(item:InvoiceSnapshot){
   const pdf=await PDFDocument.create(),page=pdf.addPage([595,842]);
   const regular=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -31,7 +32,7 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
   page.drawText("D E T A I L   D O K U M E N",{x:342,y:674,size:7,font:bold,color:muted});
   page.drawText("Kode booking",{x:342,y:649,size:9,font:regular,color:muted});right(item.bookingCode,649,9,bold);
   page.drawText("Tanggal terbit",{x:342,y:630,size:9,font:regular,color:muted});right(date(item.issuedAt),630,9,bold);
-  page.drawText("Status",{x:342,y:611,size:9,font:regular,color:muted});right(item.remaining>0?"DP SUDAH DIBAYAR":"LUNAS",611,9,bold);
+  page.drawText("Status",{x:342,y:611,size:9,font:regular,color:muted});right(invoicePaymentLabel(item.remaining),611,9,bold);
 
   page.drawText("RINCIAN RESERVASI",{x:70,y:553,size:20,font:regular,color:ink});
   page.drawLine({start:{x:70,y:536},end:{x:547,y:536},thickness:.8,color:line});
@@ -50,7 +51,7 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
   };
   totalRow("Subtotal",rupiah(item.subtotal),390);
   totalRow("Total reservasi",rupiah(item.total),363,true);
-  totalRow(`DP terverifikasi (${item.dpPercentage}%)`,rupiah(item.paid),332);
+  totalRow("Pembayaran terverifikasi",rupiah(item.paid),332);
   page.drawLine({start:{x:335,y:314},end:{x:547,y:314},thickness:.8,color:line});
   totalRow("Sisa pembayaran",rupiah(item.remaining),286,true);
 
@@ -142,5 +143,32 @@ export async function getDirectInvoicePdf(
     invoiceNumber: item.invoiceNumber,
     fileName: item.fileName ?? `${item.invoiceNumber}.pdf`,
     bytes: await renderInvoicePdf(item),
+  };
+}
+
+export async function getSecureInvoicePdf(
+  bookingId: string,
+  database: BookingDatabase = getDb(),
+) {
+  const mode = getIntegrationMode();
+  if (mode.invoiceStorage === "direct") return getDirectInvoicePdf(bookingId, database);
+  const item = rows<{ invoiceNumber: string; status: string; objectKey: string | null; fileName: string | null }>(
+    await database.execute(sql`
+      select invoice_number as "invoiceNumber",status,r2_object_key as "objectKey",file_name as "fileName"
+      from invoices where booking_id=${bookingId}::uuid limit 1
+    `),
+  )[0];
+  if (!item) return { status: "PENDING" as const };
+  if (item.status !== "GENERATED" || !item.objectKey) {
+    return { status: item.status as "PENDING" | "FAILED" };
+  }
+  const { client, bucket } = r2Config();
+  const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: item.objectKey }));
+  if (!object.Body) throw new Error("Stored invoice PDF has no response body.");
+  return {
+    status: "GENERATED" as const,
+    invoiceNumber: item.invoiceNumber,
+    fileName: item.fileName ?? `${item.invoiceNumber}.pdf`,
+    bytes: await object.Body.transformToByteArray(),
   };
 }

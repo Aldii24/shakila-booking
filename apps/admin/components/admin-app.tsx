@@ -1127,13 +1127,31 @@ function BookingDetail({
       "check-in" | "check-out" | null
     >(null),
     [commandError, setCommandError] = useState(""),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState(""),
+    [settlementOpen, setSettlementOpen] = useState(false),
+    [settlementAmount, setSettlementAmount] = useState(Number(booking.remainingAmount ?? 0)),
+    [settlementMethod, setSettlementMethod] = useState("CASH"),
+    [settlementNote, setSettlementNote] = useState(""),
+    [settlementKey, setSettlementKey] = useState("");
   const today = new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Jakarta",
   });
   const reservationDate = String(booking.startDate ?? "").slice(0, 10);
+  const jakartaTimeParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const jakartaMinutes =
+    Number(jakartaTimeParts.find((part) => part.type === "hour")?.value ?? 0) * 60 +
+    Number(jakartaTimeParts.find((part) => part.type === "minute")?.value ?? 0);
   const checkInIsEarly =
-    booking.status === "CONFIRMED" && reservationDate > today;
+    booking.status === "CONFIRMED" &&
+    (reservationDate > today || (reservationDate === today && jakartaMinutes < 13 * 60));
+  const checkInHasBalance =
+    booking.status === "CONFIRMED" &&
+    (booking.paymentStatus !== "PAID" || Number(booking.remainingAmount) > 0);
   const checkoutIsEarly =
     booking.status === "CHECKED_IN" &&
     Boolean(booking.endDate) &&
@@ -1172,11 +1190,17 @@ function BookingDetail({
         await reload();
       }
     } catch (caught) {
-      if (caught instanceof AdminApiError && caught.code === "CHECK_IN_NOT_ALLOWED") {
+      if (caught instanceof AdminApiError && caught.code === "PAYMENT_BALANCE_REMAINING") {
         setCommandError(
           language === "id"
-            ? "Check-in belum dapat dilakukan. Reservasi harus terkonfirmasi, DP harus terverifikasi, dan tanggal kedatangan harus sudah tiba."
-            : "Check-in is not available yet. The booking must be confirmed, its deposit verified, and its arrival date reached.",
+            ? "Booking harus LUNAS sebelum Check-In. Catat sisa pembayaran tanpa menganggapnya lunas otomatis."
+            : "The booking must be paid in full before check-in. Record the remaining payment first.",
+        );
+      } else if (caught instanceof AdminApiError && caught.code === "CHECK_IN_NOT_ALLOWED") {
+        setCommandError(
+          language === "id"
+            ? "Check-in belum dapat dilakukan. Booking harus terkonfirmasi dan waktu Check-In baru dimulai pukul 13.00 WIB pada tanggal reservasi."
+            : "Check-in is not available yet. The booking must be confirmed and check-in opens at 13:00 WIB on the reservation date.",
         );
       } else if (caught instanceof AdminApiError && caught.code === "CHECK_OUT_NOT_ALLOWED") {
         setCommandError(
@@ -1214,6 +1238,15 @@ function BookingDetail({
       );
       return;
     }
+    const contentType = response.headers.get("content-type") ?? "";
+    if (kind === "invoice" && !contentType.includes("application/pdf")) {
+      setNotice(
+        language === "id"
+          ? "PDF invoice belum tersedia."
+          : "The invoice PDF is not available yet.",
+      );
+      return;
+    }
     const blob = await response.blob(),
       url = URL.createObjectURL(blob);
     if (kind === "invoice") {
@@ -1223,6 +1256,46 @@ function BookingDetail({
       anchor.click();
     } else window.open(url, "_blank", "noopener,noreferrer");
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  }
+  function openSettlement() {
+    setSettlementAmount(Number(booking.remainingAmount ?? 0));
+    setSettlementMethod("CASH");
+    setSettlementNote("");
+    setSettlementKey(crypto.randomUUID());
+    setCommandError("");
+    setSettlementOpen(true);
+  }
+  async function submitSettlement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!settlementKey) return;
+    setBusy(true);
+    setCommandError("");
+    try {
+      const result = await adminApi<{ invoice: "ready" | "failed" | "unchanged" }>(`/bookings/${booking.bookingCode}/settlement`, {
+        method: "POST",
+        headers: { "Idempotency-Key": settlementKey },
+        body: JSON.stringify({
+          amount: settlementAmount,
+          method: settlementMethod,
+          note: settlementNote || undefined,
+        }),
+      });
+      setSettlementOpen(false);
+      setNotice(
+        result.invoice === "failed"
+          ? "Pelunasan berhasil dicatat. PDF invoice belum dapat diperbarui dan dapat dicoba lagi."
+          : "Pelunasan berhasil dicatat. Status pembayaran dan invoice telah diperbarui.",
+      );
+      await reload();
+    } catch (caught) {
+      setCommandError(
+        caught instanceof Error
+          ? caught.message
+          : "Pelunasan belum dapat dicatat. Tidak ada pembayaran yang ditambahkan.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <>
@@ -1236,14 +1309,21 @@ function BookingDetail({
           </Badge>
         </div>
         <div>
+          {booking.status === "CONFIRMED" && Number(booking.remainingAmount) > 0 ? (
+            <Button variant="outline" onClick={openSettlement}>
+              Catat Pelunasan
+            </Button>
+          ) : null}
           {booking.status === "CONFIRMED" ? (
             <Button
-              disabled={checkInIsEarly}
+              disabled={checkInIsEarly || checkInHasBalance}
               title={
-                checkInIsEarly
+                checkInHasBalance
+                  ? "Booking harus LUNAS sebelum Check-In."
+                  : checkInIsEarly
                   ? language === "id"
-                    ? `Check-in tersedia pada ${fmtDate(booking.startDate)}.`
-                    : `Check-in is available on ${fmtDate(booking.startDate)}.`
+                    ? `Check-in tersedia pada ${fmtDate(booking.startDate)} pukul 13.00 WIB.`
+                    : `Check-in is available at 13:00 WIB on ${fmtDate(booking.startDate)}.`
                   : undefined
               }
               onClick={() => { setCommandError(""); setCommand("check-in"); }}
@@ -1270,9 +1350,17 @@ function BookingDetail({
           <Clock3 size={17} />
           <span>
             {language === "id"
-              ? `Early check-in tidak diizinkan. Tindakan check-in aktif pada ${fmtDate(booking.startDate)}.`
-              : `Early check-in is not allowed. Check-in becomes available on ${fmtDate(booking.startDate)}.`}
+              ? `Early check-in tidak diizinkan. Tindakan check-in aktif pada ${fmtDate(booking.startDate)} pukul 13.00 WIB.`
+              : `Early check-in is not allowed. Check-in becomes available at 13:00 WIB on ${fmtDate(booking.startDate)}.`}
           </span>
+        </div>
+      ) : null}
+      {checkInHasBalance ? (
+        <div className="ui-alert danger check-in-eligibility">
+          <span>
+            Masih ada sisa pembayaran {rupiah(Number(booking.remainingAmount))}. Booking harus LUNAS sebelum Check-In.
+          </span>
+          <Button variant="outline" onClick={openSettlement}>Catat Pelunasan</Button>
         </div>
       ) : null}
       {notice ? <div className="ui-alert">{notice}</div> : null}
@@ -1394,6 +1482,54 @@ function BookingDetail({
           ))}
         </Card>
       </div>
+      <Dialog
+        open={settlementOpen}
+        title="Catat Pelunasan"
+        description={`${text(booking.bookingCode)} · Sisa ${rupiah(Number(booking.remainingAmount))}`}
+        onClose={() => { if (!busy) { setSettlementOpen(false); setCommandError(""); } }}
+      >
+        <form className="dialog-form" onSubmit={(event) => void submitSettlement(event)}>
+          <Field label="Nominal pelunasan">
+            <Input
+              type="number"
+              min="1"
+              max={Number(booking.remainingAmount)}
+              value={settlementAmount}
+              onChange={(event) => setSettlementAmount(Number(event.target.value))}
+              required
+            />
+          </Field>
+          <Field label="Metode pembayaran">
+            <AdminSelect
+              value={settlementMethod}
+              onValueChange={setSettlementMethod}
+              placeholder="Pilih metode"
+              options={[
+                { value: "CASH", label: "Tunai" },
+                { value: "TRANSFER", label: "Transfer" },
+                { value: "MANUAL_QRIS", label: "QRIS Manual" },
+                { value: "OTHER", label: "Lainnya" },
+              ]}
+            />
+          </Field>
+          <Field label="Catatan (opsional)">
+            <Textarea
+              value={settlementNote}
+              onChange={(event) => setSettlementNote(event.target.value)}
+              maxLength={2000}
+            />
+          </Field>
+          {commandError ? <div className="ui-alert danger">{commandError}</div> : null}
+          <footer className="dialog-actions">
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => setSettlementOpen(false)}>Batal</Button>
+            <Button
+              disabled={busy || settlementAmount < 1 || settlementAmount > Number(booking.remainingAmount)}
+            >
+              {busy ? "Menyimpan..." : "Catat Pelunasan"}
+            </Button>
+          </footer>
+        </form>
+      </Dialog>
       <Dialog
         open={Boolean(command)}
         title={

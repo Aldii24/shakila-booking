@@ -125,8 +125,19 @@ integration("admin operations against PostgreSQL", () => {
       sql`update jeep_unit_reservations set state='CONFIRMED' where booking_id=${booking.bookingId}::uuid`,
     );
 
+    const checkInInstant = new Date(`${jakartaDate()}T06:00:00.000Z`);
+    await expect(
+      adminBookingCommand(booking.bookingCode, "check-in", {}, db, checkInInstant),
+    ).rejects.toMatchObject({ code: "PAYMENT_BALANCE_REMAINING" });
+    await db.execute(
+      sql`update bookings set payment_status='PAID',verified_paid_amount=total_amount,remaining_amount=0 where id=${booking.bookingId}::uuid`,
+    );
+    await db.execute(
+      sql`update payments set status='PAID',verified_amount=(select total_amount from bookings where id=${booking.bookingId}::uuid) where booking_id=${booking.bookingId}::uuid`,
+    );
+
     expect(
-      (await adminBookingCommand(booking.bookingCode, "check-in")).status,
+      (await adminBookingCommand(booking.bookingCode, "check-in", {}, db, checkInInstant)).status,
     ).toBe("CHECKED_IN");
     expect(
       (await adminBookingCommand(booking.bookingCode, "check-out")).status,

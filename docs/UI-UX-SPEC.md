@@ -1,5 +1,7 @@
 # UI/UX Specification
 
+> **Klarifikasi client — 8 September 2026 (otoritatif):** Booking Detail Admin menampilkan aksi “Catat Pelunasan” untuk sisa pembayaran. Form meminta nominal, Tunai/Transfer/QRIS Manual/Lainnya, serta catatan opsional. Bila belum lunas, Check-In nonaktif dengan pesan dan CTA pelunasan; bila lunas UI menampilkan `LUNAS`. Waktu Check-In aktif mulai 13.00 WIB.
+
 > **Klarifikasi client — 6 September 2026 (otoritatif):** Seluruh UI customer dan Admin hanya memakai Bahasa Indonesia; pemilih bahasa Admin dihapus. Akomodasi dan Jeep memakai logo asli serta satu sistem visual Shakila dengan Plataran sebagai referensi arah, bukan salinan. Pembayaran hanya menampilkan instruksi transfer manual, hitung mundur 12 jam, pratinjau/unggah bukti, dan status verifikasi Admin. Data Homestay serta paket/harga/rute Jeep berasal dari katalog client; hanya stok Jeep 8 unit, slot, kapasitas, dan data lain yang belum tersedia yang diberi label data demo.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System

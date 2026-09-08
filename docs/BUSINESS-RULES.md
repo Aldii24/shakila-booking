@@ -1,5 +1,7 @@
 # Business Rules
 
+> **Klarifikasi client — 8 September 2026 (otoritatif):** Admin dapat mencatat pembayaran sisa secara manual dengan nominal, metode, dan catatan opsional. Setiap pencatatan wajib idempotent dan tidak boleh melebihi sisa. Booking menjadi `PAID` hanya saat pembayaran terverifikasi mencapai total. Check-In ditolak bila masih di bawah total, meskipun DP minimum telah terpenuhi.
+
 > **Klarifikasi client — 6 September 2026 (otoritatif):** Tidak ada payment gateway. `required_dp_amount` minimal 50% dari total, `expires_at` maksimal 12 jam sejak booking dibuat, dan unggah bukti tidak pernah mengonfirmasi booking. Hanya transfer manual yang disetujui Admin yang dihitung terverifikasi. Bukti ditolak wajib memiliki alasan dan dapat diunggah ulang selama booking belum kedaluwarsa. DP yang sudah dibayar hangus jika customer membatalkan. Check-in mulai 13.00 WIB, check-out maksimal 12.00 WIB, dan seluruh waktu memakai `Asia/Jakarta`. Semua aturan Pakasir/provider lama di bawah bersifat usang.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System

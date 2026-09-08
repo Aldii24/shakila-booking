@@ -37,10 +37,11 @@ import {
   approveManualPaymentProof,
   getPaymentProofFile,
   listPaymentProofs,
+  recordManualSettlement,
   rejectManualPaymentProof,
 } from "@booking/payment";
 import { renderBookingConfirmationPreview } from "@booking/email";
-import { getDirectInvoicePdf, getInvoiceDownload } from "@booking/invoice";
+import { getSecureInvoicePdf, prepareInvoice } from "@booking/invoice";
 import { getIntegrationMode } from "@booking/validation";
 import { databaseUuidSchema } from "@booking/contracts";
 import { z } from "zod";
@@ -146,6 +147,11 @@ const manualBookingSchema = z.discriminatedUnion("business", [
 ]);
 const approveProofSchema = z.object({ verifiedAmount: z.number().int().positive() });
 const rejectProofSchema = z.object({ reason: z.string().trim().min(3).max(500) });
+const settlementSchema = z.object({
+  amount: z.number().int().positive(),
+  method: z.enum(["CASH", "TRANSFER", "MANUAL_QRIS", "OTHER"]),
+  note: z.string().trim().max(2000).optional(),
+});
 
 function cookie(request: Request, name: string) {
   return request.headers
@@ -484,14 +490,35 @@ export async function handleAdmin(
           },
         );
       }
+      if (action === "settlement" && request.method === "POST") {
+        const input = settlementSchema.parse(await body(request));
+        const idempotencyKey = z.uuid().parse(request.headers.get("idempotency-key"));
+        const result = await recordManualSettlement(
+          bookingCode,
+          { ...input, idempotencyKey },
+          session.email,
+        );
+        let invoice: "ready" | "failed" | "unchanged" = "unchanged";
+        if (result.invoiceNeedsRefresh) {
+          try {
+            await prepareInvoice(result.bookingId);
+            invoice = "ready";
+          } catch (error) {
+            invoice = "failed";
+            console.error(
+              "Invoice regeneration after manual settlement failed",
+              error instanceof Error ? error.message : "Unknown error",
+            );
+          }
+        }
+        return ok({ ...result, invoice });
+      }
       if (action === "invoice" && request.method === "GET") {
         const booking = (await getAdminBooking(bookingCode)) as Record<
           string,
           unknown
         >;
-        if (getIntegrationMode().invoiceStorage !== "direct")
-          return ok(await getInvoiceDownload(String(booking.id)));
-        const invoice = await getDirectInvoicePdf(String(booking.id));
+        const invoice = await getSecureInvoicePdf(String(booking.id));
         if (invoice.status !== "GENERATED") return ok(invoice);
         return new Response(Buffer.from(invoice.bytes), {
           headers: {

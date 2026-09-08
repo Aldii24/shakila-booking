@@ -1,5 +1,7 @@
 # Database Design
 
+> **Klarifikasi client — 8 September 2026 (otoritatif):** Pelunasan yang dicatat Admin disimpan sebagai `payment_attempts` sukses ber-provider `MANUAL_ADMIN`; `provider_order_id` adalah kunci idempotensi unik. Transaksi mengunci booking/payment, memperbarui agregat booking, payment, snapshot finansial invoice, dan timeline secara atomik. Regenerasi/upload PDF dilakukan sesudah transaksi agar kegagalan storage tidak membatalkan pembayaran terverifikasi.
+
 > **Klarifikasi client — 6 September 2026 (otoritatif):** `payment_proofs` adalah satu-satunya sumber verifikasi pembayaran customer: menyimpan nominal klaim/verifikasi, status tinjauan, alasan penolakan, waktu, Admin pemeriksa, serta referensi adapter penyimpanan. Tidak ada transaksi atau webhook payment gateway aktif. Booking source adalah `ONLINE`, `ADMIN_MANUAL`, atau `WALK_IN`; DP minimal 50%, tenggat 720 menit, serta waktu akomodasi 13:00/12:00 WIB. Migrasi tidak boleh merusak snapshot historis.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System
