@@ -36,7 +36,7 @@ async function getSnapshot(bookingId: string, database: BookingDatabase) {
 
 async function renderSnapshot(item: EmailSnapshot) {
   const date=(value:string)=>new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Jakarta"}).format(new Date(`${value}T00:00:00+07:00`));
-  const reservation = item.endDate ? `${item.productName} · ${date(item.startDate)} hingga ${date(item.endDate)}` : `${item.productName} · ${date(item.startDate)} pukul ${item.departureTime?.slice(0,5)} WIB`;
+  const reservation = item.endDate ? `${item.productName} · ${date(item.startDate)} hingga ${date(item.endDate)}` : `${item.productName} · ${date(item.startDate)} · ${item.departureTime ? `pukul ${item.departureTime.slice(0,5)} WIB` : "Jadwal Keberangkatan"}`;
   return render(React.createElement(ConfirmationEmail, {
     brand:item.businessSlug,businessName:item.businessName,customerName:item.customerName,
     bookingCode:item.bookingCode,reservation,paidAmount:rupiah(item.paid),remainingAmount:rupiah(item.remaining),

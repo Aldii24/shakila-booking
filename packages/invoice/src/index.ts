@@ -10,7 +10,7 @@ type InvoiceSnapshot={invoiceId:string;invoiceNumber:string;status:string;bookin
 function r2Config(){const accountId=process.env.R2_ACCOUNT_ID,accessKeyId=process.env.R2_ACCESS_KEY_ID,secretAccessKey=process.env.R2_SECRET_ACCESS_KEY,bucket=process.env.R2_BUCKET_NAME;if(!accountId||!accessKeyId||!secretAccessKey||!bucket)throw new Error("R2 storage is not configured.");return {bucket,client:new S3Client({region:"auto",endpoint:`https://${accountId}.r2.cloudflarestorage.com`,credentials:{accessKeyId,secretAccessKey}})};}
 async function snapshot(bookingId:string,database:BookingDatabase){const item=rows<InvoiceSnapshot>(await database.execute(sql`select i.id as "invoiceId",i.invoice_number as "invoiceNumber",i.status,i.r2_object_key as "r2ObjectKey",i.file_name as "fileName",i.issued_at::text as "issuedAt",b.booking_code as "bookingCode",bu.name as "businessName",bu.slug as "businessSlug",b.customer_name as "customerName",b.customer_email as "customerEmail",b.customer_whatsapp as "customerWhatsapp",b.booking_type as "bookingType",coalesce(bd.product_name_snapshot,g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(bd.check_in_date,g.check_in_date,j.tour_date)::text as "startDate",coalesce(bd.check_out_date,g.check_out_date)::text as "endDate",j.departure_time_snapshot::text as "departureTime",b.quantity,b.guest_count as "guestCount",coalesce(bd.unit_price_snapshot,g.unit_price_snapshot,j.unit_price_snapshot)::int as "unitPrice",b.subtotal_amount::int as subtotal,b.total_amount::int as total,b.dp_percentage as "dpPercentage",b.verified_paid_amount::int as paid,b.remaining_amount::int as remaining,b.payment_status as "paymentStatus" from invoices i join bookings b on b.id=i.booking_id join businesses bu on bu.id=b.business_id left join bundle_booking_details bd on bd.booking_id=b.id left join glamping_booking_details g on g.booking_id=b.id left join jeep_booking_details j on j.booking_id=b.id where b.id=${bookingId}::uuid and b.status in ('CONFIRMED','CHECKED_IN','CHECKED_OUT','COMPLETED') limit 1`))[0];if(!item)throw new Error("Confirmed booking invoice was not found.");return item;}
 const rupiah=(value:number)=>`Rp${new Intl.NumberFormat("id-ID").format(value)}`;
-export const invoicePaymentLabel = (remaining: number) => remaining > 0 ? "DP SUDAH DIBAYAR" : "LUNAS";
+export const invoicePaymentLabel = (remaining: number) => remaining > 0 ? "DP TERBAYAR" : "LUNAS";
 export async function renderInvoicePdf(item:InvoiceSnapshot){
   const pdf=await PDFDocument.create(),page=pdf.addPage([595,842]);
   const regular=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -39,7 +39,7 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
   page.drawText("DESKRIPSI",{x:70,y:516,size:8,font:bold,color:muted});
   right("NILAI",516,8,bold);
   page.drawText(item.productName,{x:70,y:484,size:13,font:bold,color:ink});
-  const schedule=item.endDate?`${date(item.startDate)} hingga ${date(item.endDate)}`:`${date(item.startDate)} / ${item.departureTime?.slice(0,5)??""} WIB`;
+  const schedule=item.endDate?`${date(item.startDate)} hingga ${date(item.endDate)}`:`${date(item.startDate)} / ${item.departureTime ? `${item.departureTime.slice(0,5)} WIB` : "Jadwal Keberangkatan"}`;
   page.drawText(schedule,{x:70,y:465,size:9,font:regular,color:muted});
   page.drawText(`${item.quantity} unit / ${item.guestCount} tamu / ${rupiah(item.unitPrice)} per unit`,{x:70,y:447,size:9,font:regular,color:muted});
   right(rupiah(item.subtotal),484,11,bold);
@@ -56,7 +56,7 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
   totalRow("Sisa pembayaran",rupiah(item.remaining),286,true);
 
   page.drawRectangle({x:70,y:204,width:477,height:48,color:accent});
-  page.drawText(item.remaining>0?"DP SUDAH DIBAYAR":"PEMBAYARAN LUNAS",{x:88,y:222,size:12,font:bold,color:rgb(1,1,1)});
+  page.drawText(item.remaining>0?"DP TERBAYAR":"LUNAS",{x:88,y:222,size:12,font:bold,color:rgb(1,1,1)});
   const paidText=`Terverifikasi ${rupiah(item.paid)}`;
   page.drawText(paidText,{x:529-regular.widthOfTextAtSize(paidText,9),y:223,size:9,font:regular,color:rgb(1,1,1)});
 

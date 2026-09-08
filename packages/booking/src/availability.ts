@@ -43,7 +43,7 @@ export async function calculateJeepAvailability(input: {
         join jeep_departure_slots reserved_slot on reserved_slot.id = r.departure_slot_id
         join jeep_departure_slots requested_slot on requested_slot.id = ${input.departureSlotId}::uuid
         where r.jeep_unit_id = ju.id and r.tour_date = ${input.tourDate}::date
-          and reserved_slot.departure_time = requested_slot.departure_time
+          and reserved_slot.departure_time is not distinct from requested_slot.departure_time
           and r.state in ('HELD', 'CONFIRMED', 'IN_USE')
       )
       and not exists (
@@ -52,7 +52,7 @@ export async function calculateJeepAvailability(input: {
         join jeep_departure_slots requested_slot on requested_slot.id = ${input.departureSlotId}::uuid
         where b.jeep_unit_id = ju.id and b.removed_at is null
           and b.start_date = ${input.tourDate}::date
-          and (b.departure_slot_id is null or blocked_slot.departure_time = requested_slot.departure_time)
+          and (b.departure_slot_id is null or blocked_slot.departure_time is not distinct from requested_slot.departure_time)
       )
   `);
   return Number(rows[0]?.available_quantity ?? 0);

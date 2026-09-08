@@ -2232,32 +2232,41 @@ All endpoints require an authenticated Admin session and use the standard
 GET  /admin/glamping/types
 POST /admin/glamping/types
 PATCH /admin/glamping/types/:typeId
+DELETE /admin/glamping/types/:typeId
 
 GET  /admin/glamping/types/:typeId/units
 POST /admin/glamping/types/:typeId/units
 PATCH /admin/glamping/units/:unitId
+DELETE /admin/glamping/units/:unitId
 
 GET  /admin/jeep/packages
 POST /admin/jeep/packages
 PATCH /admin/jeep/packages/:packageId
+DELETE /admin/jeep/packages/:packageId
 
 GET  /admin/jeep/packages/:packageId/slots
 POST /admin/jeep/packages/:packageId/slots
 PATCH /admin/jeep/slots/:slotId
+DELETE /admin/jeep/slots/:slotId
 
 GET  /admin/jeep/units
 POST /admin/jeep/units
 PATCH /admin/jeep/units/:unitId
+DELETE /admin/jeep/units/:unitId
 ```
 
 Product create requests accept name, description, positive integer IDR price,
 positive integer capacity, and active state. Slugs are normalized and made unique
 server-side. Unit requests accept normalized unique code, name, and active state.
-Slot requests accept name, `HH:mm` departure time, and active state.
+Slot requests accept name, optional `HH:mm` departure time, and active state.
+When the client has not supplied an official time, `departureTime` is `null` and
+the neutral name `Jadwal Keberangkatan` is used.
 
 Deactivation returns `409 INVENTORY_IN_USE` when a physical unit has an active or
-future `HELD`, `CONFIRMED`, or `IN_USE` reservation. Historical records remain
-linked and no endpoint hard-deletes catalog or inventory rows.
+future `HELD`, `CONFIRMED`, or `IN_USE` reservation. DELETE hard-deletes only
+records without history. A record referenced by booking, reservation, inventory
+block, or bundle history is deactivated and returns `disposition: ARCHIVED` so
+historical snapshots remain linked.
 
 ---
 
@@ -2645,12 +2654,11 @@ Allowed:
 
 # 115. Product Delete Endpoint
 
-Demo v1 tidak memiliki hard delete endpoint.
-
-Use:
+DELETE pada produk, unit, dan jadwal mengembalikan salah satu disposition:
 
 ```text
-isActive = false
+DELETED  — belum pernah memiliki history
+ARCHIVED — memiliki booking/reservation/history; dinonaktifkan dari katalog publik
 ```
 
 ---

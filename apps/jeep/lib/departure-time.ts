@@ -1,4 +1,5 @@
-export function departurePeriod(value: string): string {
+export function departurePeriod(value: string | null): string {
+  if (value === null) return "jadwal dikonfirmasi Admin";
   const hour = Number(value.slice(0, 2));
   if (hour < 4) return "dini hari";
   if (hour < 11) return "pagi";
@@ -7,13 +8,14 @@ export function departurePeriod(value: string): string {
   return "malam";
 }
 
-export function formatDepartureTime(value: string): string {
+export function formatDepartureTime(value: string | null): string {
+  if (value === null) return "Jadwal Keberangkatan";
   return `${value.slice(0, 5).replace(":", ".")} WIB · ${departurePeriod(value)}`;
 }
 
 export function isDeparturePassed(
   tourDate: string,
-  departureTime: string,
+  departureTime: string | null,
   now = new Date(),
 ): boolean {
   if (!tourDate) return false;
@@ -26,5 +28,5 @@ export function isDeparturePassed(
     second: "2-digit",
     hourCycle: "h23",
   }).format(now);
-  return departureTime.slice(0, 8).padEnd(8, ":00") <= current;
+  return departureTime !== null && departureTime.slice(0, 8).padEnd(8, ":00") <= current;
 }

@@ -156,7 +156,7 @@ export const jeepDepartureSlots = pgTable("jeep_departure_slots", {
   businessId: uuid("business_id").notNull().references(() => businesses.id),
   jeepPackageId: uuid("jeep_package_id").references(() => jeepPackages.id),
   name: varchar("name", { length: 80 }).notNull(),
-  departureTime: time("departure_time").notNull(),
+  departureTime: time("departure_time"),
   isDemoData: boolean("is_demo_data").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   ...timestamps,
@@ -274,7 +274,7 @@ export const jeepBookingDetails = pgTable("jeep_booking_details", {
   packageNameSnapshot: varchar("package_name_snapshot", { length: 160 }).notNull(),
   unitPriceSnapshot: money("unit_price_snapshot").notNull(),
   capacitySnapshot: integer("capacity_snapshot").notNull(),
-  departureTimeSnapshot: time("departure_time_snapshot").notNull(),
+  departureTimeSnapshot: time("departure_time_snapshot"),
   ...timestamps,
 }, (table) => [index("jeep_details_date_idx").on(table.tourDate), index("jeep_details_slot_idx").on(table.departureSlotId), index("jeep_details_package_idx").on(table.jeepPackageId)]);
 

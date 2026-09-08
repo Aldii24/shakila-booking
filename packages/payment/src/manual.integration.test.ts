@@ -54,6 +54,8 @@ integration("manual transfer and Admin booking revision", () => {
     expect(duplicate.duplicate).toBe(true);
     const effects = (await db.execute(sql`select verified_paid_amount::int as paid,(select count(*)::int from booking_events where booking_id=b.id and event_type='PAYMENT_PROOF_APPROVED') approvals from bookings b where id=${booking.bookingId}::uuid`)) as unknown as { paid: number; approvals: number }[];
     expect(effects[0]).toMatchObject({ paid: booking.requiredDpAmount, approvals: 1 });
+    const dpInvoice = (await db.execute(sql`select total_amount::int as total,paid_amount::int as paid,remaining_amount::int as remaining from invoices where booking_id=${booking.bookingId}::uuid`)) as unknown as { total: number; paid: number; remaining: number }[];
+    expect(dpInvoice[0]).toMatchObject({ total: booking.totalAmount, paid: booking.requiredDpAmount, remaining: booking.totalAmount - booking.requiredDpAmount });
     const settlementKey = randomUUID();
     const remaining = booking.totalAmount - booking.requiredDpAmount;
     const settlement = await recordManualSettlement(booking.bookingCode, { amount: remaining, method: "TRANSFER", note: "Pelunasan sebelum check-in", idempotencyKey: settlementKey }, "admin@shakila.test", db);

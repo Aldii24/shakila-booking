@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Turnstile } from "./turnstile";
 import { formatDepartureTime, isDeparturePassed } from "@/lib/departure-time";
 import { ProofFilePicker } from "@/components/ui/proof-file-picker";
-type Slot = { id: string; name: string; departureTime: string };
+type Slot = { id: string; name: string; departureTime: string | null };
 type Pack = {
   slug: string;
   name: string;
@@ -214,7 +214,7 @@ export function Availability({
             <SelectTrigger><SelectValue placeholder="Pilih slot" /></SelectTrigger>
             <SelectContent>
             {pack?.departureSlots.map((s) => (
-              <SelectItem key={s.id} value={s.id} disabled={isDeparturePassed(tourDate, s.departureTime)}>{s.name} · {formatDepartureTime(s.departureTime)}{isDeparturePassed(tourDate, s.departureTime) ? " · sudah lewat" : ""}</SelectItem>
+              <SelectItem key={s.id} value={s.id} disabled={isDeparturePassed(tourDate, s.departureTime)}>{s.departureTime ? `${s.name} · ${formatDepartureTime(s.departureTime)}` : s.name}{isDeparturePassed(tourDate, s.departureTime) ? " · sudah lewat" : ""}</SelectItem>
             ))}
             </SelectContent>
           </Select>

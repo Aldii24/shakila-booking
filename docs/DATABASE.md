@@ -683,7 +683,7 @@ business_id
 jeep_package_id nullable
 
 name
-departure_time
+departure_time nullable
 
 is_active
 
@@ -691,14 +691,11 @@ created_at
 updated_at
 ```
 
-Examples:
+Jika waktu resmi belum diberikan client, satu slot netral tetap dapat disimpan:
 
 ```text
-Sunrise
-03:00
-
-Morning
-08:00
+Jadwal Keberangkatan
+departure_time = null
 ```
 
 ---

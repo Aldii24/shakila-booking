@@ -9,16 +9,18 @@ const emails = [
   "admin-lifecycle@example.test",
   "admin-snapshot@example.test",
   "admin-early-checkout@example.test",
+  "admin-removal@example.test",
 ] as const;
 
 async function cleanup() {
   if (!testUrl) return;
   const { getDb } = await import("@booking/database");
   const db = getDb();
-  const target = sql`select id from bookings where customer_email in (${emails[0]},${emails[1]},${emails[2]})`;
+  const target = sql`select id from bookings where customer_email in (${emails[0]},${emails[1]},${emails[2]},${emails[3]})`;
   await db.execute(
     sql`delete from booking_events where booking_id in (${target})`,
   );
+  await db.execute(sql`delete from payment_proofs where booking_id in (${target})`);
   await db.execute(sql`delete from invoices where booking_id in (${target})`);
   await db.execute(
     sql`delete from payment_attempts where booking_id in (${target})`,
@@ -341,8 +343,54 @@ integration("admin operations against PostgreSQL", () => {
     expect(slot).toMatchObject({ name: "Revision Morning", isActive: true });
   });
 
+  it("hard deletes catalog records without history", async () => {
+    const { createAdminAccommodationUnit, createAdminProduct, removeAdminAccommodationUnit, removeAdminProduct } = await import("./index.js");
+    const product = await createAdminProduct("glamping", {
+      name: "Revision Test Removable",
+      description: "Integration-only removable product.",
+      price: 500000,
+      capacity: 2,
+    });
+    const unit = await createAdminAccommodationUnit(String(product.id), {
+      code: "TEST-REMOVE-01",
+      name: "Test Remove 01",
+    });
+    await expect(removeAdminAccommodationUnit(String(unit.id))).resolves.toMatchObject({ disposition: "DELETED" });
+    await expect(removeAdminProduct("glamping", String(product.id))).resolves.toMatchObject({ disposition: "DELETED" });
+  });
+
+  it("archives catalog records with history and preserves booking snapshots", async () => {
+    const { createAdminAccommodationUnit, createAdminProduct, getAdminBooking, removeAdminAccommodationUnit, removeAdminProduct } = await import("./index.js");
+    const { createGlampingBooking } = await import("./creation.js");
+    const product = await createAdminProduct("glamping", {
+      name: "Revision Test Historical",
+      description: "Integration-only historical product.",
+      price: 725000,
+      capacity: 2,
+    });
+    const unit = await createAdminAccommodationUnit(String(product.id), {
+      code: "TEST-HISTORY-01",
+      name: "Test History 01",
+    });
+    const booking = await createGlampingBooking({
+      business: "glamping",
+      reservation: { productSlug: String(product.slug), checkInDate: "2099-11-02", checkOutDate: "2099-11-03", quantity: 1, guestCount: 2 },
+      customer: { fullName: "Catalog History Test", email: emails[3], whatsapp: "081299992224" },
+    }, randomUUID());
+    await expect(removeAdminAccommodationUnit(String(unit.id))).resolves.toMatchObject({ disposition: "ARCHIVED" });
+    await expect(removeAdminProduct("glamping", String(product.id))).resolves.toMatchObject({ disposition: "ARCHIVED" });
+    const detail = await getAdminBooking(booking.bookingCode);
+    expect(detail).toMatchObject({ productName: "Revision Test Historical", totalAmount: 725000 });
+  });
+
   it("searches, filters, and paginates payment attempts on the server", async () => {
     const { listAdminPayments } = await import("./admin.js");
+    const { getDb } = await import("@booking/database");
+    const db = getDb();
+    const bookingRows = await db.execute(sql`select b.id,p.id as "paymentId",b.required_dp_amount::int amount from bookings b join payments p on p.booking_id=b.id where b.customer_email='admin-lifecycle@example.test' limit 1`) as unknown as {id:string;paymentId:string;amount:number}[];
+    const booking = bookingRows[0];
+    if (!booking) throw new Error("Admin lifecycle booking was not found.");
+    await db.execute(sql`insert into payment_attempts(payment_id,booking_id,provider,provider_order_id,requested_amount,status) values (${booking.paymentId}::uuid,${booking.id}::uuid,'TEST','ADMIN-LIST-1',${booking.amount},'CREATED'),(${booking.paymentId}::uuid,${booking.id}::uuid,'TEST','ADMIN-LIST-2',${booking.amount},'FAILED'),(${booking.paymentId}::uuid,${booking.id}::uuid,'TEST','ADMIN-LIST-3',${booking.amount},'SUCCESS') on conflict(provider,provider_order_id) do nothing`);
     const firstPage = await listAdminPayments({ page: 1, pageSize: 2 });
     expect(firstPage.items).toHaveLength(2);
     expect(firstPage.total).toBeGreaterThan(2);

@@ -31,6 +31,7 @@ import {
   Phone,
   Plus,
   Search,
+  Trash2,
   X,
   Settings,
   Users,
@@ -177,6 +178,21 @@ const AdminBusinessContext = createContext<{
   setBusiness: (value: string) => void;
 } | null>(null);
 
+let sharedAdminAudioContext: AudioContext | null = null;
+
+function getAdminAudioContext() {
+  if (typeof window === "undefined") return null;
+  sharedAdminAudioContext ??= new AudioContext();
+  return sharedAdminAudioContext;
+}
+
+async function unlockAdminAudio() {
+  const context = getAdminAudioContext();
+  if (!context) return false;
+  await context.resume();
+  return context.state === "running";
+}
+
 function useAdminBusiness() {
   const context = useContext(AdminBusinessContext);
   if (!context) throw new Error("Admin business context is unavailable.");
@@ -217,6 +233,8 @@ function LoginContent() {
   const [error, setError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    window.localStorage.setItem("admin-notification-sound-enabled", "true");
+    void unlockAdminAudio();
     setBusy(true);
     setError("");
     const form = new FormData(event.currentTarget);
@@ -503,11 +521,13 @@ function AdminTopbar() {
   const { t } = useAdminLanguage();
   const { business, setBusiness } = useAdminBusiness();
   const { toggleSidebar } = useSidebar();
-  const [proofCount,setProofCount]=useState(0),[toast,setToast]=useState("");
-  const lastCount=useRef<number|null>(null),audioReady=useRef(false),audioContext=useRef<AudioContext|null>(null);
-  useEffect(()=>{const enable=()=>{audioReady.current=true;audioContext.current??=new AudioContext();void audioContext.current.resume()};window.addEventListener("pointerdown",enable,{once:true});return()=>window.removeEventListener("pointerdown",enable)},[]);
-  const playAlert=useCallback(()=>{if(!audioReady.current)return;const context=audioContext.current??new AudioContext();audioContext.current=context;void context.resume();const master=context.createGain();master.gain.setValueAtTime(.0001,context.currentTime);master.gain.exponentialRampToValueAtTime(.3,context.currentTime+.025);master.gain.exponentialRampToValueAtTime(.0001,context.currentTime+.72);master.connect(context.destination);const tones:Array<[number,number,number]>=[[660,0,.22],[880,.24,.25],[1040,.5,.18]];tones.forEach(([frequency,delay,duration])=>{const oscillator=context.createOscillator(),tone=context.createGain();oscillator.type="sine";oscillator.frequency.setValueAtTime(frequency,context.currentTime+delay);tone.gain.setValueAtTime(.0001,context.currentTime+delay);tone.gain.exponentialRampToValueAtTime(.75,context.currentTime+delay+.015);tone.gain.exponentialRampToValueAtTime(.0001,context.currentTime+delay+duration);oscillator.connect(tone).connect(master);oscillator.start(context.currentTime+delay);oscillator.stop(context.currentTime+delay+duration)})},[]);
-  useEffect(()=>{let active=true;const poll=async()=>{try{const proofs=await adminApi<Row[]>("/payment-proofs?status=PENDING");if(!active)return;const count=proofs.length;if(lastCount.current!==null&&count>lastCount.current){const added=count-lastCount.current;setToast(`${added} bukti pembayaran baru menunggu verifikasi.`);window.setTimeout(()=>setToast(""),6500);playAlert();if(document.hidden&&"Notification" in window&&Notification.permission==="granted"){const notification=new Notification("Pembayaran baru masuk",{body:`${added} bukti pembayaran menunggu verifikasi.`,icon:"/shakila-logo-transparent.png",tag:"payment-proof",silent:true});notification.onclick=()=>{window.focus();router.push("/payments");notification.close()}}}lastCount.current=count;setProofCount(count)}catch{if(active)setProofCount(lastCount.current??0)}};void poll();const timer=window.setInterval(()=>void poll(),10000);return()=>{active=false;window.clearInterval(timer)}},[playAlert,router]);
+  const [proofCount,setProofCount]=useState(0),[toast,setToast]=useState(""),[soundActive,setSoundActive]=useState(false);
+  const lastCount=useRef(0),audioContext=useRef<AudioContext|null>(sharedAdminAudioContext),soundEnabledRef=useRef(false);
+  const unlockAudio=useCallback(async()=>{if(!soundEnabledRef.current)return false;const active=await unlockAdminAudio();audioContext.current=sharedAdminAudioContext;setSoundActive(active);return active},[]);
+  useEffect(()=>{const preferred=window.localStorage.getItem("admin-notification-sound-enabled")==="true";soundEnabledRef.current=preferred;const enable=()=>{if(preferred)void unlockAudio()};window.addEventListener("pointerdown",enable,{once:true});window.addEventListener("keydown",enable,{once:true});return()=>{window.removeEventListener("pointerdown",enable);window.removeEventListener("keydown",enable)}},[unlockAudio]);
+  const toggleSound=async()=>{if(soundEnabledRef.current&&soundActive){soundEnabledRef.current=false;setSoundActive(false);window.localStorage.setItem("admin-notification-sound-enabled","false");if(audioContext.current?.state==="running")await audioContext.current.suspend();return}soundEnabledRef.current=true;window.localStorage.setItem("admin-notification-sound-enabled","true");await unlockAudio()};
+  const playAlert=useCallback(()=>{const context=audioContext.current;if(!soundEnabledRef.current||!context||context.state!=="running")return;const master=context.createGain();master.gain.setValueAtTime(.0001,context.currentTime);master.gain.exponentialRampToValueAtTime(.3,context.currentTime+.025);master.gain.exponentialRampToValueAtTime(.0001,context.currentTime+.72);master.connect(context.destination);const tones:Array<[number,number,number]>=[[660,0,.22],[880,.24,.25],[1040,.5,.18]];tones.forEach(([frequency,delay,duration])=>{const oscillator=context.createOscillator(),tone=context.createGain();oscillator.type="sine";oscillator.frequency.setValueAtTime(frequency,context.currentTime+delay);tone.gain.setValueAtTime(.0001,context.currentTime+delay);tone.gain.exponentialRampToValueAtTime(.75,context.currentTime+delay+.015);tone.gain.exponentialRampToValueAtTime(.0001,context.currentTime+delay+duration);oscillator.connect(tone).connect(master);oscillator.start(context.currentTime+delay);oscillator.stop(context.currentTime+delay+duration)})},[]);
+  useEffect(()=>{let active=true;const poll=async()=>{try{const proofs=await adminApi<Row[]>("/payment-proofs?status=PENDING");if(!active)return;const ids=proofs.map(row=>text(row.id));let seen:string[]=[];try{seen=JSON.parse(window.localStorage.getItem("admin-seen-payment-proof-ids")??"[]") as string[]}catch{seen=[]}const initialized=window.localStorage.getItem("admin-payment-proof-baseline-ready")==="true";const seenSet=new Set(seen),newIds=initialized?ids.filter(id=>!seenSet.has(id)):[];ids.forEach(id=>seenSet.add(id));window.localStorage.setItem("admin-seen-payment-proof-ids",JSON.stringify([...seenSet].slice(-500)));window.localStorage.setItem("admin-payment-proof-baseline-ready","true");if(newIds.length){setToast(`${newIds.length} bukti pembayaran baru menunggu verifikasi.`);window.setTimeout(()=>setToast(""),6500);playAlert();if(document.hidden&&"Notification" in window&&Notification.permission==="granted"){const notification=new Notification("Pembayaran baru masuk",{body:`${newIds.length} bukti pembayaran menunggu verifikasi.`,icon:"/shakila-logo-transparent.png",tag:`payment-proof-${newIds.join("-")}`,silent:true});notification.onclick=()=>{window.focus();router.push("/payments");notification.close()}}}lastCount.current=proofs.length;setProofCount(proofs.length)}catch{if(active)setProofCount(lastCount.current)}};void poll();const timer=window.setInterval(()=>void poll(),10000);return()=>{active=false;window.clearInterval(timer)}},[playAlert,router]);
   const enableDesktopNotifications=()=>{if("Notification" in window&&Notification.permission==="default")void Notification.requestPermission()};
   return (
         <header className="topbar">
@@ -545,6 +565,7 @@ function AdminTopbar() {
                 </SelectContent>
               </ShadcnSelect>
             </label>
+            <button className={`notification-sound ${soundActive?"active":"inactive"}`} type="button" onClick={()=>void toggleSound()} title={soundActive?"Nonaktifkan suara notifikasi":"Aktifkan suara notifikasi"}><span>{soundActive?"Aktif":"Nonaktif"}</span>{soundActive?"Nonaktifkan Suara Notifikasi":"Aktifkan Suara Notifikasi"}</button>
             <Link className="notification-bell" href="/payments" onClick={enableDesktopNotifications} aria-label={`${proofCount} bukti pembayaran menunggu verifikasi`} title="Buka notifikasi pembayaran"><Bell/>{proofCount>0?<span>{proofCount}</span>:null}</Link>
           </div>
           {toast?<div className="admin-toast" role="status"><span className="admin-toast-icon"><Bell/></span><div><small>PEMBAYARAN · BARU MASUK</small><strong>Bukti pembayaran perlu diperiksa</strong><span>{toast}</span><Link href="/payments">Buka verifikasi <ChevronRight/></Link></div><button type="button" onClick={()=>setToast("")} aria-label="Tutup notifikasi"><X/></button></div>:null}
@@ -1102,7 +1123,7 @@ function ManualBookingDialog({open,onClose,onCreated}:{open:boolean;onClose:()=>
   useEffect(()=>{if(open)void adminApi<{glamping:Row[];jeep:Row[];slots:Row[]}>("/catalog").then(value=>{setCatalog(value);setProductId(text(value.glamping[0]?.id??""))}).catch(()=>setError("Katalog belum dapat dimuat."))},[open]);
   const products=business==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]),selected=products.find(row=>text(row.id)===productId),slots=(catalog?.slots??[]).filter(row=>text(row.jeepPackageId)===productId);
   async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=new FormData(event.currentTarget);setBusy(true);setError("");try{const common={source:form.get("source"),business,customer:{fullName:form.get("fullName"),email:form.get("email"),whatsapp:form.get("whatsapp")},specialRequest:form.get("specialRequest")||null,notes:form.get("notes")||null,paymentState:form.get("paymentState"),amountReceived:Number(form.get("amountReceived")),reservation:business==="glamping"?{productSlug:selected?.slug,checkInDate:form.get("startDate"),checkOutDate:form.get("endDate"),quantity:Number(form.get("quantity")),guestCount:Number(form.get("guestCount"))}:{packageSlug:selected?.slug,tourDate:form.get("startDate"),departureSlotId:slotId,quantity:Number(form.get("quantity")),guestCount:Number(form.get("guestCount"))}};await adminApi("/bookings/manual",{method:"POST",body:JSON.stringify(common)});onClose();await onCreated()}catch(caught){setError(caught instanceof Error?caught.message:"Booking manual belum dapat dibuat.")}finally{setBusy(false)}}
-  return <Dialog open={open} title="Tambah Booking Manual" description="Untuk telepon, WhatsApp, booking di lokasi, dan kedatangan langsung—tetap dengan proteksi overbooking." onClose={onClose}><form className="dialog-form manual-booking-form" onSubmit={event=>void submit(event)}><div className="split"><Field label="Bisnis"><AdminSelect value={business} onValueChange={value=>{const next=value as "glamping"|"jeep";setBusiness(next);const rows=next==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]);setProductId(text(rows[0]?.id??""));setSlotId("")}} placeholder="Pilih bisnis" options={[{value:"glamping",label:"Shakila Akomodasi"},{value:"jeep",label:"Shakila Jeep Tour"}]}/></Field><Field label="Sumber booking"><AdminSelect name="source" defaultValue="ADMIN_MANUAL" placeholder="Pilih sumber" options={[{value:"ADMIN_MANUAL",label:"Admin manual / telepon / WhatsApp"},{value:"WALK_IN",label:"Datang langsung / di lokasi"}]}/></Field></div><Field label={business==="glamping"?"Tipe akomodasi":"Paket Jeep"}><AdminSelect value={productId} onValueChange={value=>{setProductId(value);setSlotId("")}} placeholder="Pilih produk" options={products.map(row=>({value:text(row.id),label:`${text(row.kind)==="HOMESTAY"?"Homestay":"Glamping"} · ${text(row.name)}`}))}/></Field>{business==="jeep"?<Field label="Slot keberangkatan"><AdminSelect value={slotId} onValueChange={setSlotId} placeholder="Pilih slot" options={slots.map(row=>({value:text(row.id),label:`${String(row.departureTime).slice(0,5)} · ${text(row.name)}`}))}/></Field>:null}<div className="split"><Field label={business==="glamping"?"Check-in":"Tanggal tur"}><Input name="startDate" type="date" required/></Field>{business==="glamping"?<Field label="Check-out"><Input name="endDate" type="date" required/></Field>:null}</div><div className="split"><Field label="Jumlah unit"><Input name="quantity" type="number" min="1" defaultValue="1" required/></Field><Field label="Jumlah tamu"><Input name="guestCount" type="number" min="1" defaultValue="1" required/></Field></div><div className="split"><Field label="Nama pelanggan"><Input name="fullName" required/></Field><Field label="WhatsApp / telepon"><Input name="whatsapp" required/></Field></div><Field label="Email (opsional)"><Input name="email" type="email"/></Field><div className="split"><Field label="Status pembayaran"><AdminSelect name="paymentState" defaultValue="UNPAID" placeholder="Pilih status" options={[{value:"UNPAID",label:"Belum dibayar"},{value:"PARTIALLY_PAID",label:"DP / sebagian diterima"},{value:"PAID",label:"Lunas"}]}/></Field><Field label="Nominal sudah diterima"><Input name="amountReceived" type="number" min="0" defaultValue="0" required/></Field></div><Field label="Permintaan pelanggan"><Textarea name="specialRequest"/></Field><Field label="Catatan internal"><Textarea name="notes"/></Field><div className="payment-terms"><strong>Aturan operasional</strong><span>DP minimal 50%, batas pembayaran 12 jam, dan booking manual memakai pengalokasi inventori yang sama.</span></div>{error?<div className="ui-alert danger">{error}</div>:null}<footer className="dialog-actions"><Button type="button" variant="ghost" onClick={onClose}>Batal</Button><Button disabled={busy||!productId||(business==="jeep"&&!slotId)}>{busy?"Memeriksa inventori...":"Simpan Booking Manual"}</Button></footer></form></Dialog>;
+  return <Dialog open={open} title="Tambah Booking Manual" description="Untuk telepon, WhatsApp, booking di lokasi, dan kedatangan langsung—tetap dengan proteksi overbooking." onClose={onClose}><form className="dialog-form manual-booking-form" onSubmit={event=>void submit(event)}><div className="split"><Field label="Bisnis"><AdminSelect value={business} onValueChange={value=>{const next=value as "glamping"|"jeep";setBusiness(next);const rows=next==="glamping"?(catalog?.glamping??[]):(catalog?.jeep??[]);setProductId(text(rows[0]?.id??""));setSlotId("")}} placeholder="Pilih bisnis" options={[{value:"glamping",label:"Shakila Akomodasi"},{value:"jeep",label:"Shakila Jeep Tour"}]}/></Field><Field label="Sumber booking"><AdminSelect name="source" defaultValue="ADMIN_MANUAL" placeholder="Pilih sumber" options={[{value:"ADMIN_MANUAL",label:"Admin manual / telepon / WhatsApp"},{value:"WALK_IN",label:"Datang langsung / di lokasi"}]}/></Field></div><Field label={business==="glamping"?"Tipe akomodasi":"Paket Jeep"}><AdminSelect value={productId} onValueChange={value=>{setProductId(value);setSlotId("")}} placeholder="Pilih produk" options={products.map(row=>({value:text(row.id),label:`${text(row.kind)==="HOMESTAY"?"Homestay":"Glamping"} · ${text(row.name)}`}))}/></Field>{business==="jeep"?<Field label="Jadwal keberangkatan"><AdminSelect value={slotId} onValueChange={setSlotId} placeholder="Pilih jadwal" options={slots.map(row=>({value:text(row.id),label:row.departureTime?`${String(row.departureTime).slice(0,5)} · ${text(row.name)}`:text(row.name)}))}/></Field>:null}<div className="split"><Field label={business==="glamping"?"Check-in":"Tanggal tur"}><Input name="startDate" type="date" required/></Field>{business==="glamping"?<Field label="Check-out"><Input name="endDate" type="date" required/></Field>:null}</div><div className="split"><Field label="Jumlah unit"><Input name="quantity" type="number" min="1" defaultValue="1" required/></Field><Field label="Jumlah tamu"><Input name="guestCount" type="number" min="1" defaultValue="1" required/></Field></div><div className="split"><Field label="Nama pelanggan"><Input name="fullName" required/></Field><Field label="WhatsApp / telepon"><Input name="whatsapp" required/></Field></div><Field label="Email (opsional)"><Input name="email" type="email"/></Field><div className="split"><Field label="Status pembayaran"><AdminSelect name="paymentState" defaultValue="UNPAID" placeholder="Pilih status" options={[{value:"UNPAID",label:"Belum dibayar"},{value:"PARTIALLY_PAID",label:"DP / sebagian diterima"},{value:"PAID",label:"Lunas"}]}/></Field><Field label="Nominal sudah diterima"><Input name="amountReceived" type="number" min="0" defaultValue="0" required/></Field></div><Field label="Permintaan pelanggan"><Textarea name="specialRequest"/></Field><Field label="Catatan internal"><Textarea name="notes"/></Field><div className="payment-terms"><strong>Aturan operasional</strong><span>DP minimal 50%, batas pembayaran 12 jam, dan booking manual memakai pengalokasi inventori yang sama.</span></div>{error?<div className="ui-alert danger">{error}</div>:null}<footer className="dialog-actions"><Button type="button" variant="ghost" onClick={onClose}>Batal</Button><Button disabled={busy||!productId||(business==="jeep"&&!slotId)}>{busy?"Memeriksa inventori...":"Simpan Booking Manual"}</Button></footer></form></Dialog>;
 }
 
 function BookingDetail({
@@ -2137,7 +2158,7 @@ function Inventory({
               placeholder={language === "id" ? "Tanpa slot" : "No slot"}
               options={((catalog.slots ?? []) as Row[]).map((row) => ({
                 value: text(row.id),
-                label: `${text(row.name)} · ${String(row.departureTime).slice(0, 5)}`,
+                label: row.departureTime ? `${text(row.name)} · ${String(row.departureTime).slice(0, 5)}` : text(row.name),
               }))}
             />
           </Field>
@@ -2233,6 +2254,7 @@ type CatalogDialog = {
   parentId?: string;
   item?: Row;
 } | null;
+type CatalogRemoval = { type: "product" | "unit" | "slot"; item: Row } | null;
 function CatalogManager({
   kind,
   rows,
@@ -2246,6 +2268,7 @@ function CatalogManager({
   const [units, setUnits] = useState<Row[]>([]),
     [slots, setSlots] = useState<Row[]>([]),
     [dialog, setDialog] = useState<CatalogDialog>(null),
+    [removal, setRemoval] = useState<CatalogRemoval>(null),
     [notice, setNotice] = useState("");
   const loadChildren = useCallback(async () => {
     if (kind === "glamping") {
@@ -2277,6 +2300,25 @@ function CatalogManager({
           ? "Perubahan katalog berhasil disimpan."
           : "Catalog change saved.",
       );
+      await reload();
+      await loadChildren();
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : t("error.generic"));
+    }
+  }
+  async function removeCatalogItem() {
+    if (!removal) return;
+    const path = removal.type === "product"
+      ? `/${kind === "glamping" ? "glamping/types" : "jeep/packages"}/${removal.item.id}`
+      : removal.type === "slot"
+        ? `/jeep/slots/${removal.item.id}`
+        : kind === "glamping"
+          ? `/glamping/units/${removal.item.id}`
+          : `/jeep/units/${removal.item.id}`;
+    try {
+      const result = await adminApi<{ disposition: "DELETED" | "ARCHIVED" }>(path, { method: "DELETE" });
+      setRemoval(null);
+      setNotice(result.disposition === "DELETED" ? "Data katalog berhasil dihapus." : "Data memiliki riwayat dan telah diarsipkan dari katalog publik.");
       await reload();
       await loadChildren();
     } catch (caught) {
@@ -2322,7 +2364,7 @@ function CatalogManager({
     } else if (dialog.type === "slot") {
       const body = {
         name: String(form.get("name")),
-        departureTime: String(form.get("departureTime")),
+        departureTime: String(form.get("departureTime") || "") || null,
         isActive: form.get("isActive") === "on",
       };
       await mutate(
@@ -2379,6 +2421,7 @@ function CatalogManager({
             items={units}
             onEdit={(item) => setDialog({ type: "unit", item })}
             onToggle={(item) => void toggleChild(item, "unit")}
+            onRemove={(item) => setRemoval({ type: "unit", item })}
           />
         </Card>
       ) : null}
@@ -2391,9 +2434,7 @@ function CatalogManager({
                   <p className="section-kicker">{kind === "glamping" ? `${text(row.kind) === "HOMESTAY" ? "HOMESTAY" : "GLAMPING"} · ${text(row.slug)}` : text(row.slug)}</p>
                   <h2>{text(row.name)}</h2>
                 </div>
-                <Badge value={row.isActive ? "ACTIVE" : "INACTIVE"}>
-                  {row.isActive ? t("common.active") : t("common.inactive")}
-                </Badge>
+                <div className="catalog-item-actions"><Badge value={row.isActive ? "ACTIVE" : "INACTIVE"}>{row.isActive ? t("common.active") : t("common.inactive")}</Badge><Button type="button" variant="destructive" size="sm" onClick={()=>setRemoval({type:"product",item:row})}><Trash2 size={14}/>Hapus</Button></div>
               </div>
               <Field label={t("common.name")}>
                 <Input name="name" defaultValue={text(row.name)} required />
@@ -2476,6 +2517,7 @@ function CatalogManager({
                     setDialog({ type: "unit", parentId: text(row.id), item })
                   }
                   onToggle={(item) => void toggleChild(item, "unit")}
+                  onRemove={(item) => setRemoval({ type: "unit", item })}
                 />
               ) : (
                 <SlotList
@@ -2484,6 +2526,7 @@ function CatalogManager({
                     setDialog({ type: "slot", parentId: text(row.id), item })
                   }
                   onToggle={(item) => void toggleChild(item, "slot")}
+                  onRemove={(item) => setRemoval({ type: "slot", item })}
                 />
               )}
             </div>
@@ -2605,7 +2648,7 @@ function CatalogManager({
                   <Input
                     name="name"
                     defaultValue={dialog.item ? text(dialog.item.name) : ""}
-                    placeholder="Sunrise"
+                    placeholder="Jadwal Keberangkatan"
                     required
                   />
                 </Field>
@@ -2618,9 +2661,8 @@ function CatalogManager({
                     name="departureTime"
                     type="time"
                     defaultValue={String(
-                      dialog.item?.departureTime ?? "03:00",
+                      dialog.item?.departureTime ?? "",
                     ).slice(0, 5)}
-                    required
                   />
                 </Field>
               </>
@@ -2647,6 +2689,9 @@ function CatalogManager({
           </form>
         ) : null}
       </Dialog>
+      <Dialog open={Boolean(removal)} title="Hapus data katalog?" description="Tindakan ini akan menghapus data tanpa riwayat. Data yang sudah memiliki booking, reservasi, atau histori akan diarsipkan agar snapshot lama tetap utuh." onClose={()=>setRemoval(null)}>
+        {removal?<div className="confirmation-summary"><div className="confirmation-icon"><Trash2/></div><strong>{text(removal.item.name)}</strong><span>Data ini tidak akan tampil di katalog publik setelah tindakan selesai.</span><footer className="dialog-actions"><Button variant="ghost" onClick={()=>setRemoval(null)}>Batal</Button><Button variant="destructive" onClick={()=>void removeCatalogItem()}>Hapus</Button></footer></div>:null}
+      </Dialog>
     </>
   );
 }
@@ -2654,10 +2699,12 @@ function UnitList({
   items,
   onEdit,
   onToggle,
+  onRemove,
 }: {
   items: Row[];
   onEdit: (item: Row) => void;
   onToggle: (item: Row) => void;
+  onRemove: (item: Row) => void;
 }) {
   const { language, t } = useAdminLanguage();
   if (!items.length)
@@ -2709,6 +2756,7 @@ function UnitList({
                   ? "Aktifkan"
                   : "Activate"}
             </Button>
+            <Button variant="destructive" size="sm" onClick={() => onRemove(item)}><Trash2 size={14}/>Hapus</Button>
           </div>
         </div>
       ))}
@@ -2719,10 +2767,12 @@ function SlotList({
   items,
   onEdit,
   onToggle,
+  onRemove,
 }: {
   items: Row[];
   onEdit: (item: Row) => void;
   onToggle: (item: Row) => void;
+  onRemove: (item: Row) => void;
 }) {
   const { language, t } = useAdminLanguage();
   if (!items.length)
@@ -2746,7 +2796,7 @@ function SlotList({
             </span>
             <span>
               <strong>
-                {String(item.departureTime).slice(0, 5)} · {text(item.name)}
+                {item.departureTime ? `${String(item.departureTime).slice(0, 5)} · ${text(item.name)}` : text(item.name)}
               </strong>
               <small>{text(item.packageName)}</small>
             </span>
@@ -2758,6 +2808,7 @@ function SlotList({
             <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
               <Pencil size={15} />
             </Button>
+            <Button variant="destructive" size="sm" onClick={() => onRemove(item)}><Trash2 size={14}/>Hapus</Button>
             <Button variant="outline" size="sm" onClick={() => onToggle(item)}>
               {item.isActive
                 ? language === "id"

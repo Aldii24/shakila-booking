@@ -22,6 +22,9 @@ describe("booking calculations",()=>{
     expect(()=>assertJeepDepartureOpen("2026-08-27","03:00:00","Asia/Jakarta",now)).toThrow(/already passed/);
     expect(()=>assertJeepDepartureOpen("2026-08-27","08:00:00","Asia/Jakarta",now)).not.toThrow();
   });
+  it("accepts a neutral Jeep schedule when the client has not supplied a departure time",()=>{
+    expect(()=>assertJeepDepartureOpen("2026-08-27",null,"Asia/Jakarta",new Date("2026-08-27T14:00:00.000Z"))).not.toThrow();
+  });
 });
 
 describe("customer normalization",()=>{it("normalizes email and Indonesian WhatsApp",()=>{expect(normalizeEmail(" Demo@Example.TEST ")).toBe("demo@example.test");expect(normalizeWhatsApp("0812-3456-7890")).toBe("6281234567890");});});

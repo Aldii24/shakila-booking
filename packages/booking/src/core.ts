@@ -90,11 +90,12 @@ export function assertNotPast(date: string, timezone = "Asia/Jakarta", now = new
 
 export function assertJeepDepartureOpen(
   tourDate: string,
-  departureTime: string,
+  departureTime: string | null,
   timezone = "Asia/Jakarta",
   now = new Date(),
 ): void {
   assertNotPast(tourDate, timezone, now);
+  if (departureTime === null) return;
   if (tourDate !== businessDate(timezone, now)) return;
 
   const time = /^(\d{2}):(\d{2})(?::(\d{2}))?/.exec(departureTime);

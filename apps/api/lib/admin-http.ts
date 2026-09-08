@@ -25,6 +25,10 @@ import {
   listAdminDepartureSlots,
   listAdminJeepUnits,
   listAdminPayments,
+  removeAdminAccommodationUnit,
+  removeAdminDepartureSlot,
+  removeAdminJeepUnit,
+  removeAdminProduct,
   removeInventoryBlock,
   updateAdminProduct,
   updateAdminAccommodationUnit,
@@ -99,12 +103,13 @@ const slotSchema = z.object({
   departureTime: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable()
     .optional(),
   isActive: z.boolean().optional(),
 });
 const createSlotSchema = slotSchema.extend({
   name: z.string().trim().min(2).max(80),
-  departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
 });
 const settingsSchema = z.object({
   dpPercentage: z.number().int().min(50).max(100).optional(),
@@ -348,6 +353,13 @@ export async function handleAdmin(
           productSchema.parse(await body(request)),
         ),
       );
+    if (productMatch && request.method === "DELETE")
+      return ok(
+        await removeAdminProduct(
+          productMatch[1] === "glamping/types" ? "glamping" : "jeep",
+          productMatch[2]!,
+        ),
+      );
     if (
       (path === "glamping/types" || path === "jeep/packages") &&
       request.method === "POST"
@@ -389,6 +401,8 @@ export async function handleAdmin(
           unitSchema.parse(await body(request)),
         ),
       );
+    if (accommodationUnitMatch && request.method === "DELETE")
+      return ok(await removeAdminAccommodationUnit(accommodationUnitMatch[1]!));
     if (path === "jeep/units" && request.method === "GET")
       return ok(await listAdminJeepUnits());
     if (path === "jeep/units" && request.method === "POST")
@@ -404,6 +418,8 @@ export async function handleAdmin(
           unitSchema.parse(await body(request)),
         ),
       );
+    if (jeepUnitMatch && request.method === "DELETE")
+      return ok(await removeAdminJeepUnit(jeepUnitMatch[1]!));
     const slotListMatch = path.match(/^jeep\/packages\/([0-9a-f-]+)\/slots$/);
     if (slotListMatch && request.method === "GET")
       return ok(await listAdminDepartureSlots(slotListMatch[1]!));
@@ -423,6 +439,8 @@ export async function handleAdmin(
           slotSchema.parse(await body(request)),
         ),
       );
+    if (slotMatch && request.method === "DELETE")
+      return ok(await removeAdminDepartureSlot(slotMatch[1]!));
     const settingMatch = path.match(/^settings\/([0-9a-f-]+)$/);
     if (settingMatch && request.method === "PATCH")
       return ok(
