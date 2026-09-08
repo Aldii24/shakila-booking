@@ -1,10 +1,19 @@
 import { prepareConfirmationEmail } from "@booking/email";
 import { prepareInvoice } from "@booking/invoice";
 import { getIntegrationMode } from "@booking/validation";
+import { inngest } from "./inngest";
 
 export async function completePostPayment(bookingId: string) {
   const mode = getIntegrationMode();
-  if (mode.backgroundJobMode !== "inline") return {mode:"async" as const,invoice:"queued" as const,email:"queued" as const};
+  if (mode.backgroundJobMode !== "inline") {
+    try {
+      await inngest.send({ name: "booking/payment.confirmed", data: { bookingId } });
+      return {mode:"async" as const,invoice:"queued" as const,email:"queued" as const};
+    } catch (error) {
+      console.error("Post-payment job dispatch failed", error instanceof Error ? error.message : "Unknown error");
+      return {mode:"async" as const,invoice:"failed" as const,email:"failed" as const};
+    }
+  }
   if (mode.appMode !== "demo") throw new Error("Inline post-payment requires APP_MODE=demo.");
   let invoice: "ready" | "failed" = "ready";
   let email: "preview" | "failed" = "preview";

@@ -45,7 +45,7 @@ import {
   rejectManualPaymentProof,
 } from "@booking/payment";
 import { renderBookingConfirmationPreview } from "@booking/email";
-import { getSecureInvoicePdf, prepareInvoice } from "@booking/invoice";
+import { ensureSecureInvoicePdf, prepareInvoice } from "@booking/invoice";
 import { getIntegrationMode } from "@booking/validation";
 import { databaseUuidSchema } from "@booking/contracts";
 import { z } from "zod";
@@ -536,7 +536,7 @@ export async function handleAdmin(
           string,
           unknown
         >;
-        const invoice = await getSecureInvoicePdf(String(booking.id));
+        const invoice = await ensureSecureInvoicePdf(String(booking.id));
         if (invoice.status !== "GENERATED") return ok(invoice);
         return new Response(Buffer.from(invoice.bytes), {
           headers: {

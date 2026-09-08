@@ -172,3 +172,20 @@ export async function getSecureInvoicePdf(
     bytes: await object.Body.transformToByteArray(),
   };
 }
+
+export async function ensureSecureInvoicePdf(
+  bookingId: string,
+  database: BookingDatabase = getDb(),
+) {
+  const current = await getSecureInvoicePdf(bookingId, database);
+  if (current.status === "GENERATED") return current;
+
+  try {
+    await prepareInvoice(bookingId, database);
+  } catch {
+    // Payment remains authoritative even when PDF storage is temporarily unavailable.
+    // Returning the persisted invoice state lets the client offer a safe retry.
+  }
+
+  return getSecureInvoicePdf(bookingId, database);
+}
