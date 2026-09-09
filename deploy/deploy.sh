@@ -34,6 +34,7 @@ wait_for_public_url() {
 }
 
 verify_public_routes() {
+  wait_for_public_url "https://shakilagrup.com"
   wait_for_public_url "https://glamping.shakilagrup.com"
   wait_for_public_url "https://jeep.shakilagrup.com"
   wait_for_public_url "https://admin.shakilagrup.com"

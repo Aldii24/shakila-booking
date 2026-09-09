@@ -65,7 +65,7 @@ export default function Home() {
           </div>
           <div className="accommodation-groups">
             {accommodationGroups.map((group) => (
-              <section className="accommodation-category" key={group.kind}>
+              <section className="accommodation-category" id={group.kind.toLowerCase()} key={group.kind}>
                 <header>
                   <div><span>{group.kind}</span><h3>{group.title}</h3></div>
                   <p>{group.description}</p>

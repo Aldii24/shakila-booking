@@ -86,6 +86,7 @@ jobs:
       - name: Verify public production routes
         run: |
           for url in \
+            https://shakilagrup.com \
             https://glamping.shakilagrup.com \
             https://jeep.shakilagrup.com \
             https://admin.shakilagrup.com \
