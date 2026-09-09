@@ -56,6 +56,14 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
           ssh-keygen -F "$VPS_HOST" -f ~/.ssh/known_hosts >/dev/null
 
+      - name: Reclaim unused Docker build cache
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/booking-demo "$VPS_USER@$VPS_HOST" \
+            "sudo docker builder prune -f --filter 'until=24h'"
+
       - name: Sync tested source without production secrets
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
