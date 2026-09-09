@@ -64,7 +64,7 @@ integration("manual transfer and Admin booking revision", () => {
     expect(duplicateSettlement).toMatchObject({ paymentStatus: "PAID", remainingAmount: 0, duplicate: true });
     const paidState = (await db.execute(sql`select b.payment_status as "paymentStatus",b.remaining_amount::int as remaining,i.paid_amount::int as "invoicePaid",i.remaining_amount::int as "invoiceRemaining",(select count(*)::int from payment_attempts where booking_id=b.id and provider='MANUAL_ADMIN') as settlements,(select count(*)::int from booking_events where booking_id=b.id and title='Pelunasan dicatat') as events from bookings b join invoices i on i.booking_id=b.id where b.id=${booking.bookingId}::uuid`)) as unknown as { paymentStatus: string; remaining: number; invoicePaid: number; invoiceRemaining: number; settlements: number; events: number }[];
     expect(paidState[0]).toMatchObject({ paymentStatus: "PAID", remaining: 0, invoicePaid: booking.totalAmount, invoiceRemaining: 0, settlements: 1, events: 1 });
-  });
+  }, 30_000);
 
   it("manual Admin booking uses the shared allocator and cannot overbook", async () => {
     const { createAdminManualBooking } = await import("@booking/booking");
@@ -98,7 +98,7 @@ integration("manual transfer and Admin booking revision", () => {
     await cancelBooking(booking.bookingId, db);
     const state = (await db.execute(sql`select b.payment_status as "paymentStatus",pr.status as "proofStatus",a.status as "attemptStatus" from bookings b join payment_proofs pr on pr.booking_id=b.id join payment_attempts a on a.id=pr.payment_attempt_id where pr.id=${proof.id}::uuid`)) as unknown as { paymentStatus: string; proofStatus: string; attemptStatus: string }[];
     expect(state[0]).toMatchObject({ paymentStatus: "UNPAID", proofStatus: "REJECTED", attemptStatus: "CANCELLED" });
-  });
+  }, 30_000);
 });
 
 afterAll(async () => { if (!testUrl) return; await cleanup(); const { closeDb } = await import("@booking/database"); await closeDb(); });

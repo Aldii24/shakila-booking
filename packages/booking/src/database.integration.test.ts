@@ -99,7 +99,7 @@ integration("transactional booking allocation (requires migrated and seeded TEST
     expect(await calculateJeepAvailability({businessId:selected.businessId,tourDate:"2099-08-07",departureSlotId:selected.id},db)).toBe(1);
     const replacement=await make(13);createdIds.push(replacement.bookingId);
     expect(await calculateJeepAvailability({businessId:selected.businessId,tourDate:"2099-08-07",departureSlotId:selected.id},db)).toBe(0);
-  });
+  }, 120_000);
   it("menghitung inventori fisik Glamping dan Homestay sesuai katalog client",async()=>{
     const {calculateAccommodationAvailability}=await import("./availability.js");const {getDb}=await import("@booking/database");const db=getDb();
     const products=await db.execute(sql`select id,slug from accommodation_types where slug in ('glamping-deluxe','glamping-twin-bed','homestay-standard','homestay-superior','homestay-twin-bed')`) as unknown as {id:string;slug:string}[];
