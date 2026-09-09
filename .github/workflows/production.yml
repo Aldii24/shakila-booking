@@ -62,7 +62,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
           ssh -i ~/.ssh/booking-demo "$VPS_USER@$VPS_HOST" \
-            "sudo docker builder prune -f --filter 'until=24h'"
+            "sudo docker builder prune -af"
 
       - name: Sync tested source without production secrets
         env:
