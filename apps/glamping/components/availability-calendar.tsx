@@ -100,7 +100,12 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
   const stayEnd = stayRange?.checkOutDate ?? "";
   const stayKey = stayStart && stayEnd ? `${stayStart}:${stayEnd}:${guests}` : "";
   const stayLoading = Boolean(stayKey && resolvedStayKey !== stayKey);
-  const detailInventory = inventoryForSelectedStay(days, checkIn || jakartaToday(), stayAvailability);
+  const detailInventory = inventoryForSelectedStay(
+    days,
+    checkIn || jakartaToday(),
+    checkOut,
+    stayAvailability,
+  );
   useEffect(() => {
     if (!stayStart || !stayEnd) return;
     const controller = new AbortController();
