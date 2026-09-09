@@ -46,6 +46,12 @@ import {
 } from "@/components/ui/chart";
 import { API_URL, AdminApiError, adminApi, rupiah, text } from "@/lib/api";
 import {
+  disableAdminPush,
+  enableAdminPush,
+  getAdminPushStatus,
+  type AdminPushStatus,
+} from "@/lib/push";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -519,55 +525,261 @@ function AdminTopbar() {
   const { t } = useAdminLanguage();
   const { business, setBusiness } = useAdminBusiness();
   const { toggleSidebar } = useSidebar();
-  const [proofCount,setProofCount]=useState(0),[toast,setToast]=useState(""),[soundActive,setSoundActive]=useState(false);
-  const lastCount=useRef(0),audioContext=useRef<AudioContext|null>(sharedAdminAudioContext),soundEnabledRef=useRef(false);
-  const unlockAudio=useCallback(async()=>{if(!soundEnabledRef.current)return false;const active=await unlockAdminAudio();audioContext.current=sharedAdminAudioContext;setSoundActive(active);return active},[]);
-  useEffect(()=>{const preferred=window.localStorage.getItem("admin-notification-sound-enabled")==="true";soundEnabledRef.current=preferred;const enable=()=>{if(preferred)void unlockAudio()};window.addEventListener("pointerdown",enable,{once:true});window.addEventListener("keydown",enable,{once:true});return()=>{window.removeEventListener("pointerdown",enable);window.removeEventListener("keydown",enable)}},[unlockAudio]);
-  const toggleSound=async()=>{if(soundEnabledRef.current&&soundActive){soundEnabledRef.current=false;setSoundActive(false);window.localStorage.setItem("admin-notification-sound-enabled","false");if(audioContext.current?.state==="running")await audioContext.current.suspend();return}soundEnabledRef.current=true;window.localStorage.setItem("admin-notification-sound-enabled","true");await unlockAudio()};
-  const playAlert=useCallback(()=>{const context=audioContext.current;if(!soundEnabledRef.current||!context||context.state!=="running")return;const master=context.createGain();master.gain.setValueAtTime(.0001,context.currentTime);master.gain.exponentialRampToValueAtTime(.3,context.currentTime+.025);master.gain.exponentialRampToValueAtTime(.0001,context.currentTime+.72);master.connect(context.destination);const tones:Array<[number,number,number]>=[[660,0,.22],[880,.24,.25],[1040,.5,.18]];tones.forEach(([frequency,delay,duration])=>{const oscillator=context.createOscillator(),tone=context.createGain();oscillator.type="sine";oscillator.frequency.setValueAtTime(frequency,context.currentTime+delay);tone.gain.setValueAtTime(.0001,context.currentTime+delay);tone.gain.exponentialRampToValueAtTime(.75,context.currentTime+delay+.015);tone.gain.exponentialRampToValueAtTime(.0001,context.currentTime+delay+duration);oscillator.connect(tone).connect(master);oscillator.start(context.currentTime+delay);oscillator.stop(context.currentTime+delay+duration)})},[]);
-  useEffect(()=>{let active=true;const poll=async()=>{try{const proofs=await adminApi<Row[]>("/payment-proofs?status=PENDING");if(!active)return;const ids=proofs.map(row=>text(row.id));let seen:string[]=[];try{seen=JSON.parse(window.localStorage.getItem("admin-seen-payment-proof-ids")??"[]") as string[]}catch{seen=[]}const initialized=window.localStorage.getItem("admin-payment-proof-baseline-ready")==="true";const seenSet=new Set(seen),newIds=initialized?ids.filter(id=>!seenSet.has(id)):[];ids.forEach(id=>seenSet.add(id));window.localStorage.setItem("admin-seen-payment-proof-ids",JSON.stringify([...seenSet].slice(-500)));window.localStorage.setItem("admin-payment-proof-baseline-ready","true");if(newIds.length){setToast(`${newIds.length} bukti pembayaran baru menunggu verifikasi.`);window.setTimeout(()=>setToast(""),6500);playAlert();if(document.hidden&&"Notification" in window&&Notification.permission==="granted"){const notification=new Notification("Pembayaran baru masuk",{body:`${newIds.length} bukti pembayaran menunggu verifikasi.`,icon:"/shakila-logo-transparent.png",tag:`payment-proof-${newIds.join("-")}`,silent:true});notification.onclick=()=>{window.focus();router.push("/payments");notification.close()}}}lastCount.current=proofs.length;setProofCount(proofs.length)}catch{if(active)setProofCount(lastCount.current)}};void poll();const timer=window.setInterval(()=>void poll(),10000);return()=>{active=false;window.clearInterval(timer)}},[playAlert,router]);
-  const enableDesktopNotifications=()=>{if("Notification" in window&&Notification.permission==="default")void Notification.requestPermission()};
+  const [proofCount, setProofCount] = useState(0);
+  const [toast, setToast] = useState("");
+  const [soundActive, setSoundActive] = useState(false);
+  const [pushStatus, setPushStatus] = useState<AdminPushStatus | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState("");
+  const lastCount = useRef(0);
+  const audioContext = useRef<AudioContext | null>(sharedAdminAudioContext);
+  const soundEnabledRef = useRef(false);
+  const unlockAudio = useCallback(async () => {
+    if (!soundEnabledRef.current) return false;
+    const active = await unlockAdminAudio();
+    audioContext.current = sharedAdminAudioContext;
+    setSoundActive(active);
+    return active;
+  }, []);
+  useEffect(() => {
+    const preferred =
+      window.localStorage.getItem("admin-notification-sound-enabled") === "true";
+    soundEnabledRef.current = preferred;
+    const enable = () => {
+      if (preferred) void unlockAudio();
+    };
+    window.addEventListener("pointerdown", enable, { once: true });
+    window.addEventListener("keydown", enable, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", enable);
+      window.removeEventListener("keydown", enable);
+    };
+  }, [unlockAudio]);
+  const toggleSound = async () => {
+    if (soundEnabledRef.current && soundActive) {
+      soundEnabledRef.current = false;
+      setSoundActive(false);
+      window.localStorage.setItem("admin-notification-sound-enabled", "false");
+      if (audioContext.current?.state === "running")
+        await audioContext.current.suspend();
+      return;
+    }
+    soundEnabledRef.current = true;
+    window.localStorage.setItem("admin-notification-sound-enabled", "true");
+    await unlockAudio();
+  };
+  const playAlert = useCallback(() => {
+    const context = audioContext.current;
+    if (!soundEnabledRef.current || !context || context.state !== "running") return;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.0001, context.currentTime);
+    master.gain.exponentialRampToValueAtTime(0.3, context.currentTime + 0.025);
+    master.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.72);
+    master.connect(context.destination);
+    const tones: Array<[number, number, number]> = [
+      [660, 0, 0.22],
+      [880, 0.24, 0.25],
+      [1040, 0.5, 0.18],
+    ];
+    tones.forEach(([frequency, delay, duration]) => {
+      const oscillator = context.createOscillator();
+      const tone = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, context.currentTime + delay);
+      tone.gain.setValueAtTime(0.0001, context.currentTime + delay);
+      tone.gain.exponentialRampToValueAtTime(0.75, context.currentTime + delay + 0.015);
+      tone.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + delay + duration);
+      oscillator.connect(tone).connect(master);
+      oscillator.start(context.currentTime + delay);
+      oscillator.stop(context.currentTime + delay + duration);
+    });
+  }, []);
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const proofs = await adminApi<Row[]>("/payment-proofs?status=PENDING");
+        if (!active) return;
+        const ids = proofs.map((row) => text(row.id));
+        let seen: string[] = [];
+        try {
+          seen = JSON.parse(
+            window.localStorage.getItem("admin-seen-payment-proof-ids") ?? "[]",
+          ) as string[];
+        } catch {
+          seen = [];
+        }
+        const initialized =
+          window.localStorage.getItem("admin-payment-proof-baseline-ready") === "true";
+        const seenSet = new Set(seen);
+        const newIds = initialized ? ids.filter((id) => !seenSet.has(id)) : [];
+        ids.forEach((id) => seenSet.add(id));
+        window.localStorage.setItem(
+          "admin-seen-payment-proof-ids",
+          JSON.stringify([...seenSet].slice(-500)),
+        );
+        window.localStorage.setItem("admin-payment-proof-baseline-ready", "true");
+        if (newIds.length) {
+          setToast(`${newIds.length} bukti pembayaran baru menunggu verifikasi.`);
+          window.setTimeout(() => setToast(""), 6500);
+          playAlert();
+          if (
+            document.hidden &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            const notification = new Notification("Pembayaran baru masuk", {
+              body: `${newIds.length} bukti pembayaran menunggu verifikasi.`,
+              icon: "/shakila-logo-transparent.png",
+              tag: `payment-proof-${newIds.join("-")}`,
+              silent: true,
+            });
+            notification.onclick = () => {
+              window.focus();
+              router.push("/payments");
+              notification.close();
+            };
+          }
+        }
+        lastCount.current = proofs.length;
+        setProofCount(proofs.length);
+      } catch {
+        if (active) setProofCount(lastCount.current);
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 10000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [playAlert, router]);
+  const refreshPushStatus = useCallback(async () => {
+    try {
+      setPushStatus(await getAdminPushStatus());
+    } catch {
+      setPushStatus(null);
+    }
+  }, []);
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refreshPushStatus(), 0);
+    const timer = window.setInterval(() => void refreshPushStatus(), 30000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [refreshPushStatus]);
+  const togglePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      const next = pushStatus?.active
+        ? await disableAdminPush()
+        : await enableAdminPush(
+            pushStatus ?? (await getAdminPushStatus()),
+          );
+      setPushStatus(next);
+      setPushMessage(next.active ? "Notifikasi HP aktif di perangkat ini." : "Notifikasi HP dinonaktifkan.");
+    } catch (error) {
+      setPushMessage(
+        error instanceof AdminApiError || error instanceof Error
+          ? error.message
+          : "Notifikasi HP belum dapat diubah.",
+      );
+    } finally {
+      setPushBusy(false);
+    }
+  };
+  const enableDesktopNotifications = () => {
+    if ("Notification" in window && Notification.permission === "default")
+      void Notification.requestPermission();
+  };
   return (
-        <header className="topbar">
-          <Button
-            className="mobile-menu"
-            variant="outline"
-            size="icon"
-            aria-label="Buka menu navigasi"
-            onClick={toggleSidebar}
+    <header className="topbar">
+      <Button
+        className="mobile-menu"
+        variant="outline"
+        size="icon"
+        aria-label="Buka menu navigasi"
+        onClick={toggleSidebar}
+      >
+        <Menu />
+      </Button>
+      <div className="topbar-context">
+        <span className="live-dot" />
+        <span>Operasional Shakila aktif</span>
+      </div>
+      <div className="top-actions">
+        <label className="top-select">
+          <span>{t("common.business")}</span>
+          <ShadcnSelect
+            value={business || "all"}
+            onValueChange={(value) => setBusiness(value === "all" ? "" : value)}
           >
-            <Menu />
-          </Button>
-          <div className="topbar-context">
-            <span className="live-dot" />
-            <span>Operasional Shakila aktif</span>
+            <SelectTrigger aria-label={t("common.business")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("common.allBusinesses")}</SelectItem>
+              <SelectItem value="glamping">Shakila Glamping</SelectItem>
+              <SelectItem value="jeep">Shakila Jeep Tour</SelectItem>
+            </SelectContent>
+          </ShadcnSelect>
+        </label>
+        <span
+          className={`push-status ${pushStatus?.active ? "active" : "inactive"}`}
+          title={pushMessage || "Status notifikasi HP pada perangkat ini"}
+        >
+          Notifikasi HP: {pushStatus?.active ? "Aktif" : "Tidak Aktif"}
+        </span>
+        <button
+          className="notification-push"
+          type="button"
+          onClick={() => void togglePush()}
+          disabled={pushBusy}
+          title={pushMessage || "Kelola notifikasi Web Push pada perangkat ini"}
+        >
+          {pushBusy
+            ? "Memproses..."
+            : pushStatus?.active
+              ? "Nonaktifkan Notifikasi"
+              : "Aktifkan Notifikasi"}
+        </button>
+        <button
+          className={`notification-sound ${soundActive ? "active" : "inactive"}`}
+          type="button"
+          onClick={() => void toggleSound()}
+          title={soundActive ? "Nonaktifkan suara notifikasi" : "Aktifkan suara notifikasi"}
+        >
+          <span>{soundActive ? "Aktif" : "Nonaktif"}</span>
+          {soundActive ? "Nonaktifkan Suara Notifikasi" : "Aktifkan Suara Notifikasi"}
+        </button>
+        <Link
+          className="notification-bell"
+          href="/payments"
+          onClick={enableDesktopNotifications}
+          aria-label={`${proofCount} bukti pembayaran menunggu verifikasi`}
+          title="Buka notifikasi pembayaran"
+        >
+          <Bell />
+          {proofCount > 0 ? <span>{proofCount}</span> : null}
+        </Link>
+      </div>
+      {pushMessage ? <span className="push-message" role="status">{pushMessage}</span> : null}
+      {toast ? (
+        <div className="admin-toast" role="status">
+          <span className="admin-toast-icon"><Bell /></span>
+          <div>
+            <small>PEMBAYARAN · BARU MASUK</small>
+            <strong>Bukti pembayaran perlu diperiksa</strong>
+            <span>{toast}</span>
+            <Link href="/payments">Buka verifikasi <ChevronRight /></Link>
           </div>
-          <div className="top-actions">
-            <label className="top-select">
-              <span>{t("common.business")}</span>
-              <ShadcnSelect
-                value={business || "all"}
-                onValueChange={(value) =>
-                  setBusiness(value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger aria-label={t("common.business")}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {t("common.allBusinesses")}
-                  </SelectItem>
-                  <SelectItem value="glamping">Shakila Glamping</SelectItem>
-                  <SelectItem value="jeep">Shakila Jeep Tour</SelectItem>
-                </SelectContent>
-              </ShadcnSelect>
-            </label>
-            <button className={`notification-sound ${soundActive?"active":"inactive"}`} type="button" onClick={()=>void toggleSound()} title={soundActive?"Nonaktifkan suara notifikasi":"Aktifkan suara notifikasi"}><span>{soundActive?"Aktif":"Nonaktif"}</span>{soundActive?"Nonaktifkan Suara Notifikasi":"Aktifkan Suara Notifikasi"}</button>
-            <Link className="notification-bell" href="/payments" onClick={enableDesktopNotifications} aria-label={`${proofCount} bukti pembayaran menunggu verifikasi`} title="Buka notifikasi pembayaran"><Bell/>{proofCount>0?<span>{proofCount}</span>:null}</Link>
-          </div>
-          {toast?<div className="admin-toast" role="status"><span className="admin-toast-icon"><Bell/></span><div><small>PEMBAYARAN · BARU MASUK</small><strong>Bukti pembayaran perlu diperiksa</strong><span>{toast}</span><Link href="/payments">Buka verifikasi <ChevronRight/></Link></div><button type="button" onClick={()=>setToast("")} aria-label="Tutup notifikasi"><X/></button></div>:null}
-        </header>
+          <button type="button" onClick={() => setToast("")} aria-label="Tutup notifikasi"><X /></button>
+        </div>
+      ) : null}
+    </header>
   );
 }
 

@@ -436,5 +436,28 @@ export const bookingEvents = pgTable("booking_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("booking_events_booking_idx").on(table.bookingId), index("booking_events_booking_created_idx").on(table.bookingId, table.createdAt)]);
 
+/**
+ * One row per Admin browser/device subscription.  The endpoint is globally
+ * unique because a browser push subscription can only be delivered to one
+ * active subscription at a time; re-registering it moves ownership to the
+ * current Admin session without creating duplicate devices.
+ */
+export const adminPushSubscriptions = pgTable("admin_push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  adminEmail: varchar("admin_email", { length: 254 }).notNull(),
+  endpoint: text("endpoint").notNull(),
+  p256dhKey: text("p256dh_key").notNull(),
+  authKey: text("auth_key").notNull(),
+  expirationAt: timestamp("expiration_at", { withTimezone: true }),
+  userAgent: varchar("user_agent", { length: 512 }),
+  lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+  lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
+  failureCount: integer("failure_count").notNull().default(0),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("admin_push_subscriptions_endpoint_unique").on(table.endpoint),
+  index("admin_push_subscriptions_admin_email_idx").on(table.adminEmail),
+]);
+
 export type BookingRecord = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;

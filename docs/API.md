@@ -1,5 +1,26 @@
 # API Specification
 
+## Admin Web Push
+
+The authenticated Admin namespace exposes:
+
+```text
+GET    /admin/push/status
+POST   /admin/push/subscriptions
+DELETE /admin/push/subscriptions
+```
+
+`POST` accepts the browser `PushSubscription` JSON (`endpoint`, `keys.p256dh`,
+`keys.auth`, optional `expirationTime` and `userAgent`). `DELETE` accepts an
+endpoint and only removes that endpoint for the current Admin session. Status is
+per current endpoint when the `endpoint` query parameter is supplied, while the
+response also reports the number of devices registered for that Admin.
+
+The API sends non-critical Web Push events for successful booking creation and
+payment-proof upload. Provider errors are caught after the transactional
+operation; they never fail or roll back the booking/payment request. `404` and
+`410` delivery responses remove the invalid subscription.
+
 > **Klarifikasi client — 9 September 2026 (otoritatif):** Endpoint `check-in` dan `check-out` hanya berlaku untuk booking accommodation/bundle, bukan Jeep. Booking Jeep yang sudah `CONFIRMED` dan `PAID` diselesaikan melalui `POST /admin/bookings/:bookingCode/complete`; command ini idempotent, menghasilkan status `COMPLETED`, dan langsung melepas alokasi Jeep agar armada dapat dipesan lagi pada hari yang sama.
 
 > **Klarifikasi client — 8 September 2026 (otoritatif):** `POST /admin/bookings/:bookingCode/settlement` mencatat pelunasan manual dengan `Idempotency-Key` UUID serta body `{ amount, method, note? }`; metode adalah `CASH`, `TRANSFER`, `MANUAL_QRIS`, atau `OTHER`. Endpoint invoice Admin mengalirkan `application/pdf` melalui sesi Admin dan tidak mengembalikan JSON signed-URL sebagai file.

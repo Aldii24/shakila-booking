@@ -1,5 +1,13 @@
 # Database Design
 
+## Admin Web Push Subscriptions
+
+`admin_push_subscriptions` stores one Web Push subscription per Admin browser/device.
+The endpoint is unique, while `admin_email` allows one Admin to register several
+phones at the same time. VAPID keys are not stored in PostgreSQL. Invalid provider
+responses (`404`/`410`) delete the matching row; normal delivery failures are
+retained as diagnostics without affecting booking or payment state.
+
 > **Klarifikasi client — 9 September 2026 (otoritatif):** Alokasi Jeep aktif berada pada state `HELD` atau `CONFIRMED` dan dilepas tepat sekali ketika booking `COMPLETED`, `CANCELLED`, atau `EXPIRED`. Jeep tidak memakai state operasional Check-In/Check-Out. Alokasi accommodation tetap menggunakan rentang `[check_in_date, check_out_date)` dan ditahan oleh booking `WAITING_PAYMENT`, `CONFIRMED`, atau `CHECKED_IN` sampai dilepas oleh lifecycle yang sah.
 
 > **Klarifikasi client — 8 September 2026 (otoritatif):** Pelunasan yang dicatat Admin disimpan sebagai `payment_attempts` sukses ber-provider `MANUAL_ADMIN`; `provider_order_id` adalah kunci idempotensi unik. Transaksi mengunci booking/payment, memperbarui agregat booking, payment, snapshot finansial invoice, dan timeline secara atomik. Regenerasi/upload PDF dilakukan sesudah transaksi agar kegagalan storage tidak membatalkan pembayaran terverifikasi.

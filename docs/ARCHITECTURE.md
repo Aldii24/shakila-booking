@@ -1,5 +1,19 @@
 # Technical Architecture
 
+## Admin Web Push Notifications
+
+The Admin PWA uses the browser Web Push API and a production service worker at
+`/sw.js`. The client requests permission only from the explicit **Aktifkan
+Notifikasi** interaction, then registers the subscription with the Central API.
+VAPID public key material is returned by the authenticated status endpoint;
+`VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` stay in the API environment only.
+
+Push delivery is a non-critical side effect. Booking creation and payment-proof
+upload commit first, then notify all registered Admin devices. The service
+worker displays the notification while the Admin page is closed and routes a
+click to the relevant booking detail or payment-verification page. Existing
+Admin polling, bell/badge, toast, and sound notifications remain in place.
+
 > **Klarifikasi client — 6 September 2026 (otoritatif):** Tidak ada payment gateway dalam produk aktif. Pembayaran hanya berupa transfer bank manual, unggah bukti, serta persetujuan/penolakan manual oleh Admin. Bukti memakai adapter penyimpanan persisten PostgreSQL untuk demo dan kontraknya siap diganti ke Cloudflare R2; filesystem deployment tidak pernah menjadi sumber data. Seluruh arsitektur Pakasir/provider lama di bawah bersifat usang.
 
 ## Product Demo — Glamping, Jeep & Central Admin Booking System

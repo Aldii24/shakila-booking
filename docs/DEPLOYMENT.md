@@ -58,6 +58,23 @@ Production environment values, Cloudflare credentials, database credentials,
 and R2 credentials remain only in ignored files on the VPS. They are not copied
 from CI or committed to the repository.
 
+### Admin Web Push production setup
+
+Generate a VAPID key pair once and add the following values to the ignored
+`/opt/booking-demo/.env.production` file used by the `api` container:
+
+```bash
+npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:admin@shakilagrup.com
+```
+
+`VAPID_PUBLIC_KEY` is returned only to an authenticated Admin browser. Never
+commit or expose `VAPID_PRIVATE_KEY`. The deploy migration creates
+`admin_push_subscriptions`; after deployment, install the Admin site as a PWA
+on each target phone and use **Aktifkan Notifikasi** once per device.
+
 ## Operations
 
 Use `docker compose --env-file .env.production ps` for container health and

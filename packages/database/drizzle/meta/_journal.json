@@ -92,6 +92,13 @@
       "when": 1788944570393,
       "tag": "0012_refresh_invoice_template",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788969614497,
+      "tag": "0013_flippant_scrambler",
+      "breakpoints": true
     }
   ]
 }

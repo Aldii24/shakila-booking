@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   title: "Shakila Group Admin",
   description: "Central booking administration",
   icons: { icon: "/shakila-logo-transparent.png", apple: "/shakila-logo-transparent.png" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Shakila Admin",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

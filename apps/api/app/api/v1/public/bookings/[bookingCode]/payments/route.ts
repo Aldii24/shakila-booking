@@ -3,6 +3,7 @@ import { submitManualPaymentProof } from "@booking/payment";
 import { z } from "zod";
 import { accessSecret, bearer, body, failure, ok } from "@/lib/http";
 import { verifyHuman } from "@/lib/human-verification";
+import { notifyAdminPaymentProofSubmitted } from "@/lib/push";
 
 const proofSchema = z.object({
   claimedAmount: z.number().int().positive(),
@@ -27,7 +28,9 @@ export async function POST(
     );
     const input = proofSchema.parse(await body(request));
     await verifyHuman(input.turnstileToken, request, "payment_proof");
-    return ok(await submitManualPaymentProof(bookingCode, access.bookingId, input), 201);
+    const result = await submitManualPaymentProof(bookingCode, access.bookingId, input);
+    await notifyAdminPaymentProofSubmitted(bookingCode);
+    return ok(result, 201);
   } catch (error) {
     return failure(error);
   }

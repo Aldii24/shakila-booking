@@ -57,6 +57,12 @@ import {
   loginRateLimitKey,
   recordLoginFailure,
 } from "./login-rate-limit";
+import {
+  getAdminPushStatus,
+  notifyAdminBookingCreated,
+  removeAdminPushSubscription,
+  saveAdminPushSubscription,
+} from "./push";
 
 const loginSchema = z.object({
   email: z.email(),
@@ -157,6 +163,18 @@ const settlementSchema = z.object({
   method: z.enum(["CASH", "TRANSFER", "MANUAL_QRIS", "OTHER"]),
   note: z.string().trim().max(2000).optional(),
 });
+const pushSubscriptionSchema = z.object({
+  endpoint: z
+    .url()
+    .refine((value) => value.startsWith("https://"), "Push endpoint must use HTTPS."),
+  expirationTime: z.number().int().positive().nullable().optional(),
+  keys: z.object({
+    p256dh: z.string().trim().min(1).max(256),
+    auth: z.string().trim().min(1).max(256),
+  }),
+  userAgent: z.string().trim().max(512).optional(),
+});
+const pushUnsubscribeSchema = z.object({ endpoint: z.string().url() });
 
 function cookie(request: Request, name: string) {
   return request.headers
@@ -257,6 +275,33 @@ export async function handleAdmin(
         mode: "OPERASIONAL",
         integrations: getIntegrationMode(),
       });
+    if (path === "push/status" && request.method === "GET")
+      return ok(await getAdminPushStatus(session.email, params.get("endpoint")));
+    if (path === "push/subscriptions" && request.method === "POST") {
+      const input = pushSubscriptionSchema.parse(await body(request));
+      const status = await getAdminPushStatus(session.email);
+      if (!status.configured)
+        throw new DomainError(
+          "PUSH_NOT_CONFIGURED",
+          "Notifikasi HP belum dikonfigurasi di server.",
+          503,
+        );
+      return ok(
+        await saveAdminPushSubscription({
+          adminEmail: session.email,
+          endpoint: input.endpoint,
+          p256dhKey: input.keys.p256dh,
+          authKey: input.keys.auth,
+          expirationTime: input.expirationTime,
+          userAgent: input.userAgent,
+        }),
+        201,
+      );
+    }
+    if (path === "push/subscriptions" && request.method === "DELETE") {
+      const input = pushUnsubscribeSchema.parse(await body(request));
+      return ok(await removeAdminPushSubscription(session.email, input.endpoint));
+    }
     if (
       (path === "dashboard/overview" || path === "dashboard/chart") &&
       request.method === "GET"
@@ -275,8 +320,14 @@ export async function handleAdmin(
           pageSize: Number(params.get("pageSize") ?? 20),
         }),
       );
-    if (path === "bookings/manual" && request.method === "POST")
-      return ok(await createAdminManualBooking(manualBookingSchema.parse(await body(request)), session.email), 201);
+    if (path === "bookings/manual" && request.method === "POST") {
+      const result = await createAdminManualBooking(
+        manualBookingSchema.parse(await body(request)),
+        session.email,
+      );
+      await notifyAdminBookingCreated(result.bookingId);
+      return ok(result, 201);
+    }
     if (path === "payment-proofs" && request.method === "GET") {
       const status = params.get("status");
       return ok(await listPaymentProofs(status === "PENDING" || status === "APPROVED" || status === "REJECTED" ? status : null));
