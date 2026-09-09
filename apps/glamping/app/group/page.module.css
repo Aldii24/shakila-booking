@@ -236,11 +236,25 @@
   transform: scale(1.045);
 }
 
+.businessCard[data-business="tour-jeep"] .cardImage {
+  object-position: left top;
+  transform: scale(1.7);
+  transform-origin: left top;
+}
+
+.businessCard[data-business="tour-jeep"]:hover .cardImage {
+  transform: scale(1.76);
+}
+
 .cardShade {
   position: absolute;
   z-index: 1;
   inset: 0;
   background: linear-gradient(0deg, rgba(8, 26, 19, 0.9), rgba(8, 26, 19, 0.06) 70%);
+}
+
+.businessCard[data-business="tour-jeep"] .cardShade {
+  background: linear-gradient(0deg, rgba(8, 26, 19, 0.96), rgba(8, 26, 19, 0.25) 82%);
 }
 
 .cardNumber {

@@ -121,7 +121,12 @@ export default function GroupLandingPage() {
 
           <div className={styles.businessGrid}>
             {businesses.map((business, index) => (
-              <Link className={styles.businessCard} href={business.href} key={business.name}>
+              <Link
+                className={styles.businessCard}
+                data-business={business.name.toLowerCase().replaceAll(" ", "-")}
+                href={business.href}
+                key={business.name}
+              >
                 <Image
                   className={styles.cardImage}
                   src={business.image}
