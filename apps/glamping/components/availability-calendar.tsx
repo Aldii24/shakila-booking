@@ -10,6 +10,12 @@ import {
   accommodationKindFromSlug,
   type AccommodationKind,
 } from "@/lib/accommodation-media";
+import {
+  addStayDays,
+  inventoryForSelectedStay,
+  selectedStayRange,
+  type StayAvailability,
+} from "@/lib/availability-selection";
 
 type Inventory = {
   productSlug: string;
@@ -24,13 +30,11 @@ type Inventory = {
 };
 type Day = { date: string; inventory: Inventory[] };
 type CalendarData = { business: string; days: Day[] };
-type AvailabilityResult = { slug: string; availableQuantity: number };
 
 const dayMs = 86_400_000;
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 const jakartaToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 const monthTitle = (date: Date) => new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(date);
-const addDays = (date: string, days: number) => dateKey(new Date(new Date(`${date}T00:00:00Z`).getTime() + days * dayMs));
 
 function visibleRange(month: Date) {
   const first = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1));
@@ -61,6 +65,8 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
   const initialDate = initial.checkInDate ? new Date(`${initial.checkInDate}T00:00:00Z`) : new Date(`${jakartaToday()}T00:00:00Z`);
   const [month, setMonth] = useState(new Date(Date.UTC(initialDate.getUTCFullYear(), initialDate.getUTCMonth(), 1)));
   const [data, setData] = useState<CalendarData | null>(null);
+  const [stayAvailability, setStayAvailability] = useState<StayAvailability[] | null>(null);
+  const [resolvedStayKey, setResolvedStayKey] = useState("");
   const [checkIn, setCheckIn] = useState(initial.checkInDate ?? "");
   const [checkOut, setCheckOut] = useState(initial.checkOutDate ?? "");
   const [selectedType, setSelectedType] = useState("");
@@ -89,20 +95,43 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
   }, [load]);
 
   const days = data?.days ?? [];
-  const selectedDate = checkOut || checkIn || jakartaToday();
-  const detail = days.find((day) => day.date === selectedDate) ?? days.find((day) => day.date === checkIn) ?? days[0];
+  const stayRange = useMemo(() => selectedStayRange(checkIn, checkOut), [checkIn, checkOut]);
+  const stayStart = stayRange?.checkInDate ?? "";
+  const stayEnd = stayRange?.checkOutDate ?? "";
+  const stayKey = stayStart && stayEnd ? `${stayStart}:${stayEnd}:${guests}` : "";
+  const stayLoading = Boolean(stayKey && resolvedStayKey !== stayKey);
+  const detailInventory = inventoryForSelectedStay(days, checkIn || jakartaToday(), stayAvailability);
+  useEffect(() => {
+    if (!stayStart || !stayEnd) return;
+    const controller = new AbortController();
+    void api<StayAvailability[]>("/public/glamping/availability", {
+      method: "POST",
+      body: JSON.stringify({ checkInDate: stayStart, checkOutDate: stayEnd, guestCount: guests }),
+      signal: controller.signal,
+    }).then((result) => {
+      setStayAvailability(result);
+      setResolvedStayKey(`${stayStart}:${stayEnd}:${guests}`);
+    }).catch((caught: unknown) => {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      setError(message(caught instanceof Error ? caught.message : "NETWORK_ERROR"));
+      setStayAvailability(null);
+      setResolvedStayKey(`${stayStart}:${stayEnd}:${guests}`);
+    });
+    return () => controller.abort();
+  }, [guests, stayEnd, stayStart]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (!selectedType && detail?.inventory[0]) setSelectedType(detail.inventory[0].productSlug);
+      if (!selectedType && detailInventory[0]) setSelectedType(detailInventory[0].productSlug);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [detail, selectedType]);
+  }, [detailInventory, selectedType]);
 
   function selectDate(date: string) {
     if (date < jakartaToday()) return;
     if (!checkIn || checkOut || date <= checkIn) {
       setCheckIn(date);
       setCheckOut("");
+      setStayAvailability(null);
       return;
     }
     setCheckOut(date);
@@ -111,11 +140,11 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
   async function continueBooking() {
     if (!checkIn || !selectedType || navigationLocked.current) return;
     navigationLocked.current = true;
-    const finalCheckOut = checkOut || addDays(checkIn, 1);
+    const finalCheckOut = checkOut || addStayDays(checkIn, 1);
     setContinuing(true);
     setError("");
     try {
-      const result = await api<AvailabilityResult[]>("/public/glamping/availability", {
+      const result = await api<StayAvailability[]>("/public/glamping/availability", {
         method: "POST",
         body: JSON.stringify({ checkInDate: checkIn, checkOutDate: finalCheckOut, guestCount: guests, accommodationTypeSlug: selectedType }),
       });
@@ -169,15 +198,15 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
           <div><p className="eyebrow">Pilihan Anda</p><h3>{checkIn ? new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${checkIn}T00:00:00Z`)) : "Pilih tanggal check-in"}</h3><p>{checkOut ? `Sampai ${new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${checkOut}T00:00:00Z`))}` : checkIn ? "Pilih tanggal check-out, atau lanjut untuk 1 malam." : "Jumlah unit tersedia terlihat langsung pada setiap tanggal."}</p></div>
           <div className="availability-options grouped-availability-options">
             {(["GLAMPING", "HOMESTAY"] as const).map((kind) => {
-              const items = (detail?.inventory ?? []).filter((item) => accommodationKindFromSlug(item.productSlug) === kind);
+              const items = detailInventory.filter((item) => accommodationKindFromSlug(item.productSlug) === kind);
               return <section className="availability-type-group" key={kind}>
                 <header><span>{categoryMeta[kind].label}</span><small>{categoryMeta[kind].hint}</small></header>
-                {items.map((item) => <Button variant="outline" key={item.productSlug} disabled={!item.availableUnits} className={selectedType === item.productSlug ? "selected" : ""} onClick={() => { setSelectedType(item.productSlug); setQuantity(1); }}><span><b>{item.productName}</b><small>{rupiah(item.unitPrice)} / malam · {item.capacityPerUnit} tamu</small></span><strong>{item.availableUnits ? `${item.availableUnits} unit tersedia` : "Penuh"}</strong></Button>)}
+                {items.map((item) => <Button variant="outline" key={item.productSlug} disabled={!item.availableUnits || stayLoading} className={selectedType === item.productSlug ? "selected" : ""} onClick={() => { setSelectedType(item.productSlug); setQuantity(1); }}><span><b>{item.productName}</b><small>{rupiah(item.unitPrice)} / malam · {item.capacityPerUnit} tamu</small></span><strong>{stayLoading ? "Memeriksa…" : item.availableUnits ? `${item.availableUnits} unit tersedia` : "Penuh"}</strong></Button>)}
               </section>;
             })}
           </div>
           <div className="selection-controls"><label>Jumlah unit<PositiveNumberInput value={quantity} onValueChange={setQuantity} /></label><label>Jumlah tamu<PositiveNumberInput value={guests} onValueChange={setGuests} /></label></div>
-          <Button className="button continue-button" disabled={!checkIn || !selectedType || continuing} onClick={() => void continueBooking()}>{continuing ? "Memeriksa ketersediaan…" : "Lanjut isi data tamu"}<ArrowRight /></Button>
+          <Button className="button continue-button" disabled={!checkIn || !selectedType || stayLoading || continuing} onClick={() => void continueBooking()}>{continuing || stayLoading ? "Memeriksa ketersediaan…" : "Lanjut isi data tamu"}<ArrowRight /></Button>
         </aside>
       </div>
     </section>
