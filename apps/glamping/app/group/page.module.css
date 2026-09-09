@@ -237,13 +237,12 @@
 }
 
 .businessCard[data-business="tour-jeep"] .cardImage {
-  object-position: left top;
-  transform: scale(1.7);
-  transform-origin: left top;
+  object-position: center 58%;
+  transform: scale(1);
 }
 
 .businessCard[data-business="tour-jeep"]:hover .cardImage {
-  transform: scale(1.76);
+  transform: scale(1.045);
 }
 
 .cardShade {

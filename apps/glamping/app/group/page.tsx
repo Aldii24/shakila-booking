@@ -45,8 +45,8 @@ const businesses = [
       "Pilih perjalanan Jeep Shakila untuk menyusuri rute wisata di lanskap Nepal van Java dan sekitarnya.",
     cta: "Jelajahi Tour Jeep",
     href: jeepUrl,
-    image: "/media/client/jeep/pricelist.png",
-    imageAlt: "Katalog asli Jeep Adventure Shakila",
+    image: "/media/client/jeep/portrait.png",
+    imageAlt: "Jeep Shakila menyusuri jalur Nepal van Java",
   },
 ] as const;
 
