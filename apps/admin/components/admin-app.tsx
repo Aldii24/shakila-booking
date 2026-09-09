@@ -290,9 +290,7 @@ function LoginContent() {
           <Button disabled={busy}>
             {busy ? t("login.verifying") : t("login.submit")}
           </Button>
-          <small className="login-security">
-            SESI AMAN · DATA POSTGRESQL LANGSUNG
-          </small>
+          <small className="login-security">AKSES ADMIN SHAKILA</small>
         </form>
       </section>
     </main>
@@ -421,7 +419,7 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
       ) : data == null ? (
         <EmptyState
           title={language === "id" ? "Data belum dapat dimuat" : "Data could not be loaded"}
-          description={language === "id" ? "Periksa koneksi API lalu coba lagi." : "Check the API connection and try again."}
+          description={language === "id" ? "Periksa koneksi lalu coba lagi." : "Check your connection and try again."}
         />
       ) : (
         <ViewContent
@@ -542,7 +540,7 @@ function AdminTopbar() {
           </Button>
           <div className="topbar-context">
             <span className="live-dot" />
-            <span>Data PostgreSQL langsung</span>
+            <span>Operasional Shakila aktif</span>
           </div>
           <div className="top-actions">
             <label className="top-select">
@@ -1139,13 +1137,13 @@ function BookingDetail({
     reservations = (booking.reservations ?? []) as Row[],
     invoice = booking.invoice as Row | null;
   const [command, setCommand] = useState<
-      "check-in" | "check-out" | "cancel" | null
+      "check-in" | "check-out" | "complete" | "cancel" | null
     >(null),
     [reason, setReason] = useState(""),
     [note, setNote] = useState(""),
     [busy, setBusy] = useState(false),
     [commandSuccess, setCommandSuccess] = useState<
-      "check-in" | "check-out" | null
+      "check-in" | "check-out" | "complete" | null
     >(null),
     [commandError, setCommandError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -1158,6 +1156,7 @@ function BookingDetail({
     timeZone: "Asia/Jakarta",
   });
   const reservationDate = String(booking.startDate ?? "").slice(0, 10);
+  const isAccommodationBooking = booking.bookingType !== "JEEP";
   const jakartaTimeParts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Jakarta",
     hour: "2-digit",
@@ -1168,12 +1167,15 @@ function BookingDetail({
     Number(jakartaTimeParts.find((part) => part.type === "hour")?.value ?? 0) * 60 +
     Number(jakartaTimeParts.find((part) => part.type === "minute")?.value ?? 0);
   const checkInIsEarly =
+    isAccommodationBooking &&
     booking.status === "CONFIRMED" &&
     (reservationDate > today || (reservationDate === today && jakartaMinutes < 13 * 60));
   const checkInHasBalance =
+    isAccommodationBooking &&
     booking.status === "CONFIRMED" &&
     (booking.paymentStatus !== "PAID" || Number(booking.remainingAmount) > 0);
   const checkoutIsEarly =
+    isAccommodationBooking &&
     booking.status === "CHECKED_IN" &&
     Boolean(booking.endDate) &&
     String(booking.endDate).slice(0, 10) > today;
@@ -1197,7 +1199,7 @@ function BookingDetail({
           ? "Perubahan berhasil disimpan."
           : "Change saved successfully.",
       );
-      if (completedCommand === "check-in" || completedCommand === "check-out") {
+      if (completedCommand !== "cancel") {
         setCommandSuccess(completedCommand);
         // Keep the detail view mounted long enough for the success animation.
         // Calling reload here would replace the entire content area with its
@@ -1335,7 +1337,7 @@ function BookingDetail({
               Catat Pelunasan
             </Button>
           ) : null}
-          {booking.status === "CONFIRMED" ? (
+          {isAccommodationBooking && booking.status === "CONFIRMED" ? (
             <Button
               disabled={checkInIsEarly || checkInHasBalance}
               title={
@@ -1352,9 +1354,14 @@ function BookingDetail({
               {t("booking.checkIn")}
             </Button>
           ) : null}
-          {booking.status === "CHECKED_IN" ? (
+          {isAccommodationBooking && booking.status === "CHECKED_IN" ? (
             <Button onClick={() => { setCommandError(""); setCommand("check-out"); }}>
               {t("booking.checkOut")}
+            </Button>
+          ) : null}
+          {!isAccommodationBooking && booking.status === "CONFIRMED" && booking.paymentStatus === "PAID" && Number(booking.remainingAmount) === 0 ? (
+            <Button onClick={() => { setCommandError(""); setCommand("complete"); }}>
+              Selesai
             </Button>
           ) : null}
           {!["CANCELLED", "EXPIRED", "CHECKED_OUT", "COMPLETED"].includes(
@@ -1366,7 +1373,7 @@ function BookingDetail({
           ) : null}
         </div>
       </div>
-      {checkInIsEarly ? (
+      {isAccommodationBooking && checkInIsEarly ? (
         <div className="ui-alert check-in-eligibility">
           <Clock3 size={17} />
           <span>
@@ -1376,7 +1383,7 @@ function BookingDetail({
           </span>
         </div>
       ) : null}
-      {checkInHasBalance ? (
+      {isAccommodationBooking && checkInHasBalance ? (
         <div className="ui-alert danger check-in-eligibility">
           <span>
             Masih ada sisa pembayaran {rupiah(Number(booking.remainingAmount))}. Booking harus LUNAS sebelum Check-In.
@@ -1562,7 +1569,9 @@ function BookingDetail({
             ? t("booking.cancel")
             : command === "check-in"
               ? t("booking.checkIn")
-              : t("booking.checkOut")
+              : command === "complete"
+                ? "Selesaikan booking Jeep"
+                : t("booking.checkOut")
         }
         description={
           commandSuccess
@@ -1585,14 +1594,16 @@ function BookingDetail({
                 ? language === "id"
                   ? "Check-in berhasil"
                   : "Check-in successful"
+                : commandSuccess === "complete"
+                  ? "Booking Jeep selesai"
                 : language === "id"
                   ? "Checkout berhasil diselesaikan"
                   : "Check-out berhasil diselesaikan"}
             </strong>
             <span>
               {language === "id"
-                ? "Status booking dan alokasi inventory telah diperbarui."
-                : "The booking status and inventory allocation have been updated."}
+                ? "Status booking dan ketersediaan unit telah diperbarui."
+                : "The booking status and unit availability have been updated."}
             </span>
           </div>
         ) : command === "cancel" ? (
@@ -1647,13 +1658,15 @@ function BookingDetail({
               <strong>{fmtDate(booking.startDate)}{booking.endDate ? ` — ${fmtDate(booking.endDate)}` : ""}</strong>
             </div>
             <div className={`confirmation-note ${checkoutIsEarly && command === "check-out" ? "warning" : ""}`}>
-              {checkoutIsEarly && command === "check-out"
+              {command === "complete"
+                ? "Booking akan ditandai selesai dan Jeep langsung tersedia kembali untuk jadwal lain pada hari yang sama."
+                : checkoutIsEarly && command === "check-out"
                 ? language === "id"
                   ? `Anda akan menyelesaikan checkout sebelum jadwal ${fmtDate(booking.endDate)}. Unit akan dilepas sekarang, tetapi tanggal reservasi historis tetap tersimpan. Konfirmasikan hanya jika tamu benar-benar sudah meninggalkan unit.`
                   : `You are checking out before ${fmtDate(booking.endDate)}. Inventory will be released now, while the historical reservation dates remain unchanged.`
                 : language === "id"
-                  ? "Status booking, jadwal reservasi, dan persyaratan DP akan diverifikasi kembali oleh server sebelum perubahan disimpan."
-                  : "The booking status, reservation schedule, and deposit requirement will be verified again before saving."}
+                  ? "Status booking, jadwal reservasi, dan persyaratan pembayaran akan diperiksa kembali sebelum perubahan disimpan."
+                  : "The booking status, reservation schedule, and payment requirements will be checked again before saving."}
             </div>
           </div>
         )}
@@ -1699,7 +1712,7 @@ function PaymentProofVerification({rows,reload}:{rows:Row[];reload:()=>Promise<v
   async function act(action:"approve"|"reject") {if(!selected)return;setBusy(true);setNotice("");try{await adminApi(`/payment-proofs/${selected.id}/${action}`,{method:"POST",body:JSON.stringify(action==="approve"?{verifiedAmount:amount}:{reason})});setNotice(action==="approve"?"Pembayaran disetujui dan booking telah diperbarui.":"Bukti ditolak. Pelanggan dapat mengunggah ulang sebelum batas waktu.");setSelected(null);setReason("");await reload()}catch(caught){setNotice(caught instanceof Error?caught.message:"Verifikasi belum dapat disimpan.")}finally{setBusy(false)}}
   return <div className="verification-stack">
     {notice?<div className="ui-alert">{notice}</div>:null}
-    <Card><div className="card-title"><div><h2>{pending.length} menunggu verifikasi</h2><p>Diperbarui otomatis setiap 10 detik · bukti tersimpan persisten di PostgreSQL</p></div></div>{pending.length?<div className="proof-grid">{pending.map(row=><button className="proof-notification" key={text(row.id)} onClick={()=>{setSelected(row);setAmount(Number(row.claimedAmount));setReason("")}}><Bell/><span><strong>{text(row.customerName)}</strong><small>{text(row.bookingCode)} · {row.business==="glamping"?"Shakila Akomodasi":"Shakila Jeep Tour"}</small><b>{rupiah(Number(row.claimedAmount))}</b><time>{fmtDate(row.createdAt)}</time></span><ChevronRight/></button>)}</div>:<EmptyState title="Tidak ada bukti baru" description="Notifikasi baru akan muncul otomatis setelah pelanggan mengunggah bukti."/>}</Card>
+    <Card><div className="card-title"><div><h2>{pending.length} menunggu verifikasi</h2><p>Diperbarui otomatis setiap 10 detik</p></div></div>{pending.length?<div className="proof-grid">{pending.map(row=><button className="proof-notification" key={text(row.id)} onClick={()=>{setSelected(row);setAmount(Number(row.claimedAmount));setReason("")}}><Bell/><span><strong>{text(row.customerName)}</strong><small>{text(row.bookingCode)} · {row.business==="glamping"?"Shakila Akomodasi":"Shakila Jeep Tour"}</small><b>{rupiah(Number(row.claimedAmount))}</b><time>{fmtDate(row.createdAt)}</time></span><ChevronRight/></button>)}</div>:<EmptyState title="Tidak ada bukti baru" description="Notifikasi baru akan muncul otomatis setelah pelanggan mengunggah bukti."/>}</Card>
     {history.length?<Card><h2>Riwayat verifikasi</h2><div className="table-scroll"><Table><TableHeader><TableRow><TableHead>Booking</TableHead><TableHead>Pelanggan</TableHead><TableHead>Nominal</TableHead><TableHead>Status</TableHead><TableHead>Admin</TableHead></TableRow></TableHeader><TableBody>{history.map(row=><TableRow key={text(row.id)}><TableCell><Link className="code-link" href={`/bookings/${row.bookingCode}`}>{text(row.bookingCode)}</Link></TableCell><TableCell>{text(row.customerName)}</TableCell><TableCell>{rupiah(Number(row.verifiedAmount||row.claimedAmount))}</TableCell><TableCell><Badge value={row.status}>{statusLabel(row.status,language)}</Badge>{row.rejectionReason?<small>{text(row.rejectionReason)}</small>:null}</TableCell><TableCell>{text(row.verifiedByAdminEmail)}</TableCell></TableRow>)}</TableBody></Table></div></Card>:null}
     <Dialog open={Boolean(selected)} title="Verifikasi bukti pembayaran" description={selected?`${text(selected.customerName)} · ${text(selected.bookingCode)}`:""} onClose={()=>setSelected(null)}>{selected?<div className="proof-review"><ProofImage id={text(selected.id)}/><dl className="details"><dt>Pelanggan</dt><dd>{text(selected.customerName)}<small>{text(selected.customerWhatsapp)}</small></dd><dt>Bisnis</dt><dd>{text(selected.businessName)}</dd><dt>Nominal diklaim</dt><dd>{rupiah(Number(selected.claimedAmount))}</dd><dt>Diunggah</dt><dd>{fmtDate(selected.createdAt)}</dd><dt>Batas pembayaran</dt><dd>{fmtDate(selected.expiresAt)}</dd></dl><Field label="Nominal terverifikasi"><Input type="number" min="1" max={Number(selected.claimedAmount)} value={amount} onChange={event=>setAmount(Number(event.target.value))}/></Field><Field label="Alasan penolakan (wajib bila ditolak)"><Textarea value={reason} onChange={event=>setReason(event.target.value)} placeholder="Contoh: nominal, rekening, atau tanggal pada bukti tidak sesuai"/></Field><div className="payment-terms"><strong>Aturan pembayaran</strong><span>DP minimal 50% · batas pembayaran 12 jam · DP tidak dapat dikembalikan setelah pembatalan.</span></div><footer className="dialog-actions"><Button variant="destructive" disabled={busy||reason.trim().length<3} onClick={()=>void act("reject")}>Tolak Bukti</Button><Button disabled={busy||amount<1||amount>Number(selected.claimedAmount)} onClick={()=>void act("approve")}>{busy?"Menyimpan...":"Setujui Pembayaran"}</Button></footer></div>:null}</Dialog>
   </div>;
@@ -1721,7 +1734,7 @@ function Payments({
         <h2>
           {data.total} {language === "id" ? "transaksi" : "transactions"}
         </h2>
-        <span>Server-side query</span>
+        <span>Data operasional</span>
       </div>
       {data.items.length ? (
         <div className="table-scroll">
@@ -2689,7 +2702,7 @@ function CatalogManager({
           </form>
         ) : null}
       </Dialog>
-      <Dialog open={Boolean(removal)} title="Hapus data katalog?" description="Tindakan ini akan menghapus data tanpa riwayat. Data yang sudah memiliki booking, reservasi, atau histori akan diarsipkan agar snapshot lama tetap utuh." onClose={()=>setRemoval(null)}>
+      <Dialog open={Boolean(removal)} title="Hapus data katalog?" description="Data tanpa riwayat akan dihapus. Data yang sudah memiliki booking atau reservasi akan dinonaktifkan agar rincian lama tetap utuh." onClose={()=>setRemoval(null)}>
         {removal?<div className="confirmation-summary"><div className="confirmation-icon"><Trash2/></div><strong>{text(removal.item.name)}</strong><span>Data ini tidak akan tampil di katalog publik setelah tindakan selesai.</span><footer className="dialog-actions"><Button variant="ghost" onClick={()=>setRemoval(null)}>Batal</Button><Button variant="destructive" onClick={()=>void removeCatalogItem()}>Hapus</Button></footer></div>:null}
       </Dialog>
     </>

@@ -6,11 +6,12 @@ import { getDb,type BookingDatabase } from "@booking/database";
 import { getIntegrationMode } from "@booking/validation";
 
 const rows=<T>(value:unknown)=>value as T[];
-type InvoiceSnapshot={invoiceId:string;invoiceNumber:string;status:string;bookingCode:string;businessName:string;businessSlug:string;customerName:string;customerEmail:string;customerWhatsapp:string;bookingType:string;productName:string;startDate:string;endDate:string|null;departureTime:string|null;quantity:number;guestCount:number;unitPrice:number;subtotal:number;total:number;dpPercentage:number;paid:number;remaining:number;paymentStatus:string;issuedAt:string;r2ObjectKey:string|null;fileName:string|null};
+export type InvoiceSnapshot={invoiceId:string;invoiceNumber:string;status:string;bookingCode:string;businessName:string;businessSlug:string;customerName:string;customerEmail:string;customerWhatsapp:string;bookingType:string;productName:string;startDate:string;endDate:string|null;departureTime:string|null;quantity:number;guestCount:number;unitPrice:number;subtotal:number;total:number;dpPercentage:number;paid:number;remaining:number;paymentStatus:string;issuedAt:string;r2ObjectKey:string|null;fileName:string|null};
 function r2Config(){const accountId=process.env.R2_ACCOUNT_ID,accessKeyId=process.env.R2_ACCESS_KEY_ID,secretAccessKey=process.env.R2_SECRET_ACCESS_KEY,bucket=process.env.R2_PAYMENT_PROOFS_BUCKET_NAME||process.env.R2_BUCKET_NAME;if(!accountId||!accessKeyId||!secretAccessKey||!bucket)throw new Error("R2 storage is not configured.");return {bucket,client:new S3Client({region:"auto",endpoint:`https://${accountId}.r2.cloudflarestorage.com`,credentials:{accessKeyId,secretAccessKey}})};}
 async function snapshot(bookingId:string,database:BookingDatabase){const item=rows<InvoiceSnapshot>(await database.execute(sql`select i.id as "invoiceId",i.invoice_number as "invoiceNumber",i.status,i.r2_object_key as "r2ObjectKey",i.file_name as "fileName",i.issued_at::text as "issuedAt",b.booking_code as "bookingCode",bu.name as "businessName",bu.slug as "businessSlug",b.customer_name as "customerName",b.customer_email as "customerEmail",b.customer_whatsapp as "customerWhatsapp",b.booking_type as "bookingType",coalesce(bd.product_name_snapshot,g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(bd.check_in_date,g.check_in_date,j.tour_date)::text as "startDate",coalesce(bd.check_out_date,g.check_out_date)::text as "endDate",j.departure_time_snapshot::text as "departureTime",b.quantity,b.guest_count as "guestCount",coalesce(bd.unit_price_snapshot,g.unit_price_snapshot,j.unit_price_snapshot)::int as "unitPrice",b.subtotal_amount::int as subtotal,b.total_amount::int as total,b.dp_percentage as "dpPercentage",b.verified_paid_amount::int as paid,b.remaining_amount::int as remaining,b.payment_status as "paymentStatus" from invoices i join bookings b on b.id=i.booking_id join businesses bu on bu.id=b.business_id left join bundle_booking_details bd on bd.booking_id=b.id left join glamping_booking_details g on g.booking_id=b.id left join jeep_booking_details j on j.booking_id=b.id where b.id=${bookingId}::uuid and b.status in ('CONFIRMED','CHECKED_IN','CHECKED_OUT','COMPLETED') limit 1`))[0];if(!item)throw new Error("Confirmed booking invoice was not found.");return item;}
 const rupiah=(value:number)=>`Rp${new Intl.NumberFormat("id-ID").format(value)}`;
 export const invoicePaymentLabel = (remaining: number) => remaining > 0 ? "DP TERBAYAR" : "LUNAS";
+export const invoiceBusinessLine = (businessSlug: string) => businessSlug === "jeep" ? "T O U R   J E E P" : "G L A M P I N G   &   H O M E S T A Y";
 export async function renderInvoicePdf(item:InvoiceSnapshot){
   const pdf=await PDFDocument.create(),page=pdf.addPage([595,842]);
   const regular=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -21,7 +22,7 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
   page.drawRectangle({x:0,y:0,width:595,height:842,color:paper});
   page.drawRectangle({x:42,y:42,width:4,height:758,color:accent});
   page.drawText(item.businessName.toUpperCase(),{x:70,y:765,size:13,font:bold,color:ink});
-  page.drawText(item.businessSlug==="glamping"?"H O S P I T A L I T A S   B R O M O":"P E R J A L A N A N   B R O M O",{x:70,y:747,size:7,font:regular,color:muted});
+  page.drawText(invoiceBusinessLine(item.businessSlug),{x:70,y:747,size:7,font:regular,color:muted});
   right("INVOIS",754,30,bold);
   right(item.invoiceNumber,726,11,bold);
 
@@ -61,8 +62,8 @@ export async function renderInvoicePdf(item:InvoiceSnapshot){
   page.drawText(paidText,{x:529-regular.widthOfTextAtSize(paidText,9),y:223,size:9,font:regular,color:rgb(1,1,1)});
 
   page.drawText("C A T A T A N",{x:70,y:154,size:7,font:bold,color:muted});
-  page.drawText("Dokumen ini diterbitkan dari snapshot reservasi dan pembayaran yang telah",{x:70,y:134,size:9,font:regular,color:muted});
-  page.drawText("diverifikasi server. Simpan kode booking untuk pemeriksaan reservasi.",{x:70,y:119,size:9,font:regular,color:muted});
+  page.drawText("Invoice ini dibuat dari rincian reservasi dan pembayaran yang terverifikasi.",{x:70,y:134,size:9,font:regular,color:muted});
+  page.drawText("Simpan kode booking untuk pemeriksaan reservasi.",{x:70,y:119,size:9,font:regular,color:muted});
   page.drawLine({start:{x:70,y:88},end:{x:547,y:88},thickness:.5,color:line});
   page.drawText("Dokumen elektronik / Tidak memerlukan tanda tangan",{x:70,y:68,size:8,font:regular,color:muted});
   right(`Halaman 1 / 1`,68,8,regular);

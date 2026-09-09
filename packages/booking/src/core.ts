@@ -55,7 +55,7 @@ export function calculateBundlePrice(unitPrice: number, additionalNightPrice: nu
 
 const transitions: Record<BookingStatus, readonly BookingStatus[]> = {
   PENDING: ["WAITING_PAYMENT"], WAITING_PAYMENT: ["CONFIRMED", "EXPIRED", "CANCELLED"],
-  CONFIRMED: ["CHECKED_IN", "CANCELLED"], CHECKED_IN: ["CHECKED_OUT"], CHECKED_OUT: ["COMPLETED"],
+  CONFIRMED: ["CHECKED_IN", "COMPLETED", "CANCELLED"], CHECKED_IN: ["CHECKED_OUT"], CHECKED_OUT: ["COMPLETED"],
   COMPLETED: [], CANCELLED: [], EXPIRED: [],
 };
 
@@ -72,7 +72,9 @@ export function isAccommodationCheckInOpen(
   timezone = "Asia/Jakarta",
   instant = new Date(),
 ): boolean {
-  if (reservationDate !== businessDate(timezone, instant)) return false;
+  const currentDate = businessDate(timezone, instant);
+  if (reservationDate < currentDate) return true;
+  if (reservationDate > currentDate) return false;
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "2-digit",

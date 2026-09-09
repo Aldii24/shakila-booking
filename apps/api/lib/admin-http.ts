@@ -476,7 +476,7 @@ export async function handleAdmin(
       if (action === "events" && request.method === "GET")
         return ok((await getAdminBooking(bookingCode)).events);
       if (
-        ["check-in", "check-out", "cancel"].includes(action ?? "") &&
+        ["check-in", "check-out", "complete", "cancel"].includes(action ?? "") &&
         request.method === "POST"
       ) {
         const details =
@@ -488,7 +488,7 @@ export async function handleAdmin(
         return ok(
           await adminBookingCommand(
             bookingCode,
-            action as "check-in" | "check-out" | "cancel",
+            action as "check-in" | "check-out" | "complete" | "cancel",
             details,
           ),
         );

@@ -12,7 +12,7 @@ import { jeepMedia, jeepPackageImage } from "@/lib/jeep-media";
 const experiences = [
   { icon: Sunrise, title: "Jadwal terkoordinasi", text: "Waktu keberangkatan dikonfirmasi oleh Admin setelah reservasi agar perjalanan tetap tertata." },
   { icon: Compass, title: "Kru berpengalaman", text: "Perjalanan ditemani pengemudi yang memahami karakter medan dan operasional setempat." },
-  { icon: ShieldCheck, title: "Armada terjaga", text: "Setiap booking menggunakan unit fisik dan tetap terlindungi dari overbooking." },
+  { icon: ShieldCheck, title: "Armada terjaga", text: "Setiap booking memperoleh alokasi Jeep yang pasti sesuai jadwal perjalanan." },
 ];
 
 const tourStayGroups = ["Family Adventure - Deluxe", "Group Adventure - Twin Bed"].map((name) => ({

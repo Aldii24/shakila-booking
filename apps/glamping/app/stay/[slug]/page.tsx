@@ -48,7 +48,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             <div><Home /><span>{category}</span></div>
             <div><Users /><span>Maksimal {item.capacityPerUnit} tamu per unit</span></div>
             {item.breakfastIncludedPax ? <div><Coffee /><span>Sarapan untuk {item.breakfastIncludedPax} orang per kamar</span></div> : null}
-            <div><ShieldCheck /><span>Inventori fisik diperiksa saat booking</span></div>
+            <div><ShieldCheck /><span>Ketersediaan unit dipastikan saat booking</span></div>
             <div className="total"><span>Mulai</span><strong>{rupiah(item.basePrice)} / malam</strong></div>
             <Link className="button" href={`/availability?guestCount=${item.capacityPerUnit}`}>Cek ketersediaan <ArrowRight /></Link>
           </aside>

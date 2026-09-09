@@ -78,6 +78,20 @@
       "when": 1788884981229,
       "tag": "0010_no_weekend_surcharge",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788942719703,
+      "tag": "0011_shocking_vision",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788944570393,
+      "tag": "0012_refresh_invoice_template",
+      "breakpoints": true
     }
   ]
 }

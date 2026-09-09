@@ -16,6 +16,7 @@ describe("booking calculations",()=>{
   it("opens accommodation check-in at 13:00 Asia/Jakarta",()=>{
     expect(isAccommodationCheckInOpen("2026-09-08","Asia/Jakarta",new Date("2026-09-08T05:59:59Z"))).toBe(false);
     expect(isAccommodationCheckInOpen("2026-09-08","Asia/Jakarta",new Date("2026-09-08T06:00:00Z"))).toBe(true);
+    expect(isAccommodationCheckInOpen("2026-09-08","Asia/Jakarta",new Date("2026-09-09T00:00:00Z"))).toBe(true);
   });
   it("rejects a same-day Jeep departure that has already passed in Jakarta",()=>{
     const now=new Date("2026-08-27T00:30:00.000Z"); // 07:30 WIB

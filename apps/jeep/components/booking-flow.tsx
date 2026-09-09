@@ -240,7 +240,7 @@ export function Availability({
       {result && pack ? (
         <article className="result-card">
           <div>
-            <p className="kicker">INVENTORI FISIK LANGSUNG</p>
+            <p className="kicker">KETERSEDIAAN ARMADA</p>
             <h3>{pack.name}</h3>
             <p>
               {result.availableQuantity} Jeep tersedia pada slot ini · reservasi web untuk 1 Jeep

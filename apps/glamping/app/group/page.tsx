@@ -55,7 +55,7 @@ export default function GroupLandingPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <Link className={styles.logo} href="/" aria-label="Beranda Shakila Grup">
-          <Image src="/shakila-logo.jpeg" alt="Logo Shakila Grup" width={176} height={96} priority />
+          <Image src="/shakila-logo-transparent-clean.png" alt="Logo Shakila Grup" width={176} height={96} priority />
         </Link>
         <nav className={styles.nav} aria-label="Navigasi utama">
           <a href="#tentang">Tentang</a>
@@ -195,7 +195,7 @@ export default function GroupLandingPage() {
 
       <footer className={styles.footer}>
         <div className={styles.footerBrand}>
-          <Image src="/shakila-logo.jpeg" alt="Logo Shakila Grup" width={196} height={107} />
+          <Image src="/shakila-logo-transparent-clean.png" alt="Logo Shakila Grup" width={196} height={107} />
           <p>Penginapan dan perjalanan Jeep di sekitar Nepal van Java.</p>
         </div>
         <div className={styles.footerNav}>

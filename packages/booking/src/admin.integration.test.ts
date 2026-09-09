@@ -85,74 +85,27 @@ integration("admin operations against PostgreSQL", () => {
     );
   });
 
-  it("persists Jeep check-in and check-out with admin timeline actors", async () => {
-    const { createJeepBooking } = await import("./creation.js");
+  it("gives a fully-paid manual accommodation booking Check-In and Check-Out", async () => {
+    const { quoteBooking } = await import("./creation.js");
+    const { createAdminManualBooking } = await import("./manual.js");
     const { adminBookingCommand, getAdminBooking } = await import("./admin.js");
     const { getDb } = await import("@booking/database");
     const db = getDb();
-    const slot = (await db.execute(
-      sql`insert into jeep_departure_slots(business_id,jeep_package_id,name,departure_time)
-          select p.business_id,p.id,'Admin Lifecycle Test','23:59'::time
-          from jeep_packages p where p.slug='short-1'
-          returning id`,
-    )) as unknown as { id: string }[];
-    const slotId = slot[0]?.id;
-    if (!slotId) throw new Error("Seeded Jeep departure slot was not found.");
-    const booking = await createJeepBooking(
-      {
-        business: "jeep",
-        reservation: {
-          packageSlug: "short-1",
-          tourDate: jakartaDate(),
-          departureSlotId: slotId,
-          quantity: 1,
-          guestCount: 1,
-        },
-        customer: {
-          fullName: "Admin Lifecycle",
-          email: emails[0],
-          whatsapp: "081299992221",
-        },
-      },
-      randomUUID(),
-      db,
-    );
-    await db.execute(
-      sql`update bookings set status='CONFIRMED',payment_status='PARTIALLY_PAID',verified_paid_amount=required_dp_amount,remaining_amount=total_amount-required_dp_amount where id=${booking.bookingId}::uuid`,
-    );
-    await db.execute(
-      sql`update payments set status='PARTIALLY_PAID',verified_amount=expected_amount where booking_id=${booking.bookingId}::uuid`,
-    );
-    await db.execute(
-      sql`update jeep_unit_reservations set state='CONFIRMED' where booking_id=${booking.bookingId}::uuid`,
-    );
+    const reservation = { productSlug: "homestay-standard", checkInDate: "2099-09-02", checkOutDate: "2099-09-03", quantity: 1, guestCount: 2 };
+    const quote = await quoteBooking({ business: "glamping", ...reservation }, db);
+    const booking = await createAdminManualBooking({
+      source: "ADMIN_MANUAL", business: "glamping", reservation,
+      customer: { fullName: "Admin Lifecycle", email: emails[0], whatsapp: "081299992221" },
+      paymentState: "PAID", amountReceived: quote.totalAmount,
+    }, "admin@shakila.test", db);
 
-    const checkInInstant = new Date(`${jakartaDate()}T06:00:00.000Z`);
-    await expect(
-      adminBookingCommand(booking.bookingCode, "check-in", {}, db, checkInInstant),
-    ).rejects.toMatchObject({ code: "PAYMENT_BALANCE_REMAINING" });
-    await db.execute(
-      sql`update bookings set payment_status='PAID',verified_paid_amount=total_amount,remaining_amount=0 where id=${booking.bookingId}::uuid`,
-    );
-    await db.execute(
-      sql`update payments set status='PAID',verified_amount=(select total_amount from bookings where id=${booking.bookingId}::uuid) where booking_id=${booking.bookingId}::uuid`,
-    );
-
-    expect(
-      (await adminBookingCommand(booking.bookingCode, "check-in", {}, db, checkInInstant)).status,
-    ).toBe("CHECKED_IN");
-    expect(
-      (await adminBookingCommand(booking.bookingCode, "check-out")).status,
-    ).toBe("CHECKED_OUT");
-    const detail = await getAdminBooking(booking.bookingCode);
-    expect((detail as Record<string, unknown>).status).toBe("CHECKED_OUT");
-    expect(
-      (detail.events as Record<string, unknown>[])
-        .filter((event) =>
-          ["CHECKED_IN", "CHECKED_OUT"].includes(String(event.eventType)),
-        )
-        .every((event) => event.actorType === "ADMIN"),
-    ).toBe(true);
+    await expect(adminBookingCommand(booking.bookingCode, "check-in", {}, db, new Date("2099-09-02T05:59:59.000Z"))).rejects.toMatchObject({ code: "CHECK_IN_NOT_ALLOWED" });
+    expect((await adminBookingCommand(booking.bookingCode, "check-in", {}, db, new Date("2099-09-02T06:00:00.000Z"))).status).toBe("CHECKED_IN");
+    await expect(adminBookingCommand(booking.bookingCode, "check-out", {}, db)).rejects.toMatchObject({ code: "CHECK_OUT_NOT_ALLOWED" });
+    expect((await adminBookingCommand(booking.bookingCode, "check-out", { confirmEarlyCheckout: true }, db)).status).toBe("CHECKED_OUT");
+    const detail = await getAdminBooking(booking.bookingCode, db);
+    expect(detail).toMatchObject({ bookingSource: "ADMIN_MANUAL", bookingType: "ACCOMMODATION", status: "CHECKED_OUT", paymentStatus: "PAID" });
+    expect((detail.events as Record<string, unknown>[]).filter(event=>["CHECKED_IN","CHECKED_OUT"].includes(String(event.eventType))).every(event=>event.actorType==="ADMIN")).toBe(true);
   });
 
   it("requires explicit confirmation for an early Glamping checkout", async () => {

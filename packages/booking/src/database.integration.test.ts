@@ -10,7 +10,7 @@ const createdIds:string[]=[];
 async function cleanupTestBookings(){
   if(!testUrl)return;
   const {getDb}=await import("@booking/database");const db=getDb();
-  const target=sql`select id from bookings where customer_email in ('idempotency@example.test','concurrency-1@example.test','concurrency-2@example.test','cancel@example.test','expire@example.test','jeep-one@example.test','jeep-two@example.test','jeep-other@example.test','jeep-shared-one@example.test','jeep-shared-two@example.test','jeep-shared-other-slot@example.test','boundary-one@example.test','boundary-two@example.test','bundle-stock@example.test','bundle-overbook-1@example.test','bundle-overbook-2@example.test','bundle-jeep-fill@example.test','bundle-rollback@example.test')`;
+  const target=sql`select id from bookings where customer_email in ('idempotency@example.test','concurrency-1@example.test','concurrency-2@example.test','cancel@example.test','expire@example.test','jeep-one@example.test','jeep-two@example.test','jeep-other@example.test','jeep-shared-one@example.test','jeep-shared-two@example.test','jeep-shared-other-slot@example.test','boundary-one@example.test','boundary-two@example.test','bundle-stock@example.test','bundle-overbook-1@example.test','bundle-overbook-2@example.test','bundle-jeep-fill@example.test','bundle-rollback@example.test') or customer_email like 'accommodation-stock-%' or customer_email like 'jeep-complete-%'`;
   await db.execute(sql`delete from booking_events where booking_id in (${target})`);
   await db.execute(sql`delete from payment_proofs where booking_id in (${target})`);
   await db.execute(sql`delete from payment_attempts where booking_id in (${target})`);
@@ -67,6 +67,38 @@ integration("transactional booking allocation (requires migrated and seeded TEST
     expect(await calculateJeepAvailability({businessId:longMorning.businessId,tourDate:"2099-04-03",departureSlotId:longMorning.id})).toBe(0);
     await expect(make("long-2",longMorning.id,1,"jeep-shared-two@example.test","081200004012")).rejects.toMatchObject({code:"INVENTORY_NOT_AVAILABLE"});
     const other=await make("short-1",shortOther.id,12,"jeep-shared-other-slot@example.test","081200004013");createdIds.push(other.bookingId);expect(other.bookingId).toBeTruthy();
+  });
+  it("holds accommodation stock immediately and keeps public and Admin availability consistent",async()=>{
+    const {calculateAccommodationAvailability}=await import("./availability.js");const {getPublicGlampingCalendar}=await import("./availability-calendar.js");const {getAdminCalendar}=await import("./admin.js");const {createGlampingBooking}=await import("./creation.js");const {cancelBooking}=await import("./lifecycle.js");const {getDb}=await import("@booking/database");const db=getDb();
+    const product=(await db.execute(sql`select id from accommodation_types where slug='glamping-deluxe' limit 1`)) as unknown as {id:string}[];const input=(index:number)=>({business:"glamping" as const,reservation:{productSlug:"glamping-deluxe",checkInDate:"2099-08-05",checkOutDate:"2099-08-06",quantity:1,guestCount:2},customer:{fullName:`Accommodation Stock ${index}`,email:`accommodation-stock-${index}@example.test`,whatsapp:`08120000810${index}`}});
+    const first=await createGlampingBooking(input(1),randomUUID(),db);createdIds.push(first.bookingId);
+    expect(await calculateAccommodationAvailability({accommodationTypeId:product[0]!.id,checkInDate:"2099-08-05",checkOutDate:"2099-08-06"},db)).toBe(1);
+    const publicCalendar=await getPublicGlampingCalendar({startDate:"2099-08-05",endDate:"2099-08-05"},db);
+    expect(publicCalendar.days[0]?.inventory.find(row=>row.productSlug==="glamping-deluxe")?.availableUnits).toBe(1);
+    const adminCalendar=await getAdminCalendar("2099-08-05","2099-08-05","glamping",db);
+    expect(adminCalendar.bookings.some(row=>row.bookingCode===first.bookingCode)).toBe(true);
+    const second=await createGlampingBooking(input(2),randomUUID(),db);createdIds.push(second.bookingId);
+    expect(await calculateAccommodationAvailability({accommodationTypeId:product[0]!.id,checkInDate:"2099-08-05",checkOutDate:"2099-08-06"},db)).toBe(0);
+    await expect(createGlampingBooking(input(3),randomUUID(),db)).rejects.toMatchObject({code:"INVENTORY_NOT_AVAILABLE"});
+    await cancelBooking(first.bookingId,db);
+    expect(await calculateAccommodationAvailability({accommodationTypeId:product[0]!.id,checkInDate:"2099-08-05",checkOutDate:"2099-08-06"},db)).toBe(1);
+    const checkoutCalendar=await getAdminCalendar("2099-08-06","2099-08-06","glamping",db);
+    expect(checkoutCalendar.bookings.some(row=>row.bookingCode===second.bookingCode)).toBe(false);
+  });
+  it("releases one completed Jeep exactly once and allows same-day reuse",async()=>{
+    const {adminBookingCommand}=await import("./admin.js");const {calculateJeepAvailability}=await import("./availability.js");const {createJeepBooking}=await import("./creation.js");const {getDb}=await import("@booking/database");const db=getDb();
+    const slot=(await db.execute(sql`select s.id,b.id as "businessId" from jeep_departure_slots s join jeep_packages p on p.id=s.jeep_package_id join businesses b on b.id=s.business_id where p.slug='short-1' and s.is_active order by s.departure_time nulls last,s.created_at limit 1`)) as unknown as {id:string;businessId:string}[];const selected=slot[0]!;
+    const make=(index:number)=>createJeepBooking({business:"jeep",reservation:{packageSlug:"short-1",tourDate:"2099-08-07",departureSlotId:selected.id,quantity:1,guestCount:1},customer:{fullName:`Jeep Complete ${index}`,email:`jeep-complete-${index}@example.test`,whatsapp:`0812000082${String(index).padStart(2,"0")}`}},randomUUID(),db);
+    const bookings=[];for(let index=1;index<=12;index++){const booking=await make(index);bookings.push(booking);createdIds.push(booking.bookingId);}
+    expect(await calculateJeepAvailability({businessId:selected.businessId,tourDate:"2099-08-07",departureSlotId:selected.id},db)).toBe(0);
+    const first=bookings[0]!;await db.execute(sql`update bookings set status='CONFIRMED',payment_status='PAID',verified_paid_amount=total_amount,remaining_amount=0,confirmed_at=now() where id=${first.bookingId}::uuid`);await db.execute(sql`update payments set status='PAID',verified_amount=expected_amount,verified_at=now() where booking_id=${first.bookingId}::uuid`);await db.execute(sql`update jeep_unit_reservations set state='CONFIRMED' where booking_id=${first.bookingId}::uuid`);
+    await expect(adminBookingCommand(first.bookingCode,"check-in",{},db)).rejects.toMatchObject({code:"BOOKING_LIFECYCLE_NOT_ALLOWED"});
+    expect(await adminBookingCommand(first.bookingCode,"complete",{},db)).toMatchObject({status:"COMPLETED",duplicate:false});
+    expect(await calculateJeepAvailability({businessId:selected.businessId,tourDate:"2099-08-07",departureSlotId:selected.id},db)).toBe(1);
+    expect(await adminBookingCommand(first.bookingCode,"complete",{},db)).toMatchObject({status:"COMPLETED",duplicate:true});
+    expect(await calculateJeepAvailability({businessId:selected.businessId,tourDate:"2099-08-07",departureSlotId:selected.id},db)).toBe(1);
+    const replacement=await make(13);createdIds.push(replacement.bookingId);
+    expect(await calculateJeepAvailability({businessId:selected.businessId,tourDate:"2099-08-07",departureSlotId:selected.id},db)).toBe(0);
   });
   it("menghitung inventori fisik Glamping dan Homestay sesuai katalog client",async()=>{
     const {calculateAccommodationAvailability}=await import("./availability.js");const {getDb}=await import("@booking/database");const db=getDb();

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { getDb, type BookingDatabase } from "@booking/database";
-import { cancelBooking, checkInBooking, checkOutBooking } from "./lifecycle";
+import { cancelBooking, checkInBooking, checkOutBooking, completeJeepBooking } from "./lifecycle";
 import { DomainError } from "./errors";
 
 const rows = <T>(value: unknown) => value as T[];
@@ -126,7 +126,7 @@ export async function getAdminBooking(
 
 export async function adminBookingCommand(
   bookingCode: string,
-  command: "check-in" | "check-out" | "cancel",
+  command: "check-in" | "check-out" | "complete" | "cancel",
   details: { reason?: string; note?: string; confirmEarlyCheckout?: boolean } = {},
   database: BookingDatabase = getDb(),
   instant?: Date,
@@ -149,6 +149,8 @@ export async function adminBookingCommand(
       ? "CHECKED_IN"
       : command === "check-out"
         ? "CHECKED_OUT"
+        : command === "complete"
+          ? "COMPLETED"
         : "CANCELLED";
   if (found.status === desired)
     return { bookingId: found.id, status: desired, duplicate: true };
@@ -159,6 +161,8 @@ export async function adminBookingCommand(
         ? await checkOutBooking(found.id, database, {
             confirmEarlyCheckout: details.confirmEarlyCheckout === true,
           })
+        : command === "complete"
+          ? await completeJeepBooking(found.id, database)
         : await cancelBooking(found.id, database);
   await database.execute(
     sql`update booking_events set actor_type='ADMIN',description=case when ${command}='cancel' then ${details.note ?? null} else description end,metadata=case when ${command}='cancel' then ${JSON.stringify({ reason: details.reason ?? null })}::jsonb else metadata end where id=(select id from booking_events where booking_id=${found.id}::uuid order by created_at desc limit 1)`,
@@ -252,7 +256,7 @@ export async function getAdminCalendar(
 ) {
   const bookings = rows<Record<string, unknown>>(
     await database.execute(
-      sql`select b.booking_code as "bookingCode",bu.slug as business,b.status,b.customer_name as "customerName",coalesce(g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(g.check_in_date,j.tour_date)::text as "startDate",coalesce(g.check_out_date,j.tour_date)::text as "endDate",j.departure_time_snapshot::text as "departureTime" from bookings b join businesses bu on bu.id=b.business_id left join glamping_booking_details g on g.booking_id=b.id left join jeep_booking_details j on j.booking_id=b.id where b.status not in ('CANCELLED','EXPIRED') and (${business}::text is null or bu.slug=${business}) and coalesce(g.check_in_date,j.tour_date)<=${endDate}::date and coalesce(g.check_out_date,j.tour_date)>=${startDate}::date order by coalesce(g.check_in_date,j.tour_date),b.booking_code`,
+      sql`select b.booking_code as "bookingCode",bu.slug as business,b.status,b.customer_name as "customerName",coalesce(g.product_name_snapshot,j.package_name_snapshot) as "productName",coalesce(g.check_in_date,j.tour_date)::text as "startDate",coalesce(g.check_out_date,j.tour_date)::text as "endDate",j.departure_time_snapshot::text as "departureTime" from bookings b join businesses bu on bu.id=b.business_id left join glamping_booking_details g on g.booking_id=b.id left join jeep_booking_details j on j.booking_id=b.id where b.status not in ('CANCELLED','EXPIRED') and (${business}::text is null or bu.slug=${business}) and ((g.booking_id is not null and g.check_in_date<=${endDate}::date and g.check_out_date>${startDate}::date) or (j.booking_id is not null and j.tour_date between ${startDate}::date and ${endDate}::date)) order by coalesce(g.check_in_date,j.tour_date),b.booking_code`,
     ),
   );
   const capacity = rows<Record<string, unknown>>(

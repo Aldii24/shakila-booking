@@ -177,7 +177,7 @@ export function GlampingAvailabilityCalendar({ initial }: { initial: { checkInDa
             })}
           </div>
           <div className="selection-controls"><label>Jumlah unit<PositiveNumberInput value={quantity} onValueChange={setQuantity} /></label><label>Jumlah tamu<PositiveNumberInput value={guests} onValueChange={setGuests} /></label></div>
-          <Button className="button continue-button" disabled={!checkIn || !selectedType || continuing} onClick={() => void continueBooking()}>{continuing ? "Memvalidasi inventory…" : "Lanjut isi data tamu"}<ArrowRight /></Button>
+          <Button className="button continue-button" disabled={!checkIn || !selectedType || continuing} onClick={() => void continueBooking()}>{continuing ? "Memeriksa ketersediaan…" : "Lanjut isi data tamu"}<ArrowRight /></Button>
         </aside>
       </div>
     </section>
