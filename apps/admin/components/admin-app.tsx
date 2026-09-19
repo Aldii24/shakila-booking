@@ -1391,6 +1391,7 @@ function BookingDetail({
     booking.status === "CHECKED_IN" &&
     Boolean(booking.endDate) &&
     String(booking.endDate).slice(0, 10) > today;
+  const totalAmount=Number(booking.totalAmount??0),requiredDpAmount=Number(booking.requiredDpAmount??0),verifiedPaidAmount=Number(booking.verifiedPaidAmount??0),remainingAmount=Number(booking.remainingAmount??0),dpShortfall=Math.max(requiredDpAmount-verifiedPaidAmount,0),dpSatisfied=verifiedPaidAmount>=requiredDpAmount,isAdditionalPayment=booking.status==="WAITING_PAYMENT"&&!dpSatisfied,paymentActionLabel=isAdditionalPayment?"Catat Pembayaran Tambahan":"Catat Pelunasan";
   async function runCommand() {
     if (!command || (command === "cancel" && !reason.trim())) return;
     setBusy(true);
@@ -1493,7 +1494,7 @@ function BookingDetail({
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
   function openSettlement() {
-    setSettlementAmount(Number(booking.remainingAmount ?? 0));
+    setSettlementAmount(isAdditionalPayment?dpShortfall:remainingAmount);
     setSettlementMethod("CASH");
     setSettlementNote("");
     setSettlementKey(crypto.randomUUID());
@@ -1518,8 +1519,12 @@ function BookingDetail({
       setSettlementOpen(false);
       setNotice(
         result.invoice === "failed"
-          ? "Pelunasan berhasil dicatat. PDF invoice belum dapat diperbarui dan dapat dicoba lagi."
-          : "Pelunasan berhasil dicatat. Status pembayaran dan invoice telah diperbarui.",
+          ? `${paymentActionLabel} berhasil. PDF invoice belum dapat dibuat atau diperbarui dan dapat dicoba lagi.`
+          : isAdditionalPayment
+            ? result.invoice === "ready"
+              ? "Pembayaran tambahan berhasil dicatat. Minimum DP terpenuhi, booking dikonfirmasi, dan invoice siap diunduh."
+              : "Pembayaran tambahan berhasil dicatat. Booking tetap menunggu pembayaran sampai minimum DP terpenuhi."
+            : "Pelunasan berhasil dicatat. Status pembayaran dan invoice telah diperbarui.",
       );
       await reload();
     } catch (caught) {
@@ -1540,13 +1545,13 @@ function BookingDetail({
             {statusLabel(booking.status, language)}
           </Badge>
           <Badge value={booking.paymentStatus}>
-            {statusLabel(booking.paymentStatus, language)}
+            {dpSatisfied&&booking.paymentStatus!=="PAID"?"DP TERBAYAR":verifiedPaidAmount>0&&!dpSatisfied?"DP BELUM TERPENUHI":statusLabel(booking.paymentStatus,language)}
           </Badge>
         </div>
         <div>
-          {booking.status === "CONFIRMED" && Number(booking.remainingAmount) > 0 ? (
+          {["WAITING_PAYMENT","CONFIRMED"].includes(String(booking.status))&&remainingAmount>0 ? (
             <Button variant="outline" onClick={openSettlement}>
-              Catat Pelunasan
+              {paymentActionLabel}
             </Button>
           ) : null}
           {isAccommodationBooking && booking.status === "CONFIRMED" ? (
@@ -1630,16 +1635,11 @@ function BookingDetail({
             <dd>
               {text(booking.guestCount)} / {text(booking.quantity)}
             </dd>
-            <dt>Total</dt>
-            <dd>{rupiah(Number(booking.totalAmount))}</dd>
-            <dt>
-              {t("payments.verified")} / {t("dashboard.outstanding")}
-            </dt>
-            <dd>
-              {rupiah(Number(booking.verifiedPaidAmount))} /{" "}
-              {rupiah(Number(booking.remainingAmount))}
-              <small>DP minimal 50% · DP terbayar tidak dapat dikembalikan bila booking dibatalkan.</small>
-            </dd>
+            <dt>Total booking</dt><dd>{rupiah(totalAmount)}</dd>
+            <dt>Minimum DP ({text(booking.dpPercentage)}%)</dt><dd>{rupiah(requiredDpAmount)}</dd>
+            <dt>Sudah terverifikasi</dt><dd>{rupiah(verifiedPaidAmount)}</dd>
+            <dt>Kekurangan menuju minimum DP</dt><dd>{rupiah(dpShortfall)}</dd>
+            <dt>Sisa total tagihan</dt><dd>{rupiah(remainingAmount)}<small>DP terbayar tidak dapat dikembalikan bila booking dibatalkan.</small></dd>
           </dl>
         </Card>
         <Card>
@@ -1724,16 +1724,16 @@ function BookingDetail({
       </div>
       <Dialog
         open={settlementOpen}
-        title="Catat Pelunasan"
-        description={`${text(booking.bookingCode)} · Sisa ${rupiah(Number(booking.remainingAmount))}`}
+        title={paymentActionLabel}
+        description={isAdditionalPayment?`${text(booking.bookingCode)} · Kekurangan minimum DP ${rupiah(dpShortfall)}`:`${text(booking.bookingCode)} · Sisa ${rupiah(remainingAmount)}`}
         onClose={() => { if (!busy) { setSettlementOpen(false); setCommandError(""); } }}
       >
         <form className="dialog-form" onSubmit={(event) => void submitSettlement(event)}>
-          <Field label="Nominal pelunasan">
+          <Field label={isAdditionalPayment?"Nominal pembayaran tambahan":"Nominal pelunasan"}>
             <Input
               type="number"
               min="1"
-              max={Number(booking.remainingAmount)}
+              max={remainingAmount}
               value={settlementAmount}
               onChange={(event) => setSettlementAmount(Number(event.target.value))}
               required
@@ -1763,9 +1763,9 @@ function BookingDetail({
           <footer className="dialog-actions">
             <Button type="button" variant="ghost" disabled={busy} onClick={() => setSettlementOpen(false)}>Batal</Button>
             <Button
-              disabled={busy || settlementAmount < 1 || settlementAmount > Number(booking.remainingAmount)}
+              disabled={busy||settlementAmount<1||settlementAmount>remainingAmount}
             >
-              {busy ? "Menyimpan..." : "Catat Pelunasan"}
+              {busy?"Menyimpan...":paymentActionLabel}
             </Button>
           </footer>
         </form>

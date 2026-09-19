@@ -16,6 +16,7 @@ async function cleanup() {
     left join glamping_booking_details g on g.booking_id=b.id
     where (b.customer_email=${email} or b.customer_email=${cancelledEmail})
       or b.admin_notes='manual-overbook-test'
+      or b.admin_notes='manual-partial-dp-test'
       or (b.customer_email like 'manual-%@shakila.invalid' and g.check_in_date='2099-10-10'::date)`;
   await db.execute(sql`delete from payment_proofs where booking_id in (${target})`);
   await db.execute(sql`delete from booking_events where booking_id in (${target})`);
@@ -87,6 +88,29 @@ integration("manual transfer and Admin booking revision", () => {
     expect(results.filter((result) => result.status === "fulfilled"), failures.join(" | ")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
   });
+
+  it("adds Admin payments and confirms only when cumulative verified payment reaches the minimum DP", async () => {
+    const { createAdminManualBooking, quoteBooking } = await import("@booking/booking");
+    const { getDb } = await import("@booking/database");
+    const { recordManualSettlement } = await import("./settlement.js");
+    const db = getDb();
+    const reservation = { productSlug: "glamping-deluxe", checkInDate: "2099-10-12", checkOutDate: "2099-10-13", quantity: 1, guestCount: 2 };
+    const quote = await quoteBooking({ business: "glamping", ...reservation }, db);
+    const initialPayment = Math.floor(quote.requiredDpAmount / 3);
+    const booking = await createAdminManualBooking({ source: "ADMIN_MANUAL", business: "glamping", reservation, customer: { fullName: "Partial DP Admin", whatsapp: "081288883333" }, notes: "manual-partial-dp-test", paymentState: "PARTIALLY_PAID", amountReceived: initialPayment }, "admin@shakila.test", db);
+    const firstAmount = quote.requiredDpAmount - initialPayment - 1;
+    const firstKey = randomUUID();
+    const first = await recordManualSettlement(booking.bookingCode, { amount: firstAmount, method: "TRANSFER", note: "Transfer pertama", idempotencyKey: firstKey }, "admin@shakila.test", db);
+    const duplicate = await recordManualSettlement(booking.bookingCode, { amount: firstAmount, method: "TRANSFER", note: "Transfer pertama", idempotencyKey: firstKey }, "admin@shakila.test", db);
+    expect(first).toMatchObject({ status: "WAITING_PAYMENT", paymentStatus: "PARTIALLY_PAID", duplicate: false, invoiceNeedsRefresh: false });
+    expect(duplicate).toMatchObject({ status: "WAITING_PAYMENT", duplicate: true });
+    let state = (await db.execute(sql`select status,payment_status as "paymentStatus",verified_paid_amount::int as paid,(select count(*)::int from invoices where booking_id=b.id) as invoices,(select count(*)::int from payment_attempts where booking_id=b.id and provider='MANUAL_ADMIN') as additions from bookings b where id=${booking.bookingId}::uuid`)) as unknown as { status: string; paymentStatus: string; paid: number; invoices: number; additions: number }[];
+    expect(state[0]).toMatchObject({ status: "WAITING_PAYMENT", paymentStatus: "PARTIALLY_PAID", paid: quote.requiredDpAmount - 1, invoices: 0, additions: 1 });
+    const threshold = await recordManualSettlement(booking.bookingCode, { amount: 1, method: "CASH", note: "DP dilengkapi", idempotencyKey: randomUUID() }, "admin@shakila.test", db);
+    expect(threshold).toMatchObject({ status: "CONFIRMED", paymentStatus: "PARTIALLY_PAID", verifiedPaidAmount: quote.requiredDpAmount, invoiceNeedsRefresh: true });
+    state = (await db.execute(sql`select status,payment_status as "paymentStatus",verified_paid_amount::int as paid,(select count(*)::int from invoices where booking_id=b.id) as invoices,(select count(*)::int from payment_attempts where booking_id=b.id and provider='MANUAL_ADMIN') as additions from bookings b where id=${booking.bookingId}::uuid`)) as unknown as { status: string; paymentStatus: string; paid: number; invoices: number; additions: number }[];
+    expect(state[0]).toMatchObject({ status: "CONFIRMED", paymentStatus: "PARTIALLY_PAID", paid: quote.requiredDpAmount, invoices: 1, additions: 2 });
+  }, 30_000);
 
   it("closes a pending proof when its booking is cancelled", async () => {
     const { cancelBooking, createGlampingBooking } = await import("@booking/booking");
