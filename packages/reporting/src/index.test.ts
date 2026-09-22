@@ -48,6 +48,29 @@ const sampleReport: AdminReport = {
   emptyMessage: null,
 };
 
+const sampleJeepReport: AdminReport = {
+  ...sampleReport,
+  business: "jeep",
+  businessLabel: "Jeep",
+  rows: [
+    {
+      bookingCode: "JEP-990101-0001",
+      bookingDate: "2099-01-01",
+      packageName: "Paket Pendek 1",
+      customerName: "Gunawan",
+      tourDate: "2099-01-10",
+      jeepQuantity: 2,
+      guestCount: 8,
+      bookingSourceLabel: "Admin manual",
+      bookingStatusLabel: "Selesai",
+      paymentStatusLabel: "Lunas",
+      totalAmount: 800000,
+      paidAmount: 800000,
+      remainingAmount: 0,
+    },
+  ],
+};
+
 describe("report period resolution", () => {
   const afterMidnightJakarta = new Date("2026-09-21T17:30:00.000Z");
 
@@ -84,9 +107,31 @@ describe("report exports", () => {
     const sheet = workbook.getWorksheet("Akomodasi");
     expect(sheet).toBeDefined();
     expect(sheet?.getCell("A1").value).toBe("Laporan Shakila Group");
+    expect(sheet?.getCell("A2").value).toBe("Jenis laporan");
+    expect(sheet?.getCell("C2").value).toBe("Akomodasi (Glamping + Homestay)");
+    expect(sheet?.getCell("A7").value).toBe("Total booking");
+    expect(sheet?.getCell("E7").value).toBe(1);
     expect(sheet?.getRow(15).getCell(1).value).toBe("No");
+    expect(sheet?.getColumn(1).width).toBeLessThanOrEqual(8);
+    expect(sheet?.getColumn(5).width).toBeGreaterThanOrEqual(14);
     expect(sheet?.autoFilter).toBeDefined();
     expect(sheet?.views[0]?.state).toBe("frozen");
+    expect(sheet?.views[0]).toMatchObject({ xSplit: 2, ySplit: 15 });
+  });
+
+  it("keeps Jeep metadata and summary readable with content-aware widths", async () => {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load((await renderReportExcel(sampleJeepReport)) as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+    const sheet = workbook.getWorksheet("Jeep");
+
+    expect(sheet?.getCell("A2").value).toBe("Jenis laporan");
+    expect(sheet?.getCell("C2").value).toBe("Jeep");
+    expect(sheet?.getCell("A9").value).toBe("Pembayaran terverifikasi / pendapatan diterima");
+    expect(sheet?.getCell("E9").value).toBe(425000);
+    expect(sheet?.getColumn(1).width).toBeLessThanOrEqual(8);
+    expect(sheet?.getColumn(4).width).toBeGreaterThanOrEqual(14);
+    expect(sheet?.getColumn(11).width).toBeGreaterThanOrEqual(18);
+    expect(sheet?.views[0]).toMatchObject({ xSplit: 2, ySplit: 15 });
   });
 
   it("creates a printable PDF for data and empty reports", async () => {

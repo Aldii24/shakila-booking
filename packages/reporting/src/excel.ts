@@ -2,7 +2,13 @@ import ExcelJS from "exceljs";
 import type { AdminReport, AdminReportBusiness } from "@booking/contracts";
 
 type ColumnKind = "text" | "date" | "number" | "currency";
-type ReportColumn = { key: string; header: string; width: number; kind: ColumnKind };
+type ReportColumn = {
+  key: string;
+  header: string;
+  kind: ColumnKind;
+  minWidth: number;
+  maxWidth: number;
+};
 
 const currencyFormat = '"Rp" #,##0';
 const dateFormat = "dd/mm/yyyy";
@@ -10,39 +16,39 @@ const dateFormat = "dd/mm/yyyy";
 function columnsFor(business: AdminReportBusiness): ReportColumn[] {
   if (business === "accommodation") {
     return [
-      { key: "no", header: "No", width: 6, kind: "number" },
-      { key: "bookingCode", header: "Kode booking", width: 19, kind: "text" },
-      { key: "bookingDate", header: "Tanggal booking", width: 16, kind: "date" },
-      { key: "accommodationKindLabel", header: "Jenis", width: 13, kind: "text" },
-      { key: "roomType", header: "Tipe kamar", width: 24, kind: "text" },
-      { key: "guestName", header: "Nama tamu", width: 24, kind: "text" },
-      { key: "checkInDate", header: "Check-in", width: 15, kind: "date" },
-      { key: "checkOutDate", header: "Check-out", width: 15, kind: "date" },
-      { key: "unitQuantity", header: "Jumlah unit", width: 12, kind: "number" },
-      { key: "guestCount", header: "Jumlah tamu", width: 12, kind: "number" },
-      { key: "bookingSourceLabel", header: "Sumber booking", width: 19, kind: "text" },
-      { key: "bookingStatusLabel", header: "Status booking", width: 21, kind: "text" },
-      { key: "paymentStatusLabel", header: "Status pembayaran", width: 21, kind: "text" },
-      { key: "totalAmount", header: "Total", width: 18, kind: "currency" },
-      { key: "paidAmount", header: "Sudah dibayar", width: 18, kind: "currency" },
-      { key: "remainingAmount", header: "Sisa tagihan", width: 18, kind: "currency" },
+      { key: "no", header: "No", kind: "number", minWidth: 6, maxWidth: 8 },
+      { key: "bookingCode", header: "Kode booking", kind: "text", minWidth: 18, maxWidth: 22 },
+      { key: "bookingDate", header: "Tanggal booking", kind: "date", minWidth: 14, maxWidth: 17 },
+      { key: "accommodationKindLabel", header: "Jenis", kind: "text", minWidth: 12, maxWidth: 18 },
+      { key: "roomType", header: "Tipe kamar", kind: "text", minWidth: 14, maxWidth: 32 },
+      { key: "guestName", header: "Nama tamu", kind: "text", minWidth: 16, maxWidth: 30 },
+      { key: "checkInDate", header: "Check-in", kind: "date", minWidth: 12, maxWidth: 15 },
+      { key: "checkOutDate", header: "Check-out", kind: "date", minWidth: 12, maxWidth: 15 },
+      { key: "unitQuantity", header: "Jumlah unit", kind: "number", minWidth: 10, maxWidth: 14 },
+      { key: "guestCount", header: "Jumlah tamu", kind: "number", minWidth: 10, maxWidth: 14 },
+      { key: "bookingSourceLabel", header: "Sumber booking", kind: "text", minWidth: 14, maxWidth: 22 },
+      { key: "bookingStatusLabel", header: "Status booking", kind: "text", minWidth: 18, maxWidth: 24 },
+      { key: "paymentStatusLabel", header: "Status pembayaran", kind: "text", minWidth: 18, maxWidth: 24 },
+      { key: "totalAmount", header: "Total", kind: "currency", minWidth: 16, maxWidth: 20 },
+      { key: "paidAmount", header: "Sudah dibayar", kind: "currency", minWidth: 16, maxWidth: 20 },
+      { key: "remainingAmount", header: "Sisa tagihan", kind: "currency", minWidth: 16, maxWidth: 20 },
     ];
   }
   return [
-    { key: "no", header: "No", width: 6, kind: "number" },
-    { key: "bookingCode", header: "Kode booking", width: 19, kind: "text" },
-    { key: "bookingDate", header: "Tanggal booking", width: 16, kind: "date" },
-    { key: "packageName", header: "Paket", width: 28, kind: "text" },
-    { key: "customerName", header: "Nama customer", width: 24, kind: "text" },
-    { key: "tourDate", header: "Tanggal tour", width: 16, kind: "date" },
-    { key: "jeepQuantity", header: "Jumlah Jeep", width: 13, kind: "number" },
-    { key: "guestCount", header: "Jumlah tamu", width: 12, kind: "number" },
-    { key: "bookingSourceLabel", header: "Sumber booking", width: 19, kind: "text" },
-    { key: "bookingStatusLabel", header: "Status booking", width: 21, kind: "text" },
-    { key: "paymentStatusLabel", header: "Status pembayaran", width: 21, kind: "text" },
-    { key: "totalAmount", header: "Total", width: 18, kind: "currency" },
-    { key: "paidAmount", header: "Sudah dibayar", width: 18, kind: "currency" },
-    { key: "remainingAmount", header: "Sisa tagihan", width: 18, kind: "currency" },
+    { key: "no", header: "No", kind: "number", minWidth: 6, maxWidth: 8 },
+    { key: "bookingCode", header: "Kode booking", kind: "text", minWidth: 18, maxWidth: 22 },
+    { key: "bookingDate", header: "Tanggal booking", kind: "date", minWidth: 14, maxWidth: 17 },
+    { key: "packageName", header: "Paket", kind: "text", minWidth: 12, maxWidth: 32 },
+    { key: "customerName", header: "Nama customer", kind: "text", minWidth: 16, maxWidth: 30 },
+    { key: "tourDate", header: "Tanggal tour", kind: "date", minWidth: 12, maxWidth: 15 },
+    { key: "jeepQuantity", header: "Jumlah Jeep", kind: "number", minWidth: 10, maxWidth: 14 },
+    { key: "guestCount", header: "Jumlah tamu", kind: "number", minWidth: 10, maxWidth: 14 },
+    { key: "bookingSourceLabel", header: "Sumber booking", kind: "text", minWidth: 14, maxWidth: 22 },
+    { key: "bookingStatusLabel", header: "Status booking", kind: "text", minWidth: 18, maxWidth: 24 },
+    { key: "paymentStatusLabel", header: "Status pembayaran", kind: "text", minWidth: 18, maxWidth: 24 },
+    { key: "totalAmount", header: "Total", kind: "currency", minWidth: 16, maxWidth: 20 },
+    { key: "paidAmount", header: "Sudah dibayar", kind: "currency", minWidth: 16, maxWidth: 20 },
+    { key: "remainingAmount", header: "Sisa tagihan", kind: "currency", minWidth: 16, maxWidth: 20 },
   ];
 }
 
@@ -62,6 +68,51 @@ function excelDate(value: unknown): Date | string {
   return new Date(`${value}T00:00:00+07:00`);
 }
 
+function formatRupiahForWidth(value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return value == null ? "-" : String(value);
+  return `Rp ${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(value)}`;
+}
+
+function displayValueForWidth(value: unknown, kind: ColumnKind): string {
+  if (kind === "currency") return formatRupiahForWidth(value);
+  if (kind === "date" && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return "00/00/0000";
+  return value == null ? "-" : String(value);
+}
+
+function fitReportColumns(
+  sheet: ExcelJS.Worksheet,
+  columns: ReportColumn[],
+  reportRows: ReadonlyArray<Record<string, unknown>>,
+) {
+  columns.forEach((column, index) => {
+    const longestValue = Math.max(
+      column.header.length,
+      ...reportRows.map((sourceRow, rowIndex) => {
+        const value = column.key === "no" ? rowIndex + 1 : sourceRow[column.key];
+        return displayValueForWidth(value, column.kind).length;
+      }),
+    );
+    const fittedWidth = longestValue + 2;
+    sheet.getColumn(index + 1).width = Math.min(column.maxWidth, Math.max(column.minWidth, fittedWidth));
+  });
+}
+
+function rowHeightForData(
+  columns: ReportColumn[],
+  sourceRow: Record<string, unknown>,
+  rowNumber: number,
+  sheet: ExcelJS.Worksheet,
+): number {
+  const lineCount = columns.reduce((maxLines, column, index) => {
+    if (column.kind !== "text") return maxLines;
+    const value = column.key === "no" ? rowNumber : sourceRow[column.key];
+    const textLength = displayValueForWidth(value, column.kind).length;
+    const width = sheet.getColumn(index + 1).width ?? column.minWidth;
+    return Math.max(maxLines, Math.ceil(textLength / Math.max(width - 2, 1)));
+  }, 1);
+  return Math.min(48, Math.max(24, lineCount * 15 + 6));
+}
+
 function setCellFormat(cell: ExcelJS.Cell, kind: ColumnKind) {
   if (kind === "currency") cell.numFmt = currencyFormat;
   if (kind === "date") cell.numFmt = dateFormat;
@@ -79,7 +130,10 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
 
   const columns = columnsFor(report.business);
   const sheet = workbook.addWorksheet(report.business === "accommodation" ? "Akomodasi" : "Jeep", {
-    properties: { tabColor: { argb: report.business === "accommodation" ? "FF2F7256" : "FFB86C31" } },
+    properties: {
+      tabColor: { argb: report.business === "accommodation" ? "FF2F7256" : "FFB86C31" },
+      showGridLines: false,
+    },
     pageSetup: {
       paperSize: 9,
       orientation: "landscape",
@@ -90,9 +144,8 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
     },
   });
   const lastColumn = columnLetter(columns.length);
-  columns.forEach((column, index) => {
-    sheet.getColumn(index + 1).width = column.width;
-  });
+  const reportRows = report.rows as ReadonlyArray<Record<string, unknown>>;
+  fitReportColumns(sheet, columns, reportRows);
 
   sheet.mergeCells(`A1:${lastColumn}1`);
   const titleCell = sheet.getCell("A1");
@@ -107,10 +160,15 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
     ["Tanggal export", new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(report.exportedAt))],
   ];
   metaRows.forEach(([label, value]) => {
-    const row = sheet.addRow([label, value]);
+    const row = sheet.addRow([]);
+    sheet.mergeCells(`A${row.number}:B${row.number}`);
+    sheet.mergeCells(`C${row.number}:${lastColumn}${row.number}`);
+    row.getCell(1).value = label;
+    row.getCell(3).value = value;
     row.getCell(1).font = { bold: true, color: { argb: "FF53655B" } };
     row.getCell(1).alignment = { vertical: "middle" };
-    row.getCell(2).alignment = { vertical: "middle" };
+    row.getCell(3).alignment = { vertical: "middle" };
+    row.height = 20;
   });
 
   sheet.addRow([]);
@@ -130,10 +188,16 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
     ["Booking dibatalkan", report.summary.cancelledBookings, "number"],
   ];
   summaryRows.forEach(([label, value, kind]) => {
-    const row = sheet.addRow([label, value]);
+    const row = sheet.addRow([]);
+    sheet.mergeCells(`A${row.number}:D${row.number}`);
+    sheet.mergeCells(`E${row.number}:F${row.number}`);
+    row.getCell(1).value = label;
+    row.getCell(5).value = value;
     row.getCell(1).font = { color: { argb: "FF53655B" } };
-    row.getCell(2).font = { bold: true, color: { argb: "FF18352A" } };
-    setCellFormat(row.getCell(2), kind);
+    row.getCell(1).alignment = { vertical: "middle", wrapText: true };
+    row.getCell(5).font = { bold: true, color: { argb: "FF18352A" } };
+    setCellFormat(row.getCell(5), kind);
+    row.height = label.length > 30 ? 30 : 22;
   });
 
   sheet.addRow([]);
@@ -146,7 +210,6 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
     cell.border = { bottom: { style: "medium", color: { argb: "FFB7C9BD" } } };
   });
 
-  const reportRows = report.rows as ReadonlyArray<Record<string, unknown>>;
   reportRows.forEach((sourceRow, index) => {
     const row = sheet.addRow(
       columns.map((column) => {
@@ -154,7 +217,7 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
         return column.kind === "date" ? excelDate(value) : value ?? "-";
       }),
     );
-    row.height = 24;
+    row.height = rowHeightForData(columns, sourceRow, index + 1, sheet);
     row.eachCell((cell, columnNumber) => setCellFormat(cell, columns[columnNumber - 1]!.kind));
   });
 
@@ -169,11 +232,11 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
     from: { row: headerRow.number, column: 1 },
     to: { row: headerRow.number + Math.max(reportRows.length, 1), column: columns.length },
   };
-  sheet.views = [{ state: "frozen", ySplit: headerRow.number }];
+  sheet.views = [{ state: "frozen", xSplit: 2, ySplit: headerRow.number }];
   sheet.eachRow((row) => {
     row.eachCell((cell) => {
       cell.border ??= {};
-      cell.border.bottom = { style: "hair", color: { argb: "FFE3E9E5" } };
+      cell.border.bottom ??= { style: "hair", color: { argb: "FFE3E9E5" } };
     });
   });
 
