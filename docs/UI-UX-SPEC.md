@@ -4451,3 +4451,18 @@ It will define:
 - demo presentation scenario.
 
 The goal is to ensure the first time the system runs, it already feels like a living operational product rather than an empty new installation.
+
+## Admin Reports Addendum — 22 September 2026
+
+The Admin sidebar includes `Laporan`. The page provides business filters for
+`Akomodasi (Glamping + Homestay)` and `Jeep`, period presets `Hari ini`,
+`Minggu ini`, `Bulan ini`, and a custom inclusive date range in `Asia/Jakarta`.
+The active period is explicitly shown above the detail table.
+
+The page displays seven operational summary cards and a business-specific
+detail table. Export actions are labelled `Export Excel` and `Export PDF` and
+show a busy state while the authenticated API generates the file. Excel is a
+native `.xlsx` workbook with Indonesian labels, Rupiah/date formats, filter and
+frozen header. PDF is A4 landscape for the wide table, branded with the
+Shakila logo, repeating table headers, footer page numbers, and a printable
+empty-state message.

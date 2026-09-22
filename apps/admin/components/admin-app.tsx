@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Clock3,
   Download,
+  FileSpreadsheet,
   LogOut,
   Mail,
   Menu,
@@ -112,6 +113,7 @@ type View =
   | "customer"
   | "glamping"
   | "jeep"
+  | "reports"
   | "settings";
 type PageData = {
   items: Row[];
@@ -136,6 +138,7 @@ const nav = [
       ["/calendar", "nav.calendar", CalendarDays],
       ["/inventory", "nav.inventory", BedDouble],
       ["/payments", "nav.payments", WalletCards],
+      ["/reports", "nav.reports", FileSpreadsheet],
       ["/customers", "nav.customers", Users],
     ],
   },
@@ -325,9 +328,15 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
     [reviewOnly, setReviewOnly] = useState(false),
     [sort, setSort] = useState("createdAt"),
     [page, setPage] = useState(1);
+  const [reportBusiness, setReportBusiness] = useState<"accommodation" | "jeep">("accommodation"),
+    [reportPeriod, setReportPeriod] = useState<"today" | "this_week" | "this_month" | "custom">("this_month"),
+    [reportDateFrom, setReportDateFrom] = useState(""),
+    [reportDateTo, setReportDateTo] = useState("");
   const endpoint = useCallback(() => {
     if (view === "dashboard")
       return `/dashboard/overview?${queryString({ business })}`;
+    if (view === "reports")
+      return `/reports?${queryString({ business: reportBusiness, period: reportPeriod, dateFrom: reportDateFrom, dateTo: reportDateTo })}`;
     if (view === "bookings")
       return `/bookings?${queryString({ business, search, status, paymentStatus, dateFrom, dateTo, page, pageSize: 20 })}`;
     if (view === "booking") return `/bookings/${encodeURIComponent(id ?? "")}`;
@@ -350,6 +359,10 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
     id,
     page,
     paymentStatus,
+    reportBusiness,
+    reportDateFrom,
+    reportDateTo,
+    reportPeriod,
     search,
     status,
     view,
@@ -432,6 +445,7 @@ function AdminWorkspace({ view, id }: { view: View; id?: string }) {
           view={view}
           data={data}
           reload={load}
+          reportFilters={{ business: reportBusiness, setBusiness: setReportBusiness, period: reportPeriod, setPeriod: setReportPeriod, dateFrom: reportDateFrom, setDateFrom: setReportDateFrom, dateTo: reportDateTo, setDateTo: setReportDateTo }}
           onPage={(next) => {
             setPage(next);
           }}
@@ -792,13 +806,14 @@ function PageHeader({ view }: { view: View }) {
     calendar: ["calendar.title", "calendar.description"],
     inventory: ["inventory.title", "inventory.description"],
     payments: ["payments.title", "payments.description"],
+    reports: ["reports.title", "reports.description"],
     customers: ["customers.title", "customers.description"],
     customer: ["customers.title", "customers.description"],
     glamping: ["catalog.glampingTitle", "catalog.glampingDescription"],
     jeep: ["catalog.jeepTitle", "catalog.jeepDescription"],
     settings: ["settings.title", "settings.description"],
   } as const;
-  const section = { dashboard: "RINGKASAN", bookings: "BOOKING", booking: "DETAIL BOOKING", calendar: "KALENDER", inventory: "INVENTORI", payments: "PEMBAYARAN", customers: "PELANGGAN", customer: "DETAIL PELANGGAN", glamping: "AKOMODASI", jeep: "JEEP", settings: "PENGATURAN" }[view];
+  const section = { dashboard: "RINGKASAN", bookings: "BOOKING", booking: "DETAIL BOOKING", calendar: "KALENDER", inventory: "INVENTORI", payments: "PEMBAYARAN", reports: "LAPORAN", customers: "PELANGGAN", customer: "DETAIL PELANGGAN", glamping: "AKOMODASI", jeep: "JEEP", settings: "PENGATURAN" }[view];
   return (
     <header className="page-header">
       <div>
@@ -1079,11 +1094,13 @@ function ViewContent({
   view,
   data,
   reload,
+  reportFilters,
   onPage,
 }: {
   view: View;
   data: unknown;
   reload: () => Promise<void>;
+  reportFilters: ReportFilters;
   onPage: (page: number) => void;
 }) {
   if (view === "dashboard") return <Dashboard data={data as Row} />;
@@ -1093,6 +1110,7 @@ function ViewContent({
     return <BookingDetail booking={data as Row} reload={reload} />;
   if (view === "payments")
     return <PaymentProofVerification rows={data as Row[]} reload={reload} />;
+  if (view === "reports") return <Reports data={data as ReportData} filters={reportFilters} />;
   if (view === "customers") return <Customers rows={data as Row[]} />;
   if (view === "customer") return <Customer item={data as Row} />;
   if (view === "calendar")
@@ -1104,6 +1122,279 @@ function ViewContent({
   if (view === "glamping" || view === "jeep")
     return <CatalogManager kind={view} rows={data as Row[]} reload={reload} />;
   return <SettingsView rows={data as Row[]} reload={reload} />;
+}
+
+type ReportBusiness = "accommodation" | "jeep";
+type ReportPeriodKey = "today" | "this_week" | "this_month" | "custom";
+type ReportFilters = {
+  business: ReportBusiness;
+  setBusiness: (value: ReportBusiness) => void;
+  period: ReportPeriodKey;
+  setPeriod: (value: ReportPeriodKey) => void;
+  dateFrom: string;
+  setDateFrom: (value: string) => void;
+  dateTo: string;
+  setDateTo: (value: string) => void;
+};
+type ReportData = {
+  business: ReportBusiness;
+  businessLabel: string;
+  period: { key: ReportPeriodKey; startDate: string; endDate: string; label: string };
+  exportedAt: string;
+  summary: {
+    totalBookings: number;
+    totalBookingValue: number;
+    verifiedRevenue: number;
+    remainingAmount: number;
+    confirmedBookings: number;
+    completedBookings: number;
+    cancelledBookings: number;
+  };
+  rows: Row[];
+  emptyMessage: string | null;
+};
+
+function reportDate(value: unknown) {
+  return value && value !== "-" ? fmtDate(value) : "-";
+}
+
+function reportNumber(value: number) {
+  return new Intl.NumberFormat("id-ID").format(value);
+}
+
+function currentReportDate() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function Reports({ data, filters }: { data: ReportData; filters: ReportFilters }) {
+  const [exporting, setExporting] = useState<"xlsx" | "pdf" | null>(null);
+  const [exportError, setExportError] = useState("");
+
+  const download = async (format: "xlsx" | "pdf") => {
+    setExporting(format);
+    setExportError("");
+    try {
+      const params = queryString({
+        business: filters.business,
+        period: filters.period,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        format,
+      });
+      const response = await fetch(`${API_URL}/admin/reports?${params}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("File laporan belum dapat dibuat.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `laporan-shakila-group-${filters.business}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "File laporan belum dapat dibuat.");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const reset = () => {
+    filters.setBusiness("accommodation");
+    filters.setPeriod("this_month");
+    filters.setDateFrom("");
+    filters.setDateTo("");
+  };
+
+  const summary = [
+    ["Total booking", reportNumber(data.summary.totalBookings), PackageSearch],
+    ["Total nilai booking", rupiah(data.summary.totalBookingValue), ChartNoAxesCombined],
+    ["Pembayaran terverifikasi", rupiah(data.summary.verifiedRevenue), WalletCards],
+    ["Sisa tagihan", rupiah(data.summary.remainingAmount), Clock3],
+    ["Booking dikonfirmasi", reportNumber(data.summary.confirmedBookings), Check],
+    ["Selesai / check-out", reportNumber(data.summary.completedBookings), Check],
+    ["Booking dibatalkan", reportNumber(data.summary.cancelledBookings), X],
+  ] as const;
+
+  return (
+    <div className="report-page">
+      <Card className="report-filter-card">
+        <div className="report-filter-head">
+          <div>
+            <p className="section-kicker">DATABASE LIVE · ASIA/JAKARTA</p>
+            <h2>Atur laporan</h2>
+            <p>Periode dihitung dari tanggal booking, bukan tanggal menginap atau tanggal tour.</p>
+          </div>
+          <Button variant="ghost" onClick={reset}>Reset filter</Button>
+        </div>
+        <div className="report-filter-grid">
+          <Field label="Jenis bisnis">
+            <AdminSelect
+              value={filters.business}
+              onValueChange={(value) => filters.setBusiness(value as ReportBusiness)}
+              placeholder="Pilih bisnis"
+              options={[
+                { value: "accommodation", label: "Akomodasi · Glamping + Homestay" },
+                { value: "jeep", label: "Jeep" },
+              ]}
+            />
+          </Field>
+          <Field label="Periode">
+            <AdminSelect
+              value={filters.period}
+              onValueChange={(value) => {
+                const next = value as ReportPeriodKey;
+                if (next === "custom" && !filters.dateFrom) {
+                  const today = currentReportDate();
+                  filters.setDateFrom(today);
+                  filters.setDateTo(today);
+                }
+                filters.setPeriod(next);
+              }}
+              placeholder="Pilih periode"
+              options={[
+                { value: "today", label: "Hari ini" },
+                { value: "this_week", label: "Minggu ini" },
+                { value: "this_month", label: "Bulan ini" },
+                { value: "custom", label: "Custom tanggal" },
+              ]}
+            />
+          </Field>
+          <Field label="Tanggal awal">
+            <AdminDatePicker
+              value={filters.dateFrom}
+              onChange={filters.setDateFrom}
+              placeholder="Pilih tanggal awal"
+              disabled={filters.period !== "custom"}
+            />
+          </Field>
+          <Field label="Tanggal akhir">
+            <AdminDatePicker
+              value={filters.dateTo}
+              onChange={filters.setDateTo}
+              placeholder="Pilih tanggal akhir"
+              disabled={filters.period !== "custom"}
+            />
+          </Field>
+        </div>
+        <div className="report-filter-foot">
+          <span>Periode aktif: <strong>{data.period.label}</strong></span>
+          <div className="report-export-actions">
+            <Button variant="outline" onClick={() => void download("xlsx")} disabled={Boolean(exporting)}>
+              <FileSpreadsheet size={16} />
+              {exporting === "xlsx" ? "Menyiapkan Excel..." : "Export Excel"}
+            </Button>
+            <Button onClick={() => void download("pdf")} disabled={Boolean(exporting)}>
+              <Download size={16} />
+              {exporting === "pdf" ? "Menyiapkan PDF..." : "Export PDF"}
+            </Button>
+          </div>
+        </div>
+        {exportError ? <div className="ui-alert danger">{exportError}</div> : null}
+      </Card>
+
+      <section className="report-summary-grid">
+        {summary.map(([label, value, Icon]) => (
+          <Card className="report-summary-card" key={label}>
+            <div><span>{label}</span><Icon size={16} /></div>
+            <strong>{value}</strong>
+          </Card>
+        ))}
+      </section>
+
+      <Card className="report-detail-card">
+        <div className="card-title report-detail-title">
+          <div>
+            <p className="section-kicker">DETAIL TRANSAKSI</p>
+            <h2>{data.businessLabel}</h2>
+            <p>{reportNumber(data.rows.length)} booking pada periode {data.period.label}.</p>
+          </div>
+          {data.emptyMessage ? <span className="report-empty-pill">0 data</span> : null}
+        </div>
+        <div className="table-scroll report-table-scroll">
+          <Table className="report-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>No</TableHead>
+                <TableHead>Kode booking</TableHead>
+                <TableHead>Tanggal booking</TableHead>
+                {data.business === "accommodation" ? (
+                  <>
+                    <TableHead>Jenis</TableHead>
+                    <TableHead>Tipe kamar</TableHead>
+                    <TableHead>Nama tamu</TableHead>
+                    <TableHead>Check-in</TableHead>
+                    <TableHead>Check-out</TableHead>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>Tamu</TableHead>
+                  </>
+                ) : (
+                  <>
+                    <TableHead>Paket</TableHead>
+                    <TableHead>Nama customer</TableHead>
+                    <TableHead>Tanggal tour</TableHead>
+                    <TableHead>Jeep</TableHead>
+                    <TableHead>Tamu</TableHead>
+                  </>
+                )}
+                <TableHead>Sumber booking</TableHead>
+                <TableHead>Status booking</TableHead>
+                <TableHead>Status pembayaran</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Sudah dibayar</TableHead>
+                <TableHead>Sisa tagihan</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.rows.map((row, index) => (
+                <TableRow key={text(row.bookingCode)}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell><Link className="code-link" href={`/bookings/${text(row.bookingCode)}`}>{text(row.bookingCode)}</Link></TableCell>
+                  <TableCell>{reportDate(row.bookingDate)}</TableCell>
+                  {data.business === "accommodation" ? (
+                    <>
+                      <TableCell>{text(row.accommodationKindLabel)}</TableCell>
+                      <TableCell>{text(row.roomType)}</TableCell>
+                      <TableCell>{text(row.guestName)}</TableCell>
+                      <TableCell>{reportDate(row.checkInDate)}</TableCell>
+                      <TableCell>{reportDate(row.checkOutDate)}</TableCell>
+                      <TableCell>{text(row.unitQuantity)}</TableCell>
+                      <TableCell>{text(row.guestCount)}</TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell>{text(row.packageName)}</TableCell>
+                      <TableCell>{text(row.customerName)}</TableCell>
+                      <TableCell>{reportDate(row.tourDate)}</TableCell>
+                      <TableCell>{text(row.jeepQuantity)}</TableCell>
+                      <TableCell>{text(row.guestCount)}</TableCell>
+                    </>
+                  )}
+                  <TableCell>{text(row.bookingSourceLabel)}</TableCell>
+                  <TableCell><Badge value={text(row.bookingStatusLabel)}>{text(row.bookingStatusLabel)}</Badge></TableCell>
+                  <TableCell><Badge value={text(row.paymentStatusLabel)}>{text(row.paymentStatusLabel)}</Badge></TableCell>
+                  <TableCell>{rupiah(Number(row.totalAmount))}</TableCell>
+                  <TableCell>{rupiah(Number(row.paidAmount))}</TableCell>
+                  <TableCell>{rupiah(Number(row.remainingAmount))}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        {data.emptyMessage ? <div className="report-empty-state"><FileSpreadsheet size={22} /><strong>{data.emptyMessage}</strong><span>Ubah jenis bisnis atau periode untuk melihat data lain.</span></div> : null}
+      </Card>
+    </div>
+  );
 }
 
 function Dashboard({ data }: { data: Row }) {

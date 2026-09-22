@@ -2948,3 +2948,18 @@ must be supplied explicitly through `DEMO_ADMIN_EMAIL` and
 fallback. Production requires separate `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and
 `ADMIN_SESSION_SECRET` values, sets a Secure cookie, and rate-limits failed
 login attempts.
+
+## Admin Reports Addendum — 22 September 2026
+
+Admin reports remain inside the modular-monolith Central API boundary. The
+Admin web app owns filter state and presentation only; the API authenticates
+the Admin session, validates the report query, reads PostgreSQL directly, and
+generates XLSX/PDF bytes server-side. Reports are never built from client-side
+booking state and are not stored permanently.
+
+The reporting domain is implemented in `@booking/reporting`. Its query uses the
+business-local `Asia/Jakarta` date derived from `bookings.created_at`, combines
+Glamping and Homestay through the Glamping business/catalog relationship, and
+keeps Jeep as a separate business report. Export renderers consume the same
+typed report model, so on-screen totals and downloads cannot diverge by using
+different sources.

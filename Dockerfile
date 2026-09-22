@@ -17,6 +17,7 @@ COPY packages/email/package.json packages/email/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/invoice/package.json packages/invoice/package.json
 COPY packages/payment/package.json packages/payment/package.json
+COPY packages/reporting/package.json packages/reporting/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/validation/package.json packages/validation/package.json

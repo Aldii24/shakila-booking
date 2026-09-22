@@ -4400,3 +4400,27 @@ The completion command verifies the server-owned attempt amount, is transactiona
 With `INVOICE_STORAGE=direct`, the existing authenticated invoice endpoint returns metadata by default and streams a generated PDF when called with `?download=1`. With `EMAIL_PROVIDER=preview`, the email-preview endpoint returns rendered HTML and records a preview event with `delivered: false`.
 
 The Admin namespace uses the signed demo session cookie in product-demo mode and exposes the documented dashboard, booking, lifecycle, calendar, inventory, payment, customer, catalog, and settings resources. Browser requests must use credentials and state-changing cross-origin requests are origin-checked.
+
+## Admin Reports Addendum — 22 September 2026
+
+The authenticated Admin namespace also exposes a read-only report resource:
+
+```text
+GET /api/v1/admin/reports
+  ?business=accommodation|jeep
+  &period=today|this_week|this_month|custom
+  [&dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD]
+  [&format=json|xlsx|pdf]
+```
+
+The report period is based on `bookings.created_at` interpreted in
+`Asia/Jakarta`. `this_week` is Monday through Sunday and `custom` is an
+inclusive date range. `accommodation` combines Glamping and Homestay catalog
+types under the Glamping business; `jeep` is reported separately.
+
+The default `json` response is an authenticated Admin API envelope. `xlsx` and
+`pdf` are generated server-side from the same database query and streamed as
+private, non-cached downloads. No report file is persisted. Export labels are
+Bahasa Indonesia and do not expose raw database enums. Revenue excludes
+cancelled/expired bookings and refunded payments. Empty periods return zero
+summary values and `Tidak ada data pada periode ini.`.

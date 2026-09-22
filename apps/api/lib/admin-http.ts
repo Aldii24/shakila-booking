@@ -46,8 +46,13 @@ import {
 } from "@booking/payment";
 import { renderBookingConfirmationPreview } from "@booking/email";
 import { ensureSecureInvoicePdf, prepareInvoice } from "@booking/invoice";
+import { getAdminReport, renderReportExcel, renderReportPdf } from "@booking/reporting";
 import { getIntegrationMode } from "@booking/validation";
-import { databaseUuidSchema } from "@booking/contracts";
+import {
+  adminReportFormatSchema,
+  adminReportQuerySchema,
+  databaseUuidSchema,
+} from "@booking/contracts";
 import { z } from "zod";
 import { body, failure, ok } from "./http";
 import { completePostPayment } from "./post-payment";
@@ -307,6 +312,27 @@ export async function handleAdmin(
       request.method === "GET"
     )
       return ok(await getAdminOverview(params.get("business")));
+    if (path === "reports" && request.method === "GET") {
+      const reportQuery = adminReportQuerySchema.parse({
+        business: params.get("business") ?? undefined,
+        period: params.get("period") ?? undefined,
+        dateFrom: params.get("dateFrom") ?? undefined,
+        dateTo: params.get("dateTo") ?? undefined,
+      });
+      const format = adminReportFormatSchema.parse(params.get("format") ?? "json");
+      const report = await getAdminReport(reportQuery);
+      if (format === "json") return ok(report);
+      const bytes = format === "xlsx" ? await renderReportExcel(report) : await renderReportPdf(report);
+      const extension = format === "xlsx" ? "xlsx" : "pdf";
+      const filename = `laporan-shakila-group-${report.business}-${report.period.startDate}-${report.period.endDate}.${extension}`;
+      return new Response(bytes as unknown as BodyInit, {
+        headers: {
+          "content-type": format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/pdf",
+          "content-disposition": `attachment; filename="${filename}"`,
+          "cache-control": "private, no-store",
+        },
+      });
+    }
     if (path === "bookings" && request.method === "GET")
       return ok(
         await listAdminBookings({

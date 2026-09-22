@@ -156,6 +156,93 @@ export type BookingLookupRequest = z.infer<typeof bookingLookupRequestSchema>;
 export type ApiError = { code: string; message: string; fields?: Record<string, string[]> };
 export type ApiEnvelope<T> = { data: T | null; error: ApiError | null; meta: Record<string, unknown> | null };
 
+export const adminReportBusinesses = ["accommodation", "jeep"] as const;
+export const adminReportPeriods = ["today", "this_week", "this_month", "custom"] as const;
+export const adminReportFormats = ["json", "xlsx", "pdf"] as const;
+export type AdminReportBusiness = (typeof adminReportBusinesses)[number];
+export type AdminReportPeriodKey = (typeof adminReportPeriods)[number];
+export type AdminReportFormat = (typeof adminReportFormats)[number];
+
+export const adminReportQuerySchema = z
+  .object({
+    business: z.enum(adminReportBusinesses).default("accommodation"),
+    period: z.enum(adminReportPeriods).default("this_month"),
+    dateFrom: z.iso.date().optional(),
+    dateTo: z.iso.date().optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.period === "custom" && !value.dateFrom) {
+      context.addIssue({ code: "custom", path: ["dateFrom"], message: "Tanggal awal wajib diisi." });
+    }
+    if (value.period === "custom" && !value.dateTo) {
+      context.addIssue({ code: "custom", path: ["dateTo"], message: "Tanggal akhir wajib diisi." });
+    }
+    if (value.dateFrom && value.dateTo && value.dateFrom > value.dateTo) {
+      context.addIssue({ code: "custom", path: ["dateTo"], message: "Tanggal akhir harus setelah tanggal awal." });
+    }
+  });
+
+export const adminReportFormatSchema = z.enum(adminReportFormats);
+
+export type AdminReportQuery = z.infer<typeof adminReportQuerySchema>;
+export type AdminReportPeriod = {
+  key: AdminReportPeriodKey;
+  startDate: string;
+  endDate: string;
+  label: string;
+};
+export type AdminReportSummary = {
+  totalBookings: number;
+  totalBookingValue: number;
+  verifiedRevenue: number;
+  remainingAmount: number;
+  confirmedBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+};
+export type AccommodationReportRow = {
+  bookingCode: string;
+  bookingDate: string;
+  accommodationKindLabel: string;
+  roomType: string;
+  guestName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  unitQuantity: number;
+  guestCount: number;
+  bookingSourceLabel: string;
+  bookingStatusLabel: string;
+  paymentStatusLabel: string;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+};
+export type JeepReportRow = {
+  bookingCode: string;
+  bookingDate: string;
+  packageName: string;
+  customerName: string;
+  tourDate: string;
+  jeepQuantity: number;
+  guestCount: number;
+  bookingSourceLabel: string;
+  bookingStatusLabel: string;
+  paymentStatusLabel: string;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+};
+export type AdminReport = {
+  title: "Laporan Shakila Group";
+  business: AdminReportBusiness;
+  businessLabel: string;
+  period: AdminReportPeriod;
+  exportedAt: string;
+  summary: AdminReportSummary;
+  rows: AccommodationReportRow[] | JeepReportRow[];
+  emptyMessage: string | null;
+};
+
 export const successEnvelope = <T>(data: T): ApiEnvelope<T> => ({ data, error: null, meta: null });
 export const errorEnvelope = (code: string, message: string): ApiEnvelope<never> => ({
   data: null, error: { code, message }, meta: null,

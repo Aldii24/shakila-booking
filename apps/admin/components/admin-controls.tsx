@@ -81,6 +81,7 @@ export function AdminDatePicker({
   placeholder,
   ariaLabel,
   required,
+  disabled = false,
 }: {
   value?: string;
   defaultValue?: string;
@@ -89,6 +90,7 @@ export function AdminDatePicker({
   placeholder?: string;
   ariaLabel?: string;
   required?: boolean;
+  disabled?: boolean;
 }) {
   const { language } = useAdminLanguage();
   const [internal, setInternal] = useState(defaultValue);
@@ -109,6 +111,7 @@ export function AdminDatePicker({
             variant="outline"
             className={cn("date-trigger", !selected && "date-placeholder")}
             aria-label={ariaLabel ?? label}
+            disabled={disabled}
           >
             <span>
               {selected
