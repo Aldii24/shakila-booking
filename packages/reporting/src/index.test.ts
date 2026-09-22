@@ -115,9 +115,7 @@ describe("report exports", () => {
     expect(sheet?.getColumn(1).width).toBeLessThanOrEqual(8);
     expect(sheet?.getColumn(5).width).toBeGreaterThanOrEqual(14);
     expect(sheet?.autoFilter).toBeDefined();
-    expect(sheet?.views[0]?.state).toBe("frozen");
-    expect(sheet?.views[0]).toMatchObject({ ySplit: 15, topLeftCell: "A16" });
-    expect(sheet?.views[0]).toMatchObject({ xSplit: 0 });
+    expect(sheet?.views[0]?.state).toBe("normal");
   });
 
   it("keeps Jeep metadata and summary readable with content-aware widths", async () => {
@@ -132,8 +130,7 @@ describe("report exports", () => {
     expect(sheet?.getColumn(1).width).toBeLessThanOrEqual(8);
     expect(sheet?.getColumn(4).width).toBeGreaterThanOrEqual(14);
     expect(sheet?.getColumn(11).width).toBeGreaterThanOrEqual(18);
-    expect(sheet?.views[0]).toMatchObject({ ySplit: 15, topLeftCell: "A16" });
-    expect(sheet?.views[0]).toMatchObject({ xSplit: 0 });
+    expect(sheet?.views[0]?.state).toBe("normal");
   });
 
   it("creates a printable PDF for data and empty reports", async () => {

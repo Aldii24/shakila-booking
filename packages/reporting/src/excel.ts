@@ -232,7 +232,10 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
     from: { row: headerRow.number, column: 1 },
     to: { row: headerRow.number + Math.max(reportRows.length, 1), column: columns.length },
   };
-  sheet.views = [{ state: "frozen", ySplit: headerRow.number, topLeftCell: `A${headerRow.number + 1}` }];
+  // Keep the workbook in a normal scrollable view. The report has a large
+  // summary block above the table, and frozen panes make Excel desktop treat
+  // the generated sheet as a stuck split pane on some clients.
+  sheet.views = [{ state: "normal" }];
   sheet.eachRow((row) => {
     row.eachCell((cell) => {
       cell.border ??= {};
