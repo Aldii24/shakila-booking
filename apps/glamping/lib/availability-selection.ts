@@ -37,11 +37,13 @@ export function inventoryForSelectedStay<TInventory extends StayInventory>(
   const reference = days.find((day) => day.date === checkInDate) ?? days[0];
   if (!reference) return [];
 
+  const effectiveCheckOut = checkOutDate || addStayDays(checkInDate, 1);
   const highlightedDays = days.filter(
-    (day) => day.date >= checkInDate && (!checkOutDate || day.date <= checkOutDate),
+    (day) => day.date >= checkInDate && day.date < effectiveCheckOut,
   );
-  // Keep the panel consistent with every date highlighted by the calendar. The
-  // booking API remains authoritative and still validates [check-in, check-out).
+
+  // The calendar is a display range and may contain dates outside the selected
+  // stay. The selected-range API is authoritative whenever it is available.
   const displayedMinimumBySlug = new Map<string, number>();
   for (const day of highlightedDays) {
     for (const item of day.inventory) {
@@ -64,14 +66,9 @@ export function inventoryForSelectedStay<TInventory extends StayInventory>(
     authoritativeAvailability.map((item) => [item.slug, item.availableQuantity]),
   );
   return reference.inventory.map((item) => {
-    const authoritativeUnits = availableBySlug.get(item.productSlug) ?? 0;
-    const displayedMinimum = displayedMinimumBySlug.get(item.productSlug);
     return {
       ...item,
-      availableUnits:
-        displayedMinimum === undefined
-          ? authoritativeUnits
-          : Math.min(authoritativeUnits, displayedMinimum),
+      availableUnits: availableBySlug.get(item.productSlug) ?? 0,
     };
   });
 }

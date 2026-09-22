@@ -6,95 +6,117 @@ import {
 
 const days = [
   {
-    date: "2026-09-09",
-    inventory: [
-      { productSlug: "glamping-deluxe", availableUnits: 1 },
-      { productSlug: "glamping-twin-bed", availableUnits: 1 },
-    ],
-  },
-  {
-    date: "2026-09-10",
+    date: "2026-09-27",
     inventory: [
       { productSlug: "glamping-deluxe", availableUnits: 2 },
       { productSlug: "glamping-twin-bed", availableUnits: 4 },
     ],
   },
+  {
+    date: "2026-09-28",
+    inventory: [
+      { productSlug: "glamping-deluxe", availableUnits: 2 },
+      { productSlug: "glamping-twin-bed", availableUnits: 4 },
+    ],
+  },
+  {
+    date: "2026-09-29",
+    inventory: [
+      { productSlug: "glamping-deluxe", availableUnits: 0 },
+      { productSlug: "glamping-twin-bed", availableUnits: 0 },
+    ],
+  },
+  {
+    date: "2026-10-15",
+    inventory: [
+      { productSlug: "glamping-deluxe", availableUnits: 0 },
+      { productSlug: "glamping-twin-bed", availableUnits: 0 },
+    ],
+  },
 ];
 
 describe("availability selection", () => {
-  it("keeps 9 September stock when 10 September is selected as checkout", () => {
-    expect(selectedStayRange("2026-09-09", "2026-09-10")).toEqual({
-      checkInDate: "2026-09-09",
-      checkOutDate: "2026-09-10",
+  it("uses only the check-in night when checkout is not explicit", () => {
+    expect(selectedStayRange("2026-09-27", "")).toEqual({
+      checkInDate: "2026-09-27",
+      checkOutDate: "2026-09-28",
     });
     expect(
-      inventoryForSelectedStay(days, "2026-09-09", "2026-09-10", [
-        { slug: "glamping-deluxe", availableQuantity: 1 },
-        { slug: "glamping-twin-bed", availableQuantity: 1 },
-      ]),
+      inventoryForSelectedStay(days, "2026-09-27", "", null),
     ).toEqual([
-      { productSlug: "glamping-deluxe", availableUnits: 1 },
-      { productSlug: "glamping-twin-bed", availableUnits: 1 },
+      { productSlug: "glamping-deluxe", availableUnits: 2 },
+      { productSlug: "glamping-twin-bed", availableUnits: 4 },
     ]);
   });
 
-  it("uses one night after check-in until an explicit checkout is selected", () => {
-    expect(selectedStayRange("2026-09-09", "")).toEqual({
-      checkInDate: "2026-09-09",
-      checkOutDate: "2026-09-10",
-    });
-  });
-
-  it("keeps the lowest stock shown across the highlighted calendar dates", () => {
+  it("does not consume inventory on the checkout date", () => {
     expect(
-      inventoryForSelectedStay(days, "2026-09-09", "2026-09-10", [
-        { slug: "glamping-deluxe", availableQuantity: 2 },
-        { slug: "glamping-twin-bed", availableQuantity: 4 },
-      ]),
+      inventoryForSelectedStay(days, "2026-09-27", "2026-09-29", null),
     ).toEqual([
-      { productSlug: "glamping-deluxe", availableUnits: 1 },
-      { productSlug: "glamping-twin-bed", availableUnits: 1 },
+      { productSlug: "glamping-deluxe", availableUnits: 2 },
+      { productSlug: "glamping-twin-bed", availableUnits: 4 },
     ]);
   });
 
-  it("never displays more than the authoritative booking-range availability", () => {
+  it("keeps a booking beginning on checkout date out of the previous stay", () => {
     expect(
-      inventoryForSelectedStay(days, "2026-09-09", "2026-09-10", [
-        { slug: "glamping-deluxe", availableQuantity: 0 },
-        { slug: "glamping-twin-bed", availableQuantity: 1 },
-      ]),
-    ).toEqual([
-      { productSlug: "glamping-deluxe", availableUnits: 0 },
-      { productSlug: "glamping-twin-bed", availableUnits: 1 },
-    ]);
-  });
-
-  it("keeps 11 September Twin Bed stock when selecting 10 through 11 September", () => {
-    const rangeDays = [
-      {
-        date: "2026-09-10",
-        inventory: [
-          { productSlug: "glamping-deluxe", availableUnits: 2 },
-          { productSlug: "glamping-twin-bed", availableUnits: 4 },
-        ],
-      },
-      {
-        date: "2026-09-11",
-        inventory: [
-          { productSlug: "glamping-deluxe", availableUnits: 2 },
-          { productSlug: "glamping-twin-bed", availableUnits: 3 },
-        ],
-      },
-    ];
-
-    expect(
-      inventoryForSelectedStay(rangeDays, "2026-09-10", "2026-09-11", [
+      inventoryForSelectedStay(days, "2026-09-27", "2026-09-29", [
         { slug: "glamping-deluxe", availableQuantity: 2 },
         { slug: "glamping-twin-bed", availableQuantity: 4 },
       ]),
     ).toEqual([
       { productSlug: "glamping-deluxe", availableUnits: 2 },
-      { productSlug: "glamping-twin-bed", availableUnits: 3 },
+      { productSlug: "glamping-twin-bed", availableUnits: 4 },
+    ]);
+  });
+
+  it("ignores a full calendar day after the selected stay", () => {
+    expect(
+      inventoryForSelectedStay(days, "2026-09-27", "2026-09-29", null),
+    ).toEqual([
+      { productSlug: "glamping-deluxe", availableUnits: 2 },
+      { productSlug: "glamping-twin-bed", availableUnits: 4 },
+    ]);
+  });
+
+  it("uses authoritative selected-range availability over unrelated calendar days", () => {
+    expect(
+      inventoryForSelectedStay(days, "2026-09-27", "2026-09-29", [
+        { slug: "glamping-deluxe", availableQuantity: 2 },
+        { slug: "glamping-twin-bed", availableQuantity: 4 },
+      ]),
+    ).toEqual([
+      { productSlug: "glamping-deluxe", availableUnits: 2 },
+      { productSlug: "glamping-twin-bed", availableUnits: 4 },
+    ]);
+  });
+
+  it("does not let a lower calendar value clamp authoritative availability", () => {
+    const calendarDays = [
+      {
+        date: "2026-09-27",
+        inventory: [
+          { productSlug: "glamping-deluxe", availableUnits: 0 },
+          { productSlug: "glamping-twin-bed", availableUnits: 0 },
+        ],
+      },
+      {
+        date: "2026-09-28",
+        inventory: [
+          { productSlug: "glamping-deluxe", availableUnits: 0 },
+          { productSlug: "glamping-twin-bed", availableUnits: 0 },
+        ],
+      },
+    ];
+
+    expect(
+      inventoryForSelectedStay(calendarDays, "2026-09-27", "2026-09-29", [
+        { slug: "glamping-deluxe", availableQuantity: 2 },
+        { slug: "glamping-twin-bed", availableQuantity: 4 },
+      ]),
+    ).toEqual([
+      { productSlug: "glamping-deluxe", availableUnits: 2 },
+      { productSlug: "glamping-twin-bed", availableUnits: 4 },
     ]);
   });
 });
