@@ -232,7 +232,7 @@ export async function renderReportExcel(report: AdminReport): Promise<Uint8Array
     from: { row: headerRow.number, column: 1 },
     to: { row: headerRow.number + Math.max(reportRows.length, 1), column: columns.length },
   };
-  sheet.views = [{ state: "frozen", xSplit: 2, ySplit: headerRow.number }];
+  sheet.views = [{ state: "frozen", ySplit: headerRow.number, topLeftCell: `A${headerRow.number + 1}` }];
   sheet.eachRow((row) => {
     row.eachCell((cell) => {
       cell.border ??= {};
