@@ -35,9 +35,11 @@ network.
 5. Run `deploy/deploy.sh <40-character-git-sha>` as root. Migration and
    application images are deliberately built sequentially to avoid concurrent
    compiler memory spikes. The script applies committed Drizzle migrations,
-   never seeds or resets production, waits for container health, verifies all
-   public routes, and restores the previously running application images if
-   rollout or verification fails.
+   never seeds or resets production, requires existing containers to be
+   healthy before rollout, waits for each replacement container's healthcheck,
+   and restores the previously running application images if build, migration,
+   rollout, or container health verification fails. It does not call public
+   Cloudflare hostnames from the VPS.
 
 ## Continuous deployment
 
@@ -46,6 +48,9 @@ build gate for every push to `main`. Deployment starts only after that gate
 passes. The workflow synchronizes the tested commit to `/opt/booking-demo`
 while preserving `.env.production` and `secrets/`, then invokes the serial,
 rollback-aware deployment script.
+After the VPS reports successful container health, the GitHub Actions runner
+checks all five public hostnames with bounded retries. This keeps public
+Cloudflare ingress verification outside the VPS deployment precondition.
 
 Configure these GitHub Actions repository secrets:
 

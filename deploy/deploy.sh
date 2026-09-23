@@ -21,24 +21,26 @@ fi
 
 compose=(docker compose --env-file .env.production)
 services=(glamping jeep admin api)
+health_services=(glamping jeep admin api cloudflared)
 rollback_tag="rollback-${image_tag:0:12}"
 rollout_started=false
 declare -A previous_images=()
 
-wait_for_public_url() {
-  local url="$1"
-  curl --fail --silent --show-error --location \
-    --connect-timeout 10 --max-time 30 \
-    --retry 5 --retry-delay 5 --retry-all-errors \
-    --output /dev/null "$url"
-}
+verify_container_health() {
+  local service container_id health
+  for service in "${health_services[@]}"; do
+    container_id="$("${compose[@]}" ps -q "$service")"
+    if [[ -z "${container_id}" ]]; then
+      echo "Production service ${service} has no running container." >&2
+      return 1
+    fi
 
-verify_public_routes() {
-  wait_for_public_url "https://shakilagrup.com"
-  wait_for_public_url "https://glamping.shakilagrup.com"
-  wait_for_public_url "https://jeep.shakilagrup.com"
-  wait_for_public_url "https://admin.shakilagrup.com"
-  wait_for_public_url "https://api.shakilagrup.com/api/v1/health"
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container_id")"
+    if [[ "${health}" != healthy ]]; then
+      echo "Production service ${service} is ${health}; expected healthy." >&2
+      return 1
+    fi
+  done
 }
 
 rollback() {
@@ -54,27 +56,16 @@ rollback() {
       fi
     done
     "${compose[@]}" ps || true
-    verify_public_routes || echo "Rollback completed, but public verification still failed." >&2
+    verify_container_health || echo "Rollback completed, but container health verification failed." >&2
   fi
 
   exit "${exit_code}"
 }
 trap rollback ERR
 
-# Refuse to replace an already unhealthy production deployment.
-for service in "${services[@]}" cloudflared; do
-  container_id="$("${compose[@]}" ps -q "$service")"
-  if [[ -z "${container_id}" ]]; then
-    echo "Production service ${service} is not running; refusing deployment." >&2
-    exit 1
-  fi
-  health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")"
-  if [[ "${health}" != healthy ]]; then
-    echo "Production service ${service} is ${health}; refusing deployment." >&2
-    exit 1
-  fi
-done
-verify_public_routes
+# Refuse to replace an already unhealthy production deployment. These checks
+# stay on the private Compose network and never depend on Cloudflare ingress.
+verify_container_health
 
 # Keep a deploy-specific tag for every previously running app so rollback does
 # not depend on mutable image names.
@@ -102,7 +93,7 @@ for service in "${services[@]}"; do
 done
 
 "${compose[@]}" ps
-verify_public_routes
+verify_container_health
 
 trap - ERR
-echo "Deployment ${image_tag} is healthy."
+echo "Deployment ${image_tag} passed container health verification."
